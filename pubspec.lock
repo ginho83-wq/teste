@@ -33,6 +33,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.4"
+  args:
+    dependency: transitive
+    description:
+      name: args
+      sha256: d0481093c50b1da8910eb0bb301626d4d8eb7284aa739614d2b394ee09e3ea04
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.7.0"
   async:
     dependency: transitive
     description:
@@ -160,6 +168,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.7.1"
+  git:
+    dependency: transitive
+    description:
+      name: git
+      sha256: "46556ed28a3b25b1be9bcde0291d84a57b206a899f8b37bf7ab335d8fb640e84"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.2"
+  github_pages:
+    dependency: "direct dev"
+    description:
+      name: github_pages
+      sha256: "028e7300afec71262c325a5595eebbdbd44369f9911720b42a73e58e9daad5df"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
+  glob:
+    dependency: transitive
+    description:
+      name: glob
+      sha256: "218aeb56050c714f62a3182775320dfa04602b55074873e24e31bbd39bda96fb"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.0"
   go_router:
     dependency: "direct main"
     description:

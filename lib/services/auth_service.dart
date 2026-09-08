@@ -10,7 +10,6 @@ class AuthService {
   // ============================================================
   // USUÁRIO ATUAL
   // ============================================================
-
   User? get usuarioAtual {
     return _supabase.auth.currentUser;
   }
@@ -18,7 +17,6 @@ class AuthService {
   // ============================================================
   // EVENTOS DE AUTENTICAÇÃO
   // ============================================================
-
   Stream<AuthState> get eventosAuth {
     return _supabase.auth.onAuthStateChange;
   }
@@ -26,7 +24,6 @@ class AuthService {
   // ============================================================
   // LOGIN COM EMAIL E PALAVRA-PASSE
   // ============================================================
-
   Future<void> entrarComEmail({
     required String email,
     required String senha,
@@ -40,7 +37,6 @@ class AuthService {
   // ============================================================
   // CRIAR CONTA
   // ============================================================
-
   Future<void> criarConta({
     required String email,
     required String senha,
@@ -48,17 +44,16 @@ class AuthService {
     await _supabase.auth.signUp(
       email: email.trim(),
       password: senha,
-      emailRedirectTo: '${Uri.base.origin}/auth/callback',
+      emailRedirectTo:
+      'https://ginho83-wq.github.io/teste/auth/callback',
     );
   }
 
   // ============================================================
   // LOGIN COM GOOGLE
   // ============================================================
-
   Future<void> entrarComGoogle() async {
     final origin = Uri.base.origin;
-
     final redirectUrl = '$origin/auth/callback';
 
     await _supabase.auth.signInWithOAuth(
@@ -70,7 +65,6 @@ class AuthService {
   // ============================================================
   // SAIR
   // ============================================================
-
   Future<void> sair() async {
     await _supabase.auth.signOut();
   }
