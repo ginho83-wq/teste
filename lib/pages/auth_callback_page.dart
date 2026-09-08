@@ -14,6 +14,7 @@ class AuthCallbackPage extends StatefulWidget {
 
 class _AuthCallbackPageState
     extends State<AuthCallbackPage> {
+
   String? _erro;
 
   @override
@@ -32,19 +33,23 @@ class _AuthCallbackPageState
       final uri = Uri.base;
 
       // ========================================================
-      // OBTER O CODE DEVOLVIDO PELO SUPABASE
+      // OBTER O CODE DEVOLVIDO PELO GOOGLE/SUPABASE
       // ========================================================
 
       final code = uri.queryParameters['code'];
+
+      if (code == null || code.isEmpty) {
+        throw Exception(
+          'Código de autenticação não encontrado.',
+        );
+      }
 
       // ========================================================
       // TROCAR O CODE POR UMA SESSÃO
       // ========================================================
 
-      if (code != null && code.isNotEmpty) {
-        await Supabase.instance.client.auth
-            .exchangeCodeForSession(code);
-      }
+      await Supabase.instance.client.auth
+          .exchangeCodeForSession(code);
 
       // ========================================================
       // VERIFICAR SESSÃO
@@ -55,7 +60,7 @@ class _AuthCallbackPageState
 
       if (session == null) {
         throw Exception(
-          'Não foi possível criar a sessão após a confirmação do email.',
+          'Não foi possível criar a sessão.',
         );
       }
 
@@ -66,6 +71,7 @@ class _AuthCallbackPageState
       if (!mounted) return;
 
       context.go('/home');
+
     } catch (e) {
       if (!mounted) return;
 
@@ -81,15 +87,11 @@ class _AuthCallbackPageState
 
   @override
   Widget build(BuildContext context) {
-    // ==========================================================
-    // ERRO
-    // ==========================================================
-
     if (_erro != null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text(
-            'Erro de confirmação',
+            'Erro de autenticação',
           ),
         ),
         body: Center(
@@ -102,21 +104,27 @@ class _AuthCallbackPageState
                   Icons.error_outline,
                   size: 60,
                 ),
+
                 const SizedBox(height: 20),
+
                 const Text(
-                  'Não foi possível confirmar o email.',
+                  'Não foi possível concluir o login.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
                 const SizedBox(height: 12),
+
                 Text(
                   _erro!,
                   textAlign: TextAlign.center,
                 ),
+
                 const SizedBox(height: 24),
+
                 FilledButton(
                   onPressed: () {
                     context.go('/login');
@@ -132,19 +140,17 @@ class _AuthCallbackPageState
       );
     }
 
-    // ==========================================================
-    // PROCESSANDO
-    // ==========================================================
-
     return const Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(),
+
             SizedBox(height: 20),
+
             Text(
-              'A confirmar o email...',
+              'A entrar com Google...',
             ),
           ],
         ),
