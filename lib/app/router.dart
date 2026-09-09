@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,22 +8,23 @@ import '../pages/cadastro_page.dart';
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
 import '../pages/auth_callback_page.dart';
+import '../pages/termos_page.dart';
+import '../pages/politica_privacidade_page.dart';
+import '../pages/cookies_page.dart';
+import '../pages/contacto_page.dart';
 
 // ================================================================
 // ROUTER PRINCIPAL
 // ================================================================
-
 final GoRouter appRouter = GoRouter(
   // ==============================================================
   // PRIMEIRA TELA
   // ==============================================================
-
   initialLocation: '/login',
 
   // ==============================================================
   // ATUALIZA O ROUTER QUANDO O ESTADO DA AUTENTICAÇÃO MUDA
   // ==============================================================
-
   refreshListenable: GoRouterRefreshStream(
     Supabase.instance.client.auth.onAuthStateChange,
   ),
@@ -32,7 +32,6 @@ final GoRouter appRouter = GoRouter(
   // ==============================================================
   // CONTROLE DE ACESSO
   // ==============================================================
-
   redirect: (context, state) {
     final session =
         Supabase.instance.client.auth.currentSession;
@@ -41,12 +40,12 @@ final GoRouter appRouter = GoRouter(
 
     final estaNoLogin = location == '/login';
     final estaNoCadastro = location == '/cadastro';
-    final estaNoCallback = location == '/auth/callback';
+    final estaNoCallback =
+        location == '/auth/callback';
 
     // ============================================================
     // CALLBACK DO SUPABASE
     // ============================================================
-
     if (estaNoCallback) {
       return null;
     }
@@ -54,7 +53,6 @@ final GoRouter appRouter = GoRouter(
     // ============================================================
     // UTILIZADOR NÃO AUTENTICADO
     // ============================================================
-
     if (session == null) {
       if (estaNoLogin || estaNoCadastro) {
         return null;
@@ -66,7 +64,6 @@ final GoRouter appRouter = GoRouter(
     // ============================================================
     // UTILIZADOR AUTENTICADO
     // ============================================================
-
     if (estaNoLogin || estaNoCadastro) {
       return '/home';
     }
@@ -77,12 +74,10 @@ final GoRouter appRouter = GoRouter(
   // ==============================================================
   // ROTAS
   // ==============================================================
-
   routes: [
     // ============================================================
     // LOGIN
     // ============================================================
-
     GoRoute(
       path: '/login',
       builder: (context, state) {
@@ -93,7 +88,6 @@ final GoRouter appRouter = GoRouter(
     // ============================================================
     // CADASTRO
     // ============================================================
-
     GoRoute(
       path: '/cadastro',
       builder: (context, state) {
@@ -104,7 +98,6 @@ final GoRouter appRouter = GoRouter(
     // ============================================================
     // CALLBACK DO SUPABASE
     // ============================================================
-
     GoRoute(
       path: '/auth/callback',
       builder: (context, state) {
@@ -115,11 +108,50 @@ final GoRouter appRouter = GoRouter(
     // ============================================================
     // HOME
     // ============================================================
-
     GoRoute(
       path: '/home',
       builder: (context, state) {
         return const HomePage();
+      },
+    ),
+
+    // ============================================================
+    // TERMOS DE UTILIZAÇÃO
+    // ============================================================
+    GoRoute(
+      path: '/termos',
+      builder: (context, state) {
+        return const TermosPage();
+      },
+    ),
+
+    // ============================================================
+    // POLÍTICA DE PRIVACIDADE
+    // ============================================================
+    GoRoute(
+      path: '/politica-privacidade',
+      builder: (context, state) {
+        return const PoliticaPrivacidadePage();
+      },
+    ),
+
+    // ============================================================
+    // COOKIES
+    // ============================================================
+    GoRoute(
+      path: '/cookies',
+      builder: (context, state) {
+        return const CookiesPage();
+      },
+    ),
+
+    // ============================================================
+    // CONTACTO
+    // ============================================================
+    GoRoute(
+      path: '/contacto',
+      builder: (context, state) {
+        return const ContactoPage();
       },
     ),
   ],
@@ -128,7 +160,6 @@ final GoRouter appRouter = GoRouter(
 // ================================================================
 // ATUALIZAÇÃO DO GO_ROUTER
 // ================================================================
-
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     _subscription = stream.listen(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../services/auth_service.dart';
 
 class HomePage extends StatelessWidget {
@@ -14,7 +14,6 @@ class HomePage extends StatelessWidget {
     // ============================================================
     // FOTO DO USUÁRIO
     // ============================================================
-
     final fotoUrl =
         metadata?['avatar_url'] ??
             metadata?['picture'] ??
@@ -41,7 +40,6 @@ class HomePage extends StatelessWidget {
         // ========================================================
         // LOGO / NOME
         // ========================================================
-
         title: LayoutBuilder(
           builder: (context, constraints) {
             return Padding(
@@ -64,7 +62,6 @@ class HomePage extends StatelessWidget {
           // ======================================================
           // PUBLICAÇÕES GERAIS
           // ======================================================
-
           _HeaderButton(
             label: 'Publicações',
             onPressed: () {
@@ -77,7 +74,6 @@ class HomePage extends StatelessWidget {
           // ======================================================
           // PUBLICAR
           // ======================================================
-
           _HeaderButton(
             label: 'Publicar',
             onPressed: () {
@@ -89,7 +85,6 @@ class HomePage extends StatelessWidget {
           // ======================================================
           // SEPARADOR
           // ======================================================
-
           Container(
             width: 1,
             height: 28,
@@ -102,24 +97,20 @@ class HomePage extends StatelessWidget {
           // ======================================================
           // AVATAR / MENU DO USUÁRIO
           // ======================================================
-
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: PopupMenuButton<String>(
               tooltip: 'Conta',
               offset: const Offset(0, 10),
-
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-
               elevation: 8,
 
               onSelected: (valor) async {
                 // ------------------------------------------------
                 // MINHAS PUBLICAÇÕES
                 // ------------------------------------------------
-
                 if (valor == 'minhas_publicacoes') {
                   // TODO:
                   // navegar para a página das publicações
@@ -129,7 +120,6 @@ class HomePage extends StatelessWidget {
                 // ------------------------------------------------
                 // CONFIGURAÇÕES
                 // ------------------------------------------------
-
                 if (valor == 'configuracoes') {
                   // TODO: navegar para configurações
                 }
@@ -137,7 +127,6 @@ class HomePage extends StatelessWidget {
                 // ------------------------------------------------
                 // SAIR
                 // ------------------------------------------------
-
                 if (valor == 'sair') {
                   await AuthService.instancia.sair();
                 }
@@ -147,7 +136,6 @@ class HomePage extends StatelessWidget {
                 // ==================================================
                 // CABEÇALHO DO USUÁRIO
                 // ==================================================
-
                 PopupMenuItem<String>(
                   enabled: false,
                   child: Row(
@@ -211,7 +199,6 @@ class HomePage extends StatelessWidget {
                 // ==================================================
                 // MINHAS PUBLICAÇÕES
                 // ==================================================
-
                 const PopupMenuItem<String>(
                   value: 'minhas_publicacoes',
                   child: Row(
@@ -228,7 +215,6 @@ class HomePage extends StatelessWidget {
                 // ==================================================
                 // CONFIGURAÇÕES
                 // ==================================================
-
                 const PopupMenuItem<String>(
                   value: 'configuracoes',
                   child: Row(
@@ -247,7 +233,6 @@ class HomePage extends StatelessWidget {
                 // ==================================================
                 // SAIR
                 // ==================================================
-
                 const PopupMenuItem<String>(
                   value: 'sair',
                   child: Row(
@@ -263,7 +248,6 @@ class HomePage extends StatelessWidget {
               // ====================================================
               // AVATAR
               // ====================================================
-
               child: CircleAvatar(
                 radius: 20,
                 backgroundImage: temFoto
@@ -285,13 +269,10 @@ class HomePage extends StatelessWidget {
       // ==========================================================
       // HOME
       // ==========================================================
-
       body: LayoutBuilder(
         builder: (context, constraints) {
           final largura = constraints.maxWidth;
-
           final bool celular = largura < 600;
-
           final bool tablet =
               largura >= 600 && largura < 1000;
 
@@ -303,8 +284,7 @@ class HomePage extends StatelessWidget {
 
           final double larguraConteudo = largura > 1200
               ? 1100
-              : largura -
-              (margemHorizontal * 2);
+              : largura - (margemHorizontal * 2);
 
           return SingleChildScrollView(
             child: Center(
@@ -315,16 +295,13 @@ class HomePage extends StatelessWidget {
                     horizontal: celular ? 0 : 8,
                     vertical: 28,
                   ),
-
                   child: Column(
                     crossAxisAlignment:
                     CrossAxisAlignment.stretch,
-
                     children: [
                       // ==================================================
                       // ÁREA PRINCIPAL
                       // ==================================================
-
                       const SizedBox(height: 12),
 
                       Text(
@@ -356,26 +333,19 @@ class HomePage extends StatelessWidget {
                       // ==================================================
                       // PESQUISA
                       // ==================================================
-
                       Center(
                         child: ConstrainedBox(
                           constraints:
                           const BoxConstraints(
                             maxWidth: 720,
                           ),
-
                           child: TextField(
                             decoration: InputDecoration(
                               hintText:
                               'Pesquisar obras, autores ou palavras-chave...',
-
                               prefixIcon:
-                              const Icon(
-                                Icons.search,
-                              ),
-
-                              suffixIcon:
-                              IconButton(
+                              const Icon(Icons.search),
+                              suffixIcon: IconButton(
                                 tooltip: 'Pesquisar',
                                 onPressed: () {
                                   // TODO:
@@ -385,30 +355,21 @@ class HomePage extends StatelessWidget {
                                   Icons.arrow_forward,
                                 ),
                               ),
-
-                              border:
-                              OutlineInputBorder(
+                              border: OutlineInputBorder(
                                 borderRadius:
-                                BorderRadius.circular(
-                                  28,
-                                ),
+                                BorderRadius.circular(28),
                               ),
-
                               enabledBorder:
                               OutlineInputBorder(
                                 borderRadius:
-                                BorderRadius.circular(
-                                  28,
-                                ),
+                                BorderRadius.circular(28),
                                 borderSide: BorderSide(
                                   color: Theme.of(context)
                                       .dividerColor,
                                 ),
                               ),
-
                               contentPadding:
-                              const EdgeInsets
-                                  .symmetric(
+                              const EdgeInsets.symmetric(
                                 horizontal: 20,
                                 vertical: 16,
                               ),
@@ -422,34 +383,27 @@ class HomePage extends StatelessWidget {
                       // ==================================================
                       // CATEGORIAS
                       // ==================================================
-
                       SizedBox(
                         height: 40,
-
                         child: ListView(
                           scrollDirection:
                           Axis.horizontal,
-
                           children: const [
                             _CategoriaTexto(
                               titulo:
                               'Teses de Doutoramento',
                             ),
-
                             _CategoriaTexto(
                               titulo:
                               'Dissertações de Mestrado',
                             ),
-
                             _CategoriaTexto(
                               titulo: 'Monografias',
                             ),
-
                             _CategoriaTexto(
                               titulo:
                               'Artigos Científicos',
                             ),
-
                             _CategoriaTexto(
                               titulo: 'Literatura',
                             ),
@@ -462,10 +416,8 @@ class HomePage extends StatelessWidget {
                       // ==================================================
                       // PUBLICAÇÕES RECENTES
                       // ==================================================
-
                       const _SectionTitle(
-                        titulo:
-                        'Publicações recentes',
+                        titulo: 'Publicações recentes',
                       ),
 
                       const SizedBox(height: 16),
@@ -476,19 +428,14 @@ class HomePage extends StatelessWidget {
                             : tablet
                             ? 2
                             : 3,
-
                         crossAxisSpacing: 18,
                         mainAxisSpacing: 18,
-
                         childAspectRatio: celular
                             ? 2.3
                             : 1.55,
-
                         shrinkWrap: true,
-
                         physics:
                         const NeverScrollableScrollPhysics(),
-
                         children: const [
                           _ObraCard(
                             titulo:
@@ -497,7 +444,6 @@ class HomePage extends StatelessWidget {
                             categoria: 'Monografia',
                             ano: '2026',
                           ),
-
                           _ObraCard(
                             titulo:
                             'Título da segunda obra',
@@ -506,7 +452,6 @@ class HomePage extends StatelessWidget {
                             'Artigo Científico',
                             ano: '2026',
                           ),
-
                           _ObraCard(
                             titulo:
                             'Título da terceira obra',
@@ -523,7 +468,6 @@ class HomePage extends StatelessWidget {
                       // ==================================================
                       // CONSULTADOS RECENTEMENTE
                       // ==================================================
-
                       const _SectionTitle(
                         titulo:
                         'Consultados recentemente',
@@ -533,13 +477,11 @@ class HomePage extends StatelessWidget {
 
                       Container(
                         width: double.infinity,
-
                         padding:
                         const EdgeInsets.symmetric(
                           horizontal: 24,
                           vertical: 34,
                         ),
-
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: Theme.of(context)
@@ -548,7 +490,6 @@ class HomePage extends StatelessWidget {
                           borderRadius:
                           BorderRadius.circular(14),
                         ),
-
                         child: Column(
                           children: [
                             Icon(
@@ -564,8 +505,7 @@ class HomePage extends StatelessWidget {
 
                             const Text(
                               'As obras que consultar aparecerão aqui.',
-                              textAlign:
-                              TextAlign.center,
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontWeight:
                                 FontWeight.w500,
@@ -576,8 +516,7 @@ class HomePage extends StatelessWidget {
 
                             Text(
                               'O seu histórico de consultas será apresentado nesta área.',
-                              textAlign:
-                              TextAlign.center,
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Theme.of(context)
@@ -595,7 +534,6 @@ class HomePage extends StatelessWidget {
                       // ==================================================
                       // RODAPÉ
                       // ==================================================
-
                       const Divider(),
 
                       const SizedBox(height: 22),
@@ -603,32 +541,39 @@ class HomePage extends StatelessWidget {
                       Wrap(
                         alignment:
                         WrapAlignment.center,
-
                         spacing: 24,
                         runSpacing: 12,
-
-                        children: const [
-                          _FooterLink(
-                            titulo:
-                            'Sobre o Obra Livre',
-                          ),
-
-                          _FooterLink(
-                            titulo: 'Como publicar',
-                          ),
-
+                        children: [
                           _FooterLink(
                             titulo: 'Contacto',
+                            onTap: () {
+                              context.push('/contacto');
+                            },
                           ),
 
                           _FooterLink(
                             titulo:
                             'Termos de utilização',
+                            onTap: () {
+                              context.push('/termos');
+                            },
                           ),
 
                           _FooterLink(
                             titulo:
                             'Política de privacidade',
+                            onTap: () {
+                              context.push(
+                                '/politica-privacidade',
+                              );
+                            },
+                          ),
+
+                          _FooterLink(
+                            titulo: 'Cookies',
+                            onTap: () {
+                              context.push('/cookies');
+                            },
                           ),
                         ],
                       ),
@@ -663,7 +608,6 @@ class HomePage extends StatelessWidget {
 // ======================================================================
 // TÍTULO DE SEÇÃO
 // ======================================================================
-
 class _SectionTitle extends StatelessWidget {
   final String titulo;
 
@@ -687,7 +631,6 @@ class _SectionTitle extends StatelessWidget {
 // ======================================================================
 // CATEGORIA — APENAS TEXTO
 // ======================================================================
-
 class _CategoriaTexto extends StatelessWidget {
   final String titulo;
 
@@ -698,15 +641,12 @@ class _CategoriaTexto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-      const EdgeInsets.only(right: 28),
-
+      padding: const EdgeInsets.only(right: 28),
       child: InkWell(
         onTap: () {
           // TODO:
           // navegar para a categoria
         },
-
         child: Center(
           child: Text(
             titulo,
@@ -724,7 +664,6 @@ class _CategoriaTexto extends StatelessWidget {
 // ======================================================================
 // CARTÃO DA OBRA
 // ======================================================================
-
 class _ObraCard extends StatelessWidget {
   final String titulo;
   final String autor;
@@ -744,30 +683,22 @@ class _ObraCard extends StatelessWidget {
       elevation: 0,
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-
       shape: RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.circular(14),
-
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: Theme.of(context)
-              .dividerColor,
+          color: Theme.of(context).dividerColor,
         ),
       ),
-
       child: InkWell(
         onTap: () {
           // TODO:
           // abrir detalhes da obra
         },
-
         child: Padding(
           padding: const EdgeInsets.all(18),
-
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
-
             children: [
               Row(
                 children: [
@@ -784,7 +715,6 @@ class _ObraCard extends StatelessWidget {
                       maxLines: 1,
                       overflow:
                       TextOverflow.ellipsis,
-
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context)
@@ -799,8 +729,7 @@ class _ObraCard extends StatelessWidget {
                     ano,
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight:
-                      FontWeight.w600,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -811,13 +740,10 @@ class _ObraCard extends StatelessWidget {
               Text(
                 titulo,
                 maxLines: 2,
-                overflow:
-                TextOverflow.ellipsis,
-
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight:
-                  FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
 
@@ -826,9 +752,7 @@ class _ObraCard extends StatelessWidget {
               Text(
                 autor,
                 maxLines: 1,
-                overflow:
-                TextOverflow.ellipsis,
-
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context)
@@ -848,22 +772,19 @@ class _ObraCard extends StatelessWidget {
 // ======================================================================
 // LINK DO RODAPÉ
 // ======================================================================
-
 class _FooterLink extends StatelessWidget {
   final String titulo;
+  final VoidCallback onTap;
 
   const _FooterLink({
     required this.titulo,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        // TODO:
-        // navegar para a página correspondente
-      },
-
+      onTap: onTap,
       child: Text(
         titulo,
         style: TextStyle(
@@ -881,7 +802,6 @@ class _FooterLink extends StatelessWidget {
 // ======================================================================
 // BOTÃO DO CABEÇALHO — SEM QUADRO
 // ======================================================================
-
 class _HeaderButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
@@ -897,25 +817,18 @@ class _HeaderButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: onPressed,
-
       style: TextButton.styleFrom(
-        padding:
-        const EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           horizontal: 10,
           vertical: 10,
         ),
-
         minimumSize: Size.zero,
-
         tapTargetSize:
         MaterialTapTargetSize.shrinkWrap,
-
-        shape:
-        const RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
         ),
       ),
-
       child: Text(
         label,
         style: TextStyle(
