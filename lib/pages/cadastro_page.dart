@@ -8,36 +8,127 @@ class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
 
   @override
-  State<CadastroPage> createState() =>
-      _CadastroPageState();
+  State<CadastroPage> createState() => _CadastroPageState();
 }
 
-class _CadastroPageState
-    extends State<CadastroPage> {
+class _CadastroPageState extends State<CadastroPage> {
   final TextEditingController _emailController =
   TextEditingController();
 
   final TextEditingController _senhaController =
   TextEditingController();
 
-  final TextEditingController
-  _confirmarSenhaController =
+  final TextEditingController _confirmarSenhaController =
   TextEditingController();
 
   bool _carregando = false;
+  bool _mostrarSenha = false;
+  bool _mostrarConfirmarSenha = false;
+
+  // Listener guardado para poder ser removido corretamente no dispose.
+  late final VoidCallback _senhaListener;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _senhaListener = () {
+      setState(() {});
+    };
+
+    _senhaController.addListener(_senhaListener);
+  }
+
+  // ============================================================
+  // FORÇA DA PALAVRA-PASSE
+  // ============================================================
+
+  int _forcaSenha(String senha) {
+    if (senha.isEmpty) {
+      return 0;
+    }
+
+    int pontos = 0;
+
+    // Comprimento
+    if (senha.length >= 6) {
+      pontos++;
+    }
+
+    if (senha.length >= 8) {
+      pontos++;
+    }
+
+    // Letras minúsculas
+    if (RegExp(r'[a-z]').hasMatch(senha)) {
+      pontos++;
+    }
+
+    // Letras maiúsculas
+    if (RegExp(r'[A-Z]').hasMatch(senha)) {
+      pontos++;
+    }
+
+    // Números
+    if (RegExp(r'[0-9]').hasMatch(senha)) {
+      pontos++;
+    }
+
+    // Caracteres especiais
+    if (RegExp(r'[^A-Za-z0-9]').hasMatch(senha)) {
+      pontos++;
+    }
+
+    if (pontos <= 2) {
+      return 1;
+    }
+
+    if (pontos <= 4) {
+      return 2;
+    }
+
+    return 3;
+  }
+
+  String _textoForcaSenha(int forca) {
+    switch (forca) {
+      case 1:
+        return 'Fraca';
+      case 2:
+        return 'Média';
+      case 3:
+        return 'Forte';
+      default:
+        return '';
+    }
+  }
+
+  Color _corForcaSenha(int forca) {
+    switch (forca) {
+      case 1:
+        return Colors.red;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.green;
+      default:
+        return Colors.transparent;
+    }
+  }
+
+  // ============================================================
+  // CRIAR CONTA
+  // ============================================================
 
   Future<void> _criarConta() async {
     final email = _emailController.text.trim();
     final senha = _senhaController.text;
-    final confirmarSenha =
-        _confirmarSenhaController.text;
+    final confirmarSenha = _confirmarSenhaController.text;
 
     if (email.isEmpty ||
         senha.isEmpty ||
         confirmarSenha.isEmpty) {
-      _mostrarMensagem(
-        'Preencha todos os campos.',
-      );
+      _mostrarMensagem('Preencha todos os campos.');
       return;
     }
 
@@ -87,6 +178,10 @@ class _CadastroPageState
     }
   }
 
+  // ============================================================
+  // MENSAGEM
+  // ============================================================
+
   void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
@@ -99,126 +194,349 @@ class _CadastroPageState
 
   @override
   void dispose() {
+    _senhaController.removeListener(_senhaListener);
+
     _emailController.dispose();
     _senhaController.dispose();
     _confirmarSenhaController.dispose();
+
     super.dispose();
   }
+
+  // ============================================================
+  // CAMPO DE PALAVRA-PASSE
+  // ============================================================
+
+  Widget _campoSenha({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    required bool mostrarSenha,
+    required VoidCallback alternarVisibilidade,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: !mostrarSenha,
+      decoration: InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+
+        suffixIcon: IconButton(
+          tooltip: mostrarSenha
+              ? 'Ocultar palavra-passe'
+              : 'Mostrar palavra-passe',
+          icon: Icon(
+            mostrarSenha
+                ? Icons.visibility
+                : Icons.visibility_off,
+          ),
+          onPressed: alternarVisibilidade,
+        ),
+
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: Colors.grey.shade300,
+          ),
+        ),
+
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(
+            width: 1.5,
+          ),
+        ),
+
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BARRA DE FORÇA
+  // ============================================================
+
+  Widget _barraForcaSenha() {
+    final senha = _senhaController.text;
+    final forca = _forcaSenha(senha);
+
+    if (senha.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final cor = _corForcaSenha(forca);
+    final texto = _textoForcaSenha(forca);
+
+    double valor;
+
+    switch (forca) {
+      case 1:
+        valor = 1 / 3;
+        break;
+      case 2:
+        valor = 2 / 3;
+        break;
+      case 3:
+        valor = 1;
+        break;
+      default:
+        valor = 0;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 8,
+        left: 2,
+        right: 2,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: valor,
+                minHeight: 5,
+                backgroundColor: Colors.grey.shade200,
+                valueColor:
+                AlwaysStoppedAnimation<Color>(cor),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          Text(
+            texto,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: cor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Criar conta'),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 420,
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 40),
+      backgroundColor: Colors.white,
 
-                const Icon(
-                  Icons.person_add_outlined,
-                  size: 70,
-                ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ==================================================
+            // CABEÇALHO
+            // ==================================================
 
-                const SizedBox(height: 20),
-
-                const Text(
-                  'Criar conta',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 20,
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Teste',
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                ],
+              ),
+            ),
 
-                const SizedBox(height: 30),
+            // ==================================================
+            // CONTEÚDO
+            // ==================================================
 
-                TextField(
-                  controller: _emailController,
-                  keyboardType:
-                  TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon:
-                    Icon(Icons.email_outlined),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 420,
                   ),
-                ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                    ),
+                    child: Column(
+                      mainAxisAlignment:
+                      MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Criar a sua conta',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
 
-                const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
-                TextField(
-                  controller: _senhaController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Palavra-passe',
-                    border: OutlineInputBorder(),
-                    prefixIcon:
-                    Icon(Icons.lock_outline),
-                  ),
-                ),
+                        Text(
+                          'Crie uma conta para começar a utilizar o Teste.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
 
-                const SizedBox(height: 16),
+                        const SizedBox(height: 32),
 
-                TextField(
-                  controller:
-                  _confirmarSenhaController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText:
-                    'Confirmar palavra-passe',
-                    border: OutlineInputBorder(),
-                    prefixIcon:
-                    Icon(Icons.lock_outline),
-                  ),
-                ),
+                        // ======================================
+                        // EMAIL
+                        // ======================================
 
-                const SizedBox(height: 20),
+                        TextField(
+                          controller: _emailController,
+                          keyboardType:
+                          TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            hintText: 'Digite o seu email',
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton(
-                    onPressed: _carregando
-                        ? null
-                        : _criarConta,
-                    child: _carregando
-                        ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child:
-                      CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                        : const Text(
-                      'Criar conta',
+                            border: OutlineInputBorder(
+                              borderRadius:
+                              BorderRadius.circular(8),
+                            ),
+
+                            enabledBorder:
+                            OutlineInputBorder(
+                              borderRadius:
+                              BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+
+                            focusedBorder:
+                            OutlineInputBorder(
+                              borderRadius:
+                              BorderRadius.circular(8),
+                              borderSide:
+                              const BorderSide(
+                                width: 1.5,
+                              ),
+                            ),
+
+                            contentPadding:
+                            const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ======================================
+                        // PALAVRA-PASSE
+                        // ======================================
+
+                        _campoSenha(
+                          controller: _senhaController,
+                          labelText: 'Palavra-passe',
+                          hintText:
+                          'Digite a sua palavra-passe',
+                          mostrarSenha: _mostrarSenha,
+                          alternarVisibilidade: () {
+                            setState(() {
+                              _mostrarSenha =
+                              !_mostrarSenha;
+                            });
+                          },
+                        ),
+
+                        // Barra de força
+                        _barraForcaSenha(),
+
+                        const SizedBox(height: 16),
+
+                        // ======================================
+                        // CONFIRMAR PALAVRA-PASSE
+                        // ======================================
+
+                        _campoSenha(
+                          controller:
+                          _confirmarSenhaController,
+                          labelText:
+                          'Confirmar palavra-passe',
+                          hintText:
+                          'Repita a sua palavra-passe',
+                          mostrarSenha:
+                          _mostrarConfirmarSenha,
+                          alternarVisibilidade: () {
+                            setState(() {
+                              _mostrarConfirmarSenha =
+                              !_mostrarConfirmarSenha;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ======================================
+                        // BOTÃO CRIAR CONTA
+                        // ======================================
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: FilledButton(
+                            onPressed: _carregando
+                                ? null
+                                : _criarConta,
+                            style:
+                            FilledButton.styleFrom(
+                              shape:
+                              RoundedRectangleBorder(
+                                borderRadius:
+                                BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: _carregando
+                                ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child:
+                              CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : const Text(
+                              'Criar conta',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight:
+                                FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 12),
-
-                TextButton(
-                  onPressed: _carregando
-                      ? null
-                      : () {
-                    context.go('/login');
-                  },
-                  child: const Text(
-                    'Já tenho uma conta',
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

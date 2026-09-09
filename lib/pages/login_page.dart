@@ -1,29 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() =>
-      _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState
-    extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> {
   // ============================================================
   // CONTROLADORES
   // ============================================================
 
-  final TextEditingController
-  _emailController =
+  final TextEditingController _emailController =
   TextEditingController();
 
-  final TextEditingController
-  _senhaController =
+  final TextEditingController _senhaController =
   TextEditingController();
 
   // ============================================================
@@ -31,7 +26,6 @@ class _LoginPageState
   // ============================================================
 
   bool _carregando = false;
-
   bool _mostrarSenha = false;
 
   // ============================================================
@@ -39,18 +33,13 @@ class _LoginPageState
   // ============================================================
 
   Future<void> _entrar() async {
-    final email =
-    _emailController.text.trim();
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text;
 
-    final senha =
-        _senhaController.text;
-
-    if (email.isEmpty ||
-        senha.isEmpty) {
+    if (email.isEmpty || senha.isEmpty) {
       _mostrarMensagem(
         'Preencha o email e a palavra-passe.',
       );
-
       return;
     }
 
@@ -59,27 +48,18 @@ class _LoginPageState
     });
 
     try {
-      await AuthService.instancia
-          .entrarComEmail(
+      await AuthService.instancia.entrarComEmail(
         email: email,
         senha: senha,
       );
 
       if (!mounted) return;
 
-      // ========================================================
-      // LOGIN CONCLUÍDO
-      // ========================================================
-
       context.go('/home');
     } on AuthException catch (e) {
-      _mostrarMensagem(
-        e.message,
-      );
+      _mostrarMensagem(e.message);
     } catch (e) {
-      _mostrarMensagem(
-        'Erro ao entrar: $e',
-      );
+      _mostrarMensagem('Erro ao entrar: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -99,20 +79,12 @@ class _LoginPageState
     });
 
     try {
-      await AuthService.instancia
-          .entrarComGoogle();
+      await AuthService.instancia.entrarComGoogle();
 
-      // ========================================================
-      // NÃO FAZEMOS context.go('/home') AQUI.
-      //
-      // O Google abre a autenticação.
-      // Depois retorna para /auth/callback.
-      // O GoRouter detecta a sessão e manda para /home.
-      // ========================================================
+      // O Google redireciona para /auth/callback.
+      // O GoRouter trata a sessão e encaminha para /home.
     } on AuthException catch (e) {
-      _mostrarMensagem(
-        e.message,
-      );
+      _mostrarMensagem(e.message);
 
       if (mounted) {
         setState(() {
@@ -136,13 +108,10 @@ class _LoginPageState
   // MENSAGEM
   // ============================================================
 
-  void _mostrarMensagem(
-      String mensagem,
-      ) {
+  void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensagem),
       ),
@@ -157,7 +126,6 @@ class _LoginPageState
   void dispose() {
     _emailController.dispose();
     _senhaController.dispose();
-
     super.dispose();
   }
 
@@ -166,243 +134,205 @@ class _LoginPageState
   // ============================================================
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Entrar',
-        ),
-      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // ==================================================
+            // NOME DO WEB — CANTO SUPERIOR ESQUERDO
+            // ==================================================
 
-      body: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 420,
-          ),
-
-          child:
-          SingleChildScrollView(
-            padding:
-            const EdgeInsets.all(24),
-
-            child: Column(
-              mainAxisAlignment:
-              MainAxisAlignment.center,
-
-              children: [
-                const SizedBox(
-                  height: 60,
+            Positioned(
+              top: 16,
+              left: 20,
+              child: Text(
+                'Teste',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface,
                 ),
-
-                // ==================================================
-                // ÍCONE
-                // ==================================================
-
-                const Icon(
-                  Icons.lock_outline,
-                  size: 70,
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                // ==================================================
-                // TÍTULO
-                // ==================================================
-
-                const Text(
-                  'Entrar',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight:
-                    FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 30,
-                ),
-
-                // ==================================================
-                // EMAIL
-                // ==================================================
-
-                TextField(
-                  controller:
-                  _emailController,
-
-                  keyboardType:
-                  TextInputType
-                      .emailAddress,
-
-                  decoration:
-                  const InputDecoration(
-                    labelText:
-                    'Email',
-
-                    border:
-                    OutlineInputBorder(),
-
-                    prefixIcon:
-                    Icon(
-                      Icons
-                          .email_outlined,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 16,
-                ),
-
-                // ==================================================
-                // PALAVRA-PASSE
-                // ==================================================
-
-                TextField(
-                  controller:
-                  _senhaController,
-
-                  obscureText:
-                  !_mostrarSenha,
-
-                  decoration:
-                  InputDecoration(
-                    labelText:
-                    'Palavra-passe',
-
-                    border:
-                    const OutlineInputBorder(),
-
-                    prefixIcon:
-                    const Icon(
-                      Icons
-                          .lock_outline,
-                    ),
-
-                    suffixIcon:
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _mostrarSenha =
-                          !_mostrarSenha;
-                        });
-                      },
-
-                      icon: Icon(
-                        _mostrarSenha
-                            ? Icons
-                            .visibility_off
-                            : Icons
-                            .visibility,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                // ==================================================
-                // BOTÃO ENTRAR
-                // ==================================================
-
-                SizedBox(
-                  width:
-                  double.infinity,
-
-                  height: 48,
-
-                  child:
-                  FilledButton(
-                    onPressed:
-                    _carregando
-                        ? null
-                        : _entrar,
-
-                    child: _carregando
-                        ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child:
-                      CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                        : const Text(
-                      'Entrar',
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 12,
-                ),
-
-                // ==================================================
-                // BOTÃO GOOGLE
-                // ==================================================
-
-                SizedBox(
-                  width:
-                  double.infinity,
-
-                  height: 48,
-
-                  child:
-                  OutlinedButton.icon(
-                    onPressed:
-                    _carregando
-                        ? null
-                        : _entrarGoogle,
-
-                    icon:
-                    const Icon(
-                      Icons.login,
-                    ),
-
-                    label:
-                    const Text(
-                      'Continuar com Google',
-                    ),
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 20,
-                ),
-
-                // ==================================================
-                // CADASTRO
-                // ==================================================
-
-                TextButton(
-                  onPressed:
-                  _carregando
-                      ? null
-                      : () {
-                    context.go(
-                      '/cadastro',
-                    );
-                  },
-
-                  child:
-                  const Text(
-                    'Criar uma conta',
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 30,
-                ),
-              ],
+              ),
             ),
-          ),
+
+            // ==================================================
+            // CRIAR CONTA — CANTO SUPERIOR DIREITO
+            // ==================================================
+
+            Positioned(
+              top: 16,
+              right: 20,
+              child: TextButton(
+                onPressed: _carregando
+                    ? null
+                    : () {
+                  context.go('/cadastro');
+                },
+                child: const Text(
+                  'Criar conta',
+                ),
+              ),
+            ),
+
+            // ==================================================
+            // FORMULÁRIO CENTRAL
+            // ==================================================
+
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 420,
+                ),
+                child: ScrollConfiguration(
+                  behavior:
+                  ScrollConfiguration.of(context).copyWith(
+                    scrollbars: false,
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // ==================================================
+                        // EMAIL
+                        // ==================================================
+
+                        TextField(
+                          controller: _emailController,
+                          keyboardType:
+                          TextInputType.emailAddress,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(
+                              Icons.email_outlined,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ==================================================
+                        // PALAVRA-PASSE
+                        // ==================================================
+
+                        TextField(
+                          controller: _senhaController,
+                          obscureText: !_mostrarSenha,
+                          decoration: InputDecoration(
+                            labelText: 'Palavra-passe',
+                            border:
+                            const OutlineInputBorder(),
+                            prefixIcon: const Icon(
+                              Icons.lock_outline,
+                            ),
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _mostrarSenha =
+                                  !_mostrarSenha;
+                                });
+                              },
+                              icon: Icon(
+                                _mostrarSenha
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // ==================================================
+                        // BOTÃO ENTRAR
+                        // ==================================================
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: FilledButton(
+                            onPressed: _carregando
+                                ? null
+                                : _entrar,
+                            child: _carregando
+                                ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child:
+                              CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : const Text(
+                              'Entrar',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // ==================================================
+                        // SEPARADOR
+                        // ==================================================
+
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Divider(),
+                            ),
+                            Padding(
+                              padding:
+                              const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Text(
+                                'ou',
+                                style: TextStyle(
+                                  color:
+                                  Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              child: Divider(),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // ==================================================
+                        // GOOGLE
+                        // ==================================================
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: _carregando
+                                ? null
+                                : _entrarGoogle,
+                            icon: const Icon(
+                              Icons.login,
+                            ),
+                            label: const Text(
+                              'Continuar com Google',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 30),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
