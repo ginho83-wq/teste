@@ -70,7 +70,7 @@ class _AuthCallbackPageState
 
       if (!mounted) return;
 
-      context.go('/home');
+      context.go('/');
 
     } catch (e) {
       if (!mounted) return;

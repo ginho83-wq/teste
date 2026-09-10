@@ -9,21 +9,17 @@ class AdminObrasPage extends StatefulWidget {
   });
 
   @override
-  State<AdminObrasPage> createState() =>
-      _AdminObrasPageState();
+  State<AdminObrasPage> createState() => _AdminObrasPageState();
 }
 
-class _AdminObrasPageState
-    extends State<AdminObrasPage> {
-  final AdminService _admin =
-      AdminService.instancia;
+class _AdminObrasPageState extends State<AdminObrasPage> {
+  final AdminService _admin = AdminService.instancia;
 
   List<ObraPendente> _obras = [];
 
   bool _carregando = true;
-  bool _processando = false;
-
   String? _erro;
+  String? _processandoId;
 
   @override
   void initState() {
@@ -32,7 +28,7 @@ class _AdminObrasPageState
   }
 
   // ============================================================
-  // CARREGAR OBRAS
+  // CARREGAR
   // ============================================================
 
   Future<void> _carregar() async {
@@ -44,24 +40,19 @@ class _AdminObrasPageState
     });
 
     try {
-      final obras =
-      await _admin.carregarObrasPendentes();
+      final obras = await _admin.carregarObrasPendentes();
 
       if (!mounted) return;
 
       setState(() {
         _obras = obras;
+        _carregando = false;
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _erro = _mensagemErro(e);
-      });
-    } finally {
-      if (!mounted) return;
-
-      setState(() {
         _carregando = false;
       });
     }
@@ -71,57 +62,56 @@ class _AdminObrasPageState
   // APROVAR
   // ============================================================
 
-  Future<void> _aprovar(
-      ObraPendente obra,
-      ) async {
-    if (obra.id == null) {
+  Future<void> _aprovar(ObraPendente obra) async {
+    final id = obra.id;
+
+    if (id == null || id.isEmpty) {
+      _mostrarErro('ID da obra inválido.');
       return;
     }
 
-    final confirmar =
-    await _mostrarConfirmacao(
-      titulo: 'Aprovar obra',
+    final confirmar = await _confirmar(
+      titulo: 'Aprovar publicação',
       mensagem:
-      'Deseja aprovar a obra "${obra.titulo}"?',
+      'Deseja aprovar esta obra e disponibilizá-la publicamente?',
       textoConfirmar: 'Aprovar',
     );
 
-    if (confirmar != true) {
-      return;
-    }
+    if (!confirmar) return;
+
+    if (!mounted) return;
 
     setState(() {
-      _processando = true;
+      _processandoId = id;
+      _erro = null;
     });
 
     try {
-      await _admin.aprovarObra(
-        obra.id!,
-      );
+      await _admin.aprovarObra(id);
 
       if (!mounted) return;
+
+      setState(() {
+        _obras.removeWhere((item) => item.id == id);
+        _processandoId = null;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Obra aprovada com sucesso.',
+            'Obra aprovada e publicada com sucesso.',
           ),
         ),
       );
-
-      await _carregar();
     } catch (e) {
       if (!mounted) return;
 
-      _mostrarErro(
-        _mensagemErro(e),
-      );
-    } finally {
-      if (!mounted) return;
-
       setState(() {
-        _processando = false;
+        _processandoId = null;
+        _erro = _mensagemErro(e);
       });
+
+      _mostrarErro(_mensagemErro(e));
     }
   }
 
@@ -129,57 +119,56 @@ class _AdminObrasPageState
   // REJEITAR
   // ============================================================
 
-  Future<void> _rejeitar(
-      ObraPendente obra,
-      ) async {
-    if (obra.id == null) {
+  Future<void> _rejeitar(ObraPendente obra) async {
+    final id = obra.id;
+
+    if (id == null || id.isEmpty) {
+      _mostrarErro('ID da obra inválido.');
       return;
     }
 
-    final confirmar =
-    await _mostrarConfirmacao(
-      titulo: 'Rejeitar obra',
+    final confirmar = await _confirmar(
+      titulo: 'Rejeitar publicação',
       mensagem:
-      'Deseja rejeitar a obra "${obra.titulo}"?',
+      'Deseja rejeitar esta obra? O documento pendente será removido.',
       textoConfirmar: 'Rejeitar',
     );
 
-    if (confirmar != true) {
-      return;
-    }
+    if (!confirmar) return;
+
+    if (!mounted) return;
 
     setState(() {
-      _processando = true;
+      _processandoId = id;
+      _erro = null;
     });
 
     try {
-      await _admin.rejeitarObra(
-        obra.id!,
-      );
+      await _admin.rejeitarObra(id);
 
       if (!mounted) return;
+
+      setState(() {
+        _obras.removeWhere((item) => item.id == id);
+        _processandoId = null;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Obra rejeitada.',
+            'Obra rejeitada com sucesso.',
           ),
         ),
       );
-
-      await _carregar();
     } catch (e) {
       if (!mounted) return;
 
-      _mostrarErro(
-        _mensagemErro(e),
-      );
-    } finally {
-      if (!mounted) return;
-
       setState(() {
-        _processando = false;
+        _processandoId = null;
+        _erro = _mensagemErro(e);
       });
+
+      _mostrarErro(_mensagemErro(e));
     }
   }
 
@@ -187,57 +176,56 @@ class _AdminObrasPageState
   // EXCLUIR
   // ============================================================
 
-  Future<void> _excluir(
-      ObraPendente obra,
-      ) async {
-    if (obra.id == null) {
+  Future<void> _excluir(ObraPendente obra) async {
+    final id = obra.id;
+
+    if (id == null || id.isEmpty) {
+      _mostrarErro('ID da obra inválido.');
       return;
     }
 
-    final confirmar =
-    await _mostrarConfirmacao(
-      titulo: 'Excluir obra',
+    final confirmar = await _confirmar(
+      titulo: 'Excluir publicação',
       mensagem:
-      'Esta ação irá remover a obra e o documento pendente. Deseja continuar?',
+      'Deseja excluir definitivamente esta publicação pendente?',
       textoConfirmar: 'Excluir',
     );
 
-    if (confirmar != true) {
-      return;
-    }
+    if (!confirmar) return;
+
+    if (!mounted) return;
 
     setState(() {
-      _processando = true;
+      _processandoId = id;
+      _erro = null;
     });
 
     try {
-      await _admin.excluirObra(
-        obra.id!,
-      );
+      await _admin.excluirObra(id);
 
       if (!mounted) return;
+
+      setState(() {
+        _obras.removeWhere((item) => item.id == id);
+        _processandoId = null;
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Obra excluída com sucesso.',
+            'Publicação excluída com sucesso.',
           ),
         ),
       );
-
-      await _carregar();
     } catch (e) {
       if (!mounted) return;
 
-      _mostrarErro(
-        _mensagemErro(e),
-      );
-    } finally {
-      if (!mounted) return;
-
       setState(() {
-        _processando = false;
+        _processandoId = null;
+        _erro = _mensagemErro(e);
       });
+
+      _mostrarErro(_mensagemErro(e));
     }
   }
 
@@ -245,12 +233,12 @@ class _AdminObrasPageState
   // CONFIRMAÇÃO
   // ============================================================
 
-  Future<bool?> _mostrarConfirmacao({
+  Future<bool> _confirmar({
     required String titulo,
     required String mensagem,
     required String textoConfirmar,
-  }) {
-    return showDialog<bool>(
+  }) async {
+    final resultado = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -263,7 +251,7 @@ class _AdminObrasPageState
               },
               child: const Text('Cancelar'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
@@ -273,13 +261,27 @@ class _AdminObrasPageState
         );
       },
     );
+
+    return resultado ?? false;
   }
 
   // ============================================================
-  // MOSTRAR ERRO
+  // MENSAGEM DE ERRO
   // ============================================================
 
+  String _mensagemErro(Object erro) {
+    final mensagem = erro.toString();
+
+    if (mensagem.startsWith('Exception: ')) {
+      return mensagem.substring('Exception: '.length);
+    }
+
+    return mensagem;
+  }
+
   void _mostrarErro(String mensagem) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensagem),
@@ -288,41 +290,21 @@ class _AdminObrasPageState
   }
 
   // ============================================================
-  // FORMATAR DATA
+  // DATA
   // ============================================================
 
-  String _formatarData(
-      DateTime? data,
-      ) {
+  String _formatarData(DateTime? data) {
     if (data == null) {
-      return 'Data não disponível';
+      return '—';
     }
 
-    final dia =
-    data.day.toString().padLeft(2, '0');
+    final local = data.toLocal();
 
-    final mes =
-    data.month.toString().padLeft(2, '0');
-
-    final ano =
-    data.year.toString();
+    final dia = local.day.toString().padLeft(2, '0');
+    final mes = local.month.toString().padLeft(2, '0');
+    final ano = local.year.toString();
 
     return '$dia/$mes/$ano';
-  }
-
-  // ============================================================
-  // MENSAGEM DE ERRO
-  // ============================================================
-
-  String _mensagemErro(Object erro) {
-    final mensagem =
-    erro.toString();
-
-    if (mensagem.startsWith('Exception: ')) {
-      return mensagem.substring(11);
-    }
-
-    return mensagem;
   }
 
   // ============================================================
@@ -333,259 +315,289 @@ class _AdminObrasPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Administração de Obras',
-        ),
+        title: const Text('Administração'),
         actions: [
           IconButton(
             tooltip: 'Atualizar',
-            onPressed:
-            _carregando || _processando
-                ? null
-                : _carregar,
-            icon: const Icon(
-              Icons.refresh,
-            ),
+            onPressed: _carregando ? null : _carregar,
+            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: _construirConteudo(),
+      body: _buildBody(),
     );
   }
 
-  // ============================================================
-  // CONTEÚDO
-  // ============================================================
-
-  Widget _construirConteudo() {
+  Widget _buildBody() {
     if (_carregando) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    if (_erro != null) {
+    if (_erro != null && _obras.isEmpty) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _erro!,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed:
-                _processando
-                    ? null
-                    : _carregar,
-                child: const Text(
-                  'Tentar novamente',
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 500,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text(
+                  _erro!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _carregar,
+                  child: const Text('Tentar novamente'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     if (_obras.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Não existem obras pendentes.',
-            textAlign: TextAlign.center,
-          ),
+      return RefreshIndicator(
+        onRefresh: _carregar,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 160),
+            Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 56,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Não existem publicações pendentes.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return Stack(
-      children: [
-        RefreshIndicator(
-          onRefresh: _carregar,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _obras.length,
-            itemBuilder: (
-                context,
-                index,
-                ) {
-              return _construirCard(
-                _obras[index],
-              );
-            },
-          ),
-        ),
-
-        if (_processando)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black12,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+    return RefreshIndicator(
+      onRefresh: _carregar,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          if (_erro != null) ...[
+            _MensagemErroWidget(
+              mensagem: _erro!,
+              onFechar: () {
+                setState(() {
+                  _erro = null;
+                });
+              },
             ),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            'Publicações pendentes',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            '${_obras.length} publicação(ões) aguardando análise.',
+          ),
+          const SizedBox(height: 24),
+          ..._obras.map(_buildObraCard),
+        ],
+      ),
     );
   }
 
   // ============================================================
-  // CARD DA OBRA
+  // CARD
   // ============================================================
 
-  Widget _construirCard(
-      ObraPendente obra,
-      ) {
+  Widget _buildObraCard(ObraPendente obra) {
+    final id = obra.id;
+    final processando = id != null && _processandoId == id;
+
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               obra.titulo,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            _InfoLinha(
+              icone: Icons.person_outline,
+              texto: obra.autor,
+            ),
+            const SizedBox(height: 6),
+            _InfoLinha(
+              icone: Icons.category_outlined,
+              texto: obra.categoria,
+            ),
+            if (obra.anoObra != null) ...[
+              const SizedBox(height: 6),
+              _InfoLinha(
+                icone: Icons.calendar_today_outlined,
+                texto: obra.anoObra.toString(),
               ),
+            ],
+            const SizedBox(height: 6),
+            _InfoLinha(
+              icone: Icons.schedule_outlined,
+              texto:
+              'Enviada em ${_formatarData(obra.dataPublicacao)}',
             ),
-
-            const SizedBox(height: 10),
-
-            _linha(
-              'Autor',
-              obra.autor,
-            ),
-
-            _linha(
-              'Categoria',
-              obra.categoria,
-            ),
-
-            if (obra.anoObra != null)
-              _linha(
-                'Ano',
-                obra.anoObra.toString(),
-              ),
-
-            _linha(
-              'Data',
-              _formatarData(
-                obra.dataPublicacao,
-              ),
-            ),
-
             if (obra.descricao != null &&
-                obra.descricao!.trim().isNotEmpty)
-              Padding(
-                padding:
-                const EdgeInsets.only(
-                  top: 10,
+                obra.descricao!.trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                obra.descricao!,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            const SizedBox(height: 20),
+            if (processando)
+              const Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                  ),
                 ),
-                child: Text(
-                  obra.descricao!,
-                  maxLines: 3,
-                  overflow:
-                  TextOverflow.ellipsis,
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => _rejeitar(obra),
+                    child: const Text('Rejeitar'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => _excluir(obra),
+                    child: const Text('Excluir'),
+                  ),
+                  FilledButton(
+                    onPressed: () => _aprovar(obra),
+                    child: const Text('Aprovar'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// INFO LINHA
+// ============================================================
+
+class _InfoLinha extends StatelessWidget {
+  final IconData icone;
+  final String texto;
+
+  const _InfoLinha({
+    required this.icone,
+    required this.texto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icone,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(texto),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// MENSAGEM DE ERRO
+// ============================================================
+
+class _MensagemErroWidget extends StatelessWidget {
+  final String mensagem;
+  final VoidCallback onFechar;
+
+  const _MensagemErroWidget({
+    required this.mensagem,
+    required this.onFechar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context)
+          .colorScheme
+          .errorContainer,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onErrorContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                mensagem,
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onErrorContainer,
                 ),
               ),
-
-            const SizedBox(height: 16),
-
-            Row(
-              mainAxisAlignment:
-              MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed:
-                  _processando
-                      ? null
-                      : () => _rejeitar(
-                    obra,
-                  ),
-                  child: const Text(
-                    'Rejeitar',
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                TextButton(
-                  onPressed:
-                  _processando
-                      ? null
-                      : () => _excluir(
-                    obra,
-                  ),
-                  child: const Text(
-                    'Excluir',
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                ElevatedButton(
-                  onPressed:
-                  _processando
-                      ? null
-                      : () => _aprovar(
-                    obra,
-                  ),
-                  child: const Text(
-                    'Aprovar',
-                  ),
-                ),
-              ],
+            ),
+            IconButton(
+              onPressed: onFechar,
+              icon: const Icon(Icons.close),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onErrorContainer,
             ),
           ],
         ),
       ),
     );
   }
-
-  // ============================================================
-  // LINHA DE INFORMAÇÃO
-  // ============================================================
-
-  Widget _linha(
-      String titulo,
-      String valor,
-      ) {
-    return Padding(
-      padding:
-      const EdgeInsets.only(
-        bottom: 4,
-      ),
-      child: Row(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$titulo: ',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Expanded(
-            child: Text(valor),
-          ),
-        ],
-      ),
-    );
-  }
 }
-

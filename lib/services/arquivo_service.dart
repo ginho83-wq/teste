@@ -3,13 +3,13 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 
 class ArquivoSelecionado {
-  final Uint8List bytes;
   final String nome;
+  final Uint8List bytes;
   final int tamanho;
 
   const ArquivoSelecionado({
-    required this.bytes,
     required this.nome,
+    required this.bytes,
     required this.tamanho,
   });
 
@@ -21,78 +21,76 @@ class ArquivoSelecionado {
 class ArquivoService {
   ArquivoService._();
 
-  static final ArquivoService instancia =
-      ArquivoService._();
-
-  // ============================================================
-  // LIMITE DO ARQUIVO
-  // ============================================================
-
-  static const int tamanhoMaximoMb = 50;
-
-  static const int tamanhoMaximoBytes =
-      tamanhoMaximoMb * 1024 * 1024;
-
-  // ============================================================
-  // SELECIONAR PDF
-  // ============================================================
+  static final ArquivoService instancia = ArquivoService._();
 
   Future<ArquivoSelecionado?> selecionarPdf() async {
-    final resultado = await FilePicker.platform.pickFiles(
+    final resultado = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      withData: true,
       allowMultiple: false,
+      withData: true,
     );
 
-    // Utilizador cancelou a seleção.
-    if (resultado == null ||
-        resultado.files.isEmpty) {
+    if (resultado == null || resultado.files.isEmpty) {
       return null;
     }
 
     final arquivo = resultado.files.first;
 
-    // ----------------------------------------------------------
-    // VERIFICAR EXTENSÃO
-    // ----------------------------------------------------------
-
-    final nome = arquivo.name.trim();
-
-    if (!nome.toLowerCase().endsWith('.pdf')) {
+    if (arquivo.bytes == null || arquivo.bytes!.isEmpty) {
       throw Exception(
-        'Apenas arquivos PDF são permitidos.',
+        'Não foi possível ler o conteúdo do arquivo selecionado.',
       );
     }
 
-    // ----------------------------------------------------------
-    // VERIFICAR TAMANHO
-    // ----------------------------------------------------------
+    final nome = arquivo.name;
 
-    if (arquivo.size > tamanhoMaximoBytes) {
+    if (!ehPdf(nome)) {
       throw Exception(
-        'O PDF não pode ultrapassar '
-        '$tamanhoMaximoMb MB.',
-      );
-    }
-
-    // ----------------------------------------------------------
-    // OBTER BYTES
-    // ----------------------------------------------------------
-
-    final bytes = arquivo.bytes;
-
-    if (bytes == null || bytes.isEmpty) {
-      throw Exception(
-        'Não foi possível ler o arquivo selecionado.',
+        'Selecione apenas arquivos no formato PDF.',
       );
     }
 
     return ArquivoSelecionado(
-      bytes: bytes,
       nome: nome,
+      bytes: arquivo.bytes!,
       tamanho: arquivo.size,
     );
+  }
+
+  bool ehPdf(String nomeArquivo) {
+    return nomeArquivo.toLowerCase().endsWith('.pdf');
+  }
+
+  double tamanhoMb(int tamanhoBytes) {
+    return tamanhoBytes / (1024 * 1024);
+  }
+
+  String formatarTamanho(int tamanhoBytes) {
+    final mb = tamanhoMb(tamanhoBytes);
+
+    if (mb < 1) {
+      final kb = tamanhoBytes / 1024;
+      return '${kb.toStringAsFixed(0)} KB';
+    }
+
+    return '${mb.toStringAsFixed(2)} MB';
+  }
+
+  String limparNomeArquivo(String nomeArquivo) {
+    var nome = nomeArquivo.trim();
+
+    nome = nome.replaceAll(
+      RegExp(r'[^\w\s.-]', unicode: true),
+      '',
+    );
+
+    nome = nome.replaceAll(
+      RegExp(r'\s+'),
+      '_',
+    );
+
+    return nome;
   }
 }
 

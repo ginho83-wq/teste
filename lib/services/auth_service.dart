@@ -5,8 +5,7 @@ class AuthService {
 
   static final AuthService instancia = AuthService._();
 
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // ============================================================
   // USUÁRIO ATUAL
@@ -14,6 +13,14 @@ class AuthService {
 
   User? get usuarioAtual {
     return _supabase.auth.currentUser;
+  }
+
+  // ============================================================
+  // ESTADO DE AUTENTICAÇÃO
+  // ============================================================
+
+  bool get estaAutenticado {
+    return usuarioAtual != null;
   }
 
   // ============================================================
@@ -25,7 +32,7 @@ class AuthService {
   }
 
   // ============================================================
-  // LOGIN COM EMAIL E PALAVRA-PASSE
+  // LOGIN COM EMAIL
   // ============================================================
 
   Future<void> entrarComEmail({
@@ -69,6 +76,48 @@ class AuthService {
   }
 
   // ============================================================
+  // OBTER PERFIL
+  // ============================================================
+
+  Future<Map<String, dynamic>?> obterPerfil() async {
+    final usuario = usuarioAtual;
+
+    if (usuario == null) {
+      return null;
+    }
+
+    final resposta = await _supabase
+        .from('profiles')
+        .select()
+        .eq('id', usuario.id)
+        .maybeSingle();
+
+    return resposta;
+  }
+
+  // ============================================================
+  // VERIFICAR ADMINISTRADOR
+  // ============================================================
+
+  Future<bool> ehAdmin() async {
+    final perfil = await obterPerfil();
+
+    if (perfil == null) {
+      return false;
+    }
+
+    return perfil['role'] == 'admin';
+  }
+
+  // ============================================================
+  // COMPATIBILIDADE
+  // ============================================================
+
+  Future<bool> ehAdministrador() async {
+    return ehAdmin();
+  }
+
+  // ============================================================
   // SAIR
   // ============================================================
 
@@ -76,4 +125,3 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 }
-

@@ -2,27 +2,20 @@ import 'dart:typed_data';
 
 import '../models/obra_pendente.dart';
 import '../repositories/obras_pendentes_repository.dart';
-import 'auth_service.dart';
-import 'storage_service.dart';
+import '../services/auth_service.dart';
+import '../services/storage_service.dart';
 
 class PublicacaoService {
   PublicacaoService._();
 
-  static final PublicacaoService instancia =
-  PublicacaoService._();
+  static final PublicacaoService instancia = PublicacaoService._();
 
   final ObrasPendentesRepository _repository =
       ObrasPendentesRepository.instancia;
 
-  final StorageService _storage =
-      StorageService.instancia;
+  final StorageService _storage = StorageService.instancia;
 
-  final AuthService _auth =
-      AuthService.instancia;
-
-  // ============================================================
-  // PUBLICAR OBRA
-  // ============================================================
+  final AuthService _auth = AuthService.instancia;
 
   Future<ObraPendente> publicar({
     required String titulo,
@@ -33,119 +26,67 @@ class PublicacaoService {
     required String nomeArquivo,
     int? anoObra,
   }) async {
-    // ----------------------------------------------------------
-    // VALIDAR UTILIZADOR
-    // ----------------------------------------------------------
-
     final usuario = _auth.usuarioAtual;
 
     if (usuario == null) {
-      throw Exception(
-        'É necessário iniciar sessão para publicar uma obra.',
-      );
+      throw Exception('É necessário estar autenticado para publicar.');
     }
 
-    final userId = usuario.id;
+    final tituloLimpo = titulo.trim();
+    final autorLimpo = autor.trim();
+    final categoriaLimpa = categoria.trim();
+    final nomeArquivoLimpo = nomeArquivo.trim();
 
-    // ----------------------------------------------------------
-    // NORMALIZAR DADOS
-    // ----------------------------------------------------------
-
-    final tituloFinal = titulo.trim();
-    final descricaoFinal = descricao?.trim();
-    final autorFinal = autor.trim();
-    final categoriaFinal = categoria.trim();
-    final nomeArquivoFinal = nomeArquivo.trim();
-
-    // ----------------------------------------------------------
-    // VALIDAÇÕES
-    // ----------------------------------------------------------
-
-    if (tituloFinal.isEmpty) {
-      throw Exception('O título da obra é obrigatório.');
+    if (tituloLimpo.isEmpty) {
+      throw Exception('Informe o título da obra.');
     }
 
-    if (autorFinal.isEmpty) {
-      throw Exception('O autor da obra é obrigatório.');
+    if (autorLimpo.isEmpty) {
+      throw Exception('Informe o autor da obra.');
     }
 
-    if (categoriaFinal.isEmpty) {
-      throw Exception('A categoria da obra é obrigatória.');
+    if (categoriaLimpa.isEmpty) {
+      throw Exception('Selecione a categoria da obra.');
     }
 
     if (arquivoPdf.isEmpty) {
-      throw Exception('É necessário selecionar um documento PDF.');
+      throw Exception('O arquivo PDF está vazio.');
     }
 
-    if (nomeArquivoFinal.isEmpty) {
-      throw Exception('O nome do arquivo é obrigatório.');
+    if (!nomeArquivoLimpo.toLowerCase().endsWith('.pdf')) {
+      throw Exception('O arquivo selecionado deve estar no formato PDF.');
     }
 
-    if (!_ehPdf(nomeArquivoFinal)) {
-      throw Exception(
-        'Apenas arquivos PDF são permitidos.',
-      );
-    }
-
-    // ----------------------------------------------------------
-    // UPLOAD DO PDF
-    // ----------------------------------------------------------
-
-    String? caminhoDocumento;
+    String? caminhoPendente;
 
     try {
-      caminhoDocumento =
-      await _storage.enviarDocumentoPendente(
+      caminhoPendente = await _storage.enviarDocumentoPendente(
+        userId: usuario.id,
+        nomeArquivo: nomeArquivoLimpo,
         bytes: arquivoPdf,
-        nomeArquivo: nomeArquivoFinal,
-        userId: userId,
       );
 
-      // --------------------------------------------------------
-      // CRIAR REGISTRO EM OBRAS PENDENTES
-      // --------------------------------------------------------
-
       final obra = ObraPendente(
-        titulo: tituloFinal,
-        descricao: descricaoFinal == null ||
-            descricaoFinal.isEmpty
+        titulo: tituloLimpo,
+        descricao: descricao?.trim().isEmpty == true
             ? null
-            : descricaoFinal,
-        autor: autorFinal,
-        categoria: categoriaFinal,
-        urlDocumento: caminhoDocumento,
+            : descricao?.trim(),
+        autor: autorLimpo,
+        categoria: categoriaLimpa,
+        urlDocumento: caminhoPendente,
         anoObra: anoObra,
-        userId: userId,
+        userId: usuario.id,
       );
 
       return await _repository.inserir(obra);
     } catch (e) {
-      // --------------------------------------------------------
-      // LIMPAR PDF CASO A GRAVAÇÃO FALHE
-      // --------------------------------------------------------
-
-      if (caminhoDocumento != null) {
+      if (caminhoPendente != null) {
         try {
-          await _storage.removerDocumentoPendente(
-            caminhoDocumento,
-          );
-        } catch (_) {
-          // Não substituir o erro original.
-        }
+          await _storage.removerDocumentoPendente(caminhoPendente);
+        } catch (_) {}
       }
 
       rethrow;
     }
   }
-
-  // ============================================================
-  // VALIDAR PDF
-  // ============================================================
-
-  bool _ehPdf(String nomeArquivo) {
-    return nomeArquivo
-        .toLowerCase()
-        .endsWith('.pdf');
-  }
 }
-

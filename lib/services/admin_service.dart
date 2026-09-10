@@ -6,39 +6,51 @@ import 'auth_service.dart';
 class AdminService {
   AdminService._();
 
-  static final AdminService instancia =
-  AdminService._();
+  static final AdminService instancia = AdminService._();
 
-  final AuthService _auth =
-      AuthService.instancia;
+  final AuthService _auth = AuthService.instancia;
 
   final ObrasPendentesRepository _repository =
       ObrasPendentesRepository.instancia;
 
   // ============================================================
-  // VERIFICAR ACESSO ADMINISTRATIVO
+  // VERIFICAR ACESSO DE ADMINISTRADOR
   // ============================================================
 
   Future<void> _exigirAdmin() async {
-    final autenticado = _auth.estaAutenticado;
-
-    if (!autenticado) {
+    if (!_auth.estaAutenticado) {
       throw Exception(
-        'É necessário iniciar sessão.',
+        'É necessário iniciar sessão para continuar.',
       );
     }
 
-    final ehAdmin = await _auth.ehAdmin();
+    final administrador = await _auth.ehAdmin();
 
-    if (!ehAdmin) {
+    if (!administrador) {
       throw Exception(
-        'Acesso negado. Apenas administradores podem executar esta operação.',
+        'Acesso reservado ao administrador.',
       );
     }
   }
 
   // ============================================================
-  // LISTAR OBRAS PENDENTES
+  // VERIFICAR ACESSO
+  // ============================================================
+
+  Future<bool> verificarAcesso() async {
+    if (!_auth.estaAutenticado) {
+      return false;
+    }
+
+    try {
+      return await _auth.ehAdmin();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ============================================================
+  // CARREGAR OBRAS PENDENTES
   // ============================================================
 
   Future<List<ObraPendente>> carregarObrasPendentes() async {
@@ -48,13 +60,19 @@ class AdminService {
   }
 
   // ============================================================
-  // BUSCAR OBRA PENDENTE
+  // CARREGAR UMA OBRA PENDENTE
   // ============================================================
 
   Future<ObraPendente?> carregarObraPendente(
       String id,
       ) async {
     await _exigirAdmin();
+
+    if (id.trim().isEmpty) {
+      throw Exception(
+        'ID da obra inválido.',
+      );
+    }
 
     return await _repository.carregarPorId(id);
   }
@@ -68,6 +86,12 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
+    if (id.trim().isEmpty) {
+      throw Exception(
+        'ID da obra inválido.',
+      );
+    }
+
     return await _repository.aprovar(id);
   }
 
@@ -79,6 +103,12 @@ class AdminService {
       String id,
       ) async {
     await _exigirAdmin();
+
+    if (id.trim().isEmpty) {
+      throw Exception(
+        'ID da obra inválido.',
+      );
+    }
 
     await _repository.rejeitar(id);
   }
@@ -92,19 +122,12 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
-    await _repository.excluir(id);
-  }
-
-  // ============================================================
-  // VERIFICAR SE O UTILIZADOR ATUAL É ADMIN
-  // ============================================================
-
-  Future<bool> verificarAcesso() async {
-    if (!_auth.estaAutenticado) {
-      return false;
+    if (id.trim().isEmpty) {
+      throw Exception(
+        'ID da obra inválido.',
+      );
     }
 
-    return await _auth.ehAdmin();
+    await _repository.excluir(id);
   }
 }
-

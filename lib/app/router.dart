@@ -4,165 +4,150 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../pages/acervo_resultados_page.dart';
+import '../pages/admin_obras_page.dart';
+import '../pages/auth_callback_page.dart';
 import '../pages/cadastro_page.dart';
+import '../pages/contacto_page.dart';
+import '../pages/configuracoes_page.dart';
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
-import '../pages/auth_callback_page.dart';
-import '../pages/termos_page.dart';
+import '../pages/minha_conta_page.dart';
 import '../pages/politica_privacidade_page.dart';
+import '../pages/publicar_obra_page.dart';
+import '../pages/termos_page.dart';
 import '../pages/cookies_page.dart';
-import '../pages/contacto_page.dart';
 
-// ================================================================
-// ROUTER PRINCIPAL
-// ================================================================
-final GoRouter appRouter = GoRouter(
-  // ==============================================================
-  // PRIMEIRA TELA
-  // ==============================================================
+final GoRouter router = GoRouter(
   initialLocation: '/login',
 
-  // ==============================================================
-  // ATUALIZA O ROUTER QUANDO O ESTADO DA AUTENTICAÇÃO MUDA
-  // ==============================================================
   refreshListenable: GoRouterRefreshStream(
     Supabase.instance.client.auth.onAuthStateChange,
   ),
 
-  // ==============================================================
-  // CONTROLE DE ACESSO
-  // ==============================================================
   redirect: (context, state) {
-    final session =
-        Supabase.instance.client.auth.currentSession;
+    final session = Supabase.instance.client.auth.currentSession;
+    final estaAutenticado = session != null;
 
-    final location = state.matchedLocation;
+    final caminho = state.uri.path;
 
-    final estaNoLogin = location == '/login';
-    final estaNoCadastro = location == '/cadastro';
-    final estaNoCallback =
-        location == '/auth/callback';
+    const rotasPublicas = <String>{
+      '/login',
+      '/cadastro',
+      '/auth/callback',
+      '/termos',
+      '/politica-privacidade',
+      '/cookies',
+      '/contacto',
+    };
 
-    // ============================================================
-    // CALLBACK DO SUPABASE
-    // ============================================================
-    if (estaNoCallback) {
-      return null;
-    }
+    final rotaPublica = rotasPublicas.contains(caminho);
 
-    // ============================================================
-    // UTILIZADOR NÃO AUTENTICADO
-    // ============================================================
-    if (session == null) {
-      if (estaNoLogin || estaNoCadastro) {
-        return null;
-      }
-
+    if (!estaAutenticado && !rotaPublica) {
       return '/login';
     }
 
-    // ============================================================
-    // UTILIZADOR AUTENTICADO
-    // ============================================================
-    if (estaNoLogin || estaNoCadastro) {
-      return '/home';
+    if (estaAutenticado &&
+        (caminho == '/login' || caminho == '/cadastro')) {
+      return '/';
     }
 
     return null;
   },
 
-  // ==============================================================
-  // ROTAS
-  // ==============================================================
   routes: [
-    // ============================================================
-    // LOGIN
-    // ============================================================
     GoRoute(
       path: '/login',
-      builder: (context, state) {
-        return const LoginPage();
-      },
+      builder: (context, state) => const LoginPage(),
     ),
 
-    // ============================================================
-    // CADASTRO
-    // ============================================================
     GoRoute(
       path: '/cadastro',
-      builder: (context, state) {
-        return const CadastroPage();
-      },
+      builder: (context, state) => const CadastroPage(),
     ),
 
-    // ============================================================
-    // CALLBACK DO SUPABASE
-    // ============================================================
     GoRoute(
       path: '/auth/callback',
-      builder: (context, state) {
-        return const AuthCallbackPage();
-      },
+      builder: (context, state) => const AuthCallbackPage(),
     ),
 
-    // ============================================================
-    // HOME
-    // ============================================================
     GoRoute(
-      path: '/home',
+      path: '/',
+      builder: (context, state) => const HomePage(),
+    ),
+
+    GoRoute(
+      path: '/minha-conta',
+      builder: (context, state) => const MinhaContaPage(),
+    ),
+
+    GoRoute(
+      path: '/configuracoes',
+      builder: (context, state) => const ConfiguracoesPage(),
+    ),
+
+    GoRoute(
+      path: '/publicar',
+      builder: (context, state) => const PublicarObraPage(),
+    ),
+
+    GoRoute(
+      path: '/acervo',
+      builder: (context, state) => const AcervoResultadosPage(),
+    ),
+
+    GoRoute(
+      path: '/search/:query',
       builder: (context, state) {
-        return const HomePage();
+        final query = state.pathParameters['query'] ?? '';
+
+        return AcervoResultadosPage(
+          query: query,
+        );
       },
     ),
 
-    // ============================================================
-    // TERMOS DE UTILIZAÇÃO
-    // ============================================================
+    GoRoute(
+      path: '/categoria/:tipo',
+      builder: (context, state) {
+        final categoria = state.pathParameters['tipo'] ?? '';
+
+        return AcervoResultadosPage(
+          categoria: categoria,
+        );
+      },
+    ),
+
+    GoRoute(
+      path: '/admin-obras',
+      builder: (context, state) => const AdminObrasPage(),
+    ),
+
     GoRoute(
       path: '/termos',
-      builder: (context, state) {
-        return const TermosPage();
-      },
+      builder: (context, state) => const TermosPage(),
     ),
 
-    // ============================================================
-    // POLÍTICA DE PRIVACIDADE
-    // ============================================================
     GoRoute(
       path: '/politica-privacidade',
-      builder: (context, state) {
-        return const PoliticaPrivacidadePage();
-      },
+      builder: (context, state) => const PoliticaPrivacidadePage(),
     ),
 
-    // ============================================================
-    // COOKIES
-    // ============================================================
     GoRoute(
       path: '/cookies',
-      builder: (context, state) {
-        return const CookiesPage();
-      },
+      builder: (context, state) => const CookiesPage(),
     ),
 
-    // ============================================================
-    // CONTACTO
-    // ============================================================
     GoRoute(
       path: '/contacto',
-      builder: (context, state) {
-        return const ContactoPage();
-      },
+      builder: (context, state) => const ContactoPage(),
     ),
   ],
 );
 
-// ================================================================
-// ATUALIZAÇÃO DO GO_ROUTER
-// ================================================================
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.listen(
+    _subscription = stream.asBroadcastStream().listen(
           (_) {
         notifyListeners();
       },
@@ -177,4 +162,3 @@ class GoRouterRefreshStream extends ChangeNotifier {
     super.dispose();
   }
 }
-

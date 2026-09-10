@@ -10,8 +10,7 @@ class PublicarObraPage extends StatefulWidget {
   });
 
   @override
-  State<PublicarObraPage> createState() =>
-      _PublicarObraPageState();
+  State<PublicarObraPage> createState() => _PublicarObraPageState();
 }
 
 class _PublicarObraPageState extends State<PublicarObraPage> {
@@ -22,14 +21,17 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
   final _autorController = TextEditingController();
   final _anoController = TextEditingController();
 
-  final _authService = AuthService.instancia;
-  final _arquivoService = ArquivoService.instancia;
-  final _publicacaoService = PublicacaoService.instancia;
+  final ArquivoService _arquivoService =
+      ArquivoService.instancia;
+
+  final PublicacaoService _publicacaoService =
+      PublicacaoService.instancia;
 
   String? _categoriaSelecionada;
+
   ArquivoSelecionado? _arquivoSelecionado;
 
-  bool _publicando = false;
+  bool _carregando = false;
 
   final List<String> _categorias = const [
     'Tese de Doutoramento',
@@ -48,9 +50,10 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     super.dispose();
   }
 
-  Future<void> _selecionarPdf() async {
+  Future<void> _selecionarArquivo() async {
     try {
-      final arquivo = await _arquivoService.selecionarPdf();
+      final arquivo =
+      await _arquivoService.selecionarPdf();
 
       if (!mounted || arquivo == null) {
         return;
@@ -62,459 +65,345 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     } catch (e) {
       if (!mounted) return;
 
-      _mostrarMensagem(
-        _mensagemErro(e),
-        erro: true,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Erro ao selecionar arquivo: $e',
+          ),
+        ),
       );
     }
   }
 
   Future<void> _publicar() async {
-    if (_publicando) return;
-
-    final usuario = _authService.usuarioAtual;
-
-    if (usuario == null) {
-      _mostrarMensagem(
-        'É necessário iniciar sessão para publicar uma obra.',
-        erro: true,
-      );
-      return;
-    }
-
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    if (_categoriaSelecionada == null ||
-        _categoriaSelecionada!.trim().isEmpty) {
-      _mostrarMensagem(
-        'Selecione a categoria da obra.',
-        erro: true,
+    if (_categoriaSelecionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selecione a categoria da obra.',
+          ),
+        ),
       );
       return;
     }
 
     if (_arquivoSelecionado == null) {
-      _mostrarMensagem(
-        'Selecione o documento PDF da obra.',
-        erro: true,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selecione o arquivo PDF da obra.',
+          ),
+        ),
       );
       return;
     }
 
-    int? anoObra;
+    final usuario =
+        AuthService.instancia.usuarioAtual;
 
-    final anoTexto = _anoController.text.trim();
-
-    if (anoTexto.isNotEmpty) {
-      anoObra = int.tryParse(anoTexto);
-
-      if (anoObra == null) {
-        _mostrarMensagem(
-          'Digite um ano válido.',
-          erro: true,
-        );
-        return;
-      }
+    if (usuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'É necessário estar autenticado para publicar.',
+          ),
+        ),
+      );
+      return;
     }
 
     setState(() {
-      _publicando = true;
+      _carregando = true;
     });
 
     try {
+      final ano = int.tryParse(
+        _anoController.text.trim(),
+      );
+
       await _publicacaoService.publicar(
-        titulo: _tituloController.text,
-        descricao: _descricaoController.text,
-        autor: _autorController.text,
+        titulo: _tituloController.text.trim(),
+        descricao: _descricaoController.text.trim(),
+        autor: _autorController.text.trim(),
         categoria: _categoriaSelecionada!,
+        anoObra: ano,
         arquivoPdf: _arquivoSelecionado!.bytes,
         nomeArquivo: _arquivoSelecionado!.nome,
-        anoObra: anoObra,
       );
 
       if (!mounted) return;
 
-      _mostrarMensagem(
-        'Obra enviada com sucesso. '
-            'A publicação ficará aguardando aprovação.',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Obra enviada com sucesso para análise.',
+          ),
+        ),
       );
 
-      _limparFormulario();
+      _formKey.currentState!.reset();
+
+      _tituloController.clear();
+      _descricaoController.clear();
+      _autorController.clear();
+      _anoController.clear();
+
+      setState(() {
+        _categoriaSelecionada = null;
+        _arquivoSelecionado = null;
+      });
     } catch (e) {
       if (!mounted) return;
 
-      _mostrarMensagem(
-        _mensagemErro(e),
-        erro: true,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível publicar a obra: $e',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
         setState(() {
-          _publicando = false;
+          _carregando = false;
         });
       }
     }
   }
 
-  void _limparFormulario() {
-    _tituloController.clear();
-    _descricaoController.clear();
-    _autorController.clear();
-    _anoController.clear();
-
-    setState(() {
-      _categoriaSelecionada = null;
-      _arquivoSelecionado = null;
-    });
-  }
-
-  String _mensagemErro(Object erro) {
-    final mensagem = erro.toString();
-
-    if (mensagem.startsWith('Exception: ')) {
-      return mensagem.substring('Exception: '.length);
-    }
-
-    return mensagem;
-  }
-
-  void _mostrarMensagem(
-      String mensagem, {
-        bool erro = false,
-      }) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(mensagem),
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final largura = MediaQuery.of(context).size.width;
-
-    final larguraFormulario = largura > 800
-        ? 700.0
-        : largura - 32;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Publicar obra'),
-        centerTitle: false,
       ),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: larguraFormulario,
-            child: Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Publicar obra',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      const Text(
-                        'Preencha os dados da obra e envie o documento PDF. '
-                            'A obra será analisada antes de ser publicada.',
-                        style: TextStyle(
-                          color: Colors.grey,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      TextFormField(
-                        controller: _tituloController,
-                        textInputAction:
-                        TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Título *',
-                          hintText:
-                          'Digite o título da obra',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (valor) {
-                          if (valor == null ||
-                              valor.trim().isEmpty) {
-                            return 'Informe o título da obra.';
-                          }
-
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _descricaoController,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          labelText: 'Descrição',
-                          hintText:
-                          'Digite uma breve descrição da obra',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _autorController,
-                        textInputAction:
-                        TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Autor *',
-                          hintText:
-                          'Nome do autor da obra',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (valor) {
-                          if (valor == null ||
-                              valor.trim().isEmpty) {
-                            return 'Informe o autor da obra.';
-                          }
-
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      DropdownButtonFormField<String>(
-                        value: _categoriaSelecionada,
-                        decoration: const InputDecoration(
-                          labelText: 'Categoria *',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _categorias.map(
-                              (categoria) {
-                            return DropdownMenuItem<String>(
-                              value: categoria,
-                              child: Text(categoria),
-                            );
-                          },
-                        ).toList(),
-                        onChanged: _publicando
-                            ? null
-                            : (valor) {
-                          setState(() {
-                            _categoriaSelecionada =
-                                valor;
-                          });
-                        },
-                        validator: (valor) {
-                          if (valor == null ||
-                              valor.trim().isEmpty) {
-                            return 'Selecione uma categoria.';
-                          }
-
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      TextFormField(
-                        controller: _anoController,
-                        keyboardType:
-                        TextInputType.number,
-                        textInputAction:
-                        TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Ano da obra',
-                          hintText: 'Ex.: 2025',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (valor) {
-                          final texto =
-                              valor?.trim() ?? '';
-
-                          if (texto.isEmpty) {
-                            return null;
-                          }
-
-                          final ano =
-                          int.tryParse(texto);
-
-                          if (ano == null) {
-                            return 'Digite um ano válido.';
-                          }
-
-                          if (ano < 1000 ||
-                              ano > 9999) {
-                            return 'Digite um ano válido.';
-                          }
-
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      const Text(
-                        'Documento PDF *',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      InkWell(
-                        onTap: _publicando
-                            ? null
-                            : _selecionarPdf,
-                        borderRadius:
-                        BorderRadius.circular(8),
-                        child: Container(
-                          width: double.infinity,
-                          padding:
-                          const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.grey.shade400,
-                            ),
-                            borderRadius:
-                            BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.picture_as_pdf,
-                                size: 32,
-                              ),
-
-                              const SizedBox(width: 12),
-
-                              Expanded(
-                                child:
-                                _arquivoSelecionado ==
-                                    null
-                                    ? const Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment
-                                      .start,
-                                  children: [
-                                    Text(
-                                      'Selecionar PDF',
-                                      style:
-                                      TextStyle(
-                                        fontWeight:
-                                        FontWeight
-                                            .w600,
-                                      ),
-                                    ),
-                                    SizedBox(
-                                      height: 4,
-                                    ),
-                                    Text(
-                                      'Tamanho máximo: 50 MB',
-                                      style:
-                                      TextStyle(
-                                        color:
-                                        Colors.grey,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                                    : Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment
-                                      .start,
-                                  children: [
-                                    Text(
-                                      _arquivoSelecionado!
-                                          .nome,
-                                      maxLines: 2,
-                                      overflow:
-                                      TextOverflow
-                                          .ellipsis,
-                                      style:
-                                      const TextStyle(
-                                        fontWeight:
-                                        FontWeight
-                                            .w600,
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 4,
-                                    ),
-                                    Text(
-                                      '${_arquivoSelecionado!.tamanhoMb.toStringAsFixed(2)} MB',
-                                      style:
-                                      const TextStyle(
-                                        color:
-                                        Colors.grey,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              const SizedBox(width: 8),
-
-                              const Icon(
-                                Icons.upload_file,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed:
-                          _publicando ? null : _publicar,
-                          child: _publicando
-                              ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child:
-                            CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                              : const Text(
-                            'Publicar obra',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight:
-                              FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 800,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Publicar obra académica',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 8),
+
+                  const Text(
+                    'Envie o seu trabalho para análise e posterior publicação na Obra Livre.',
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  TextFormField(
+                    controller: _tituloController,
+                    decoration: const InputDecoration(
+                      labelText: 'Título',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
+                        return 'Informe o título.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller: _autorController,
+                    decoration: const InputDecoration(
+                      labelText: 'Autor',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
+                        return 'Informe o autor.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  DropdownButtonFormField<String>(
+                    value: _categoriaSelecionada,
+                    decoration: const InputDecoration(
+                      labelText: 'Categoria',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _categorias.map((categoria) {
+                      return DropdownMenuItem<String>(
+                        value: categoria,
+                        child: Text(categoria),
+                      );
+                    }).toList(),
+                    onChanged: _carregando
+                        ? null
+                        : (valor) {
+                      setState(() {
+                        _categoriaSelecionada =
+                            valor;
+                      });
+                    },
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.isEmpty) {
+                        return 'Selecione a categoria.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller: _anoController,
+                    keyboardType:
+                    TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Ano da obra',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
+                        return 'Informe o ano.';
+                      }
+
+                      if (int.tryParse(
+                        valor.trim(),
+                      ) ==
+                          null) {
+                        return 'Informe um ano válido.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  TextFormField(
+                    controller: _descricaoController,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: 'Descrição',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                      ),
+                      borderRadius:
+                      BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Arquivo PDF',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        if (_arquivoSelecionado == null)
+                          const Text(
+                            'Nenhum arquivo selecionado.',
+                          )
+                        else ...[
+                          Text(
+                            _arquivoSelecionado!.nome,
+                            style: const TextStyle(
+                              fontWeight:
+                              FontWeight.w500,
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            '${_arquivoSelecionado!.tamanhoMb.toStringAsFixed(2)} MB',
+                          ),
+                        ],
+
+                        const SizedBox(height: 16),
+
+                        OutlinedButton.icon(
+                          onPressed: _carregando
+                              ? null
+                              : _selecionarArquivo,
+                          icon: const Icon(
+                            Icons.upload_file,
+                          ),
+                          label: Text(
+                            _arquivoSelecionado ==
+                                null
+                                ? 'Selecionar PDF'
+                                : 'Alterar PDF',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed:
+                      _carregando ? null : _publicar,
+                      child: _carregando
+                          ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child:
+                        CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : const Text(
+                        'Enviar para análise',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -523,3 +412,4 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     );
   }
 }
+

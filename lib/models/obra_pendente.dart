@@ -1,62 +1,59 @@
 class ObraPendente {
-  final String id;
+  final String? id;
   final String titulo;
   final String? descricao;
   final String autor;
   final String categoria;
   final String urlDocumento;
   final int? anoObra;
-  final DateTime dataPublicacao;
+  final DateTime? dataPublicacao;
   final String userId;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const ObraPendente({
-    required this.id,
+    this.id,
     required this.titulo,
     this.descricao,
     required this.autor,
     required this.categoria,
     required this.urlDocumento,
     this.anoObra,
-    required this.dataPublicacao,
+    this.dataPublicacao,
     required this.userId,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory ObraPendente.fromMap(Map<String, dynamic> map) {
     return ObraPendente(
-      id: map['id'] as String,
-      titulo: map['titulo'] as String,
-      descricao: map['descricao'] as String?,
-      autor: map['autor'] as String,
-      categoria: map['categoria'] as String,
-      urlDocumento: map['url_documento'] as String,
-      anoObra: map['ano_obra'] != null
-          ? int.tryParse(map['ano_obra'].toString())
-          : null,
-      dataPublicacao:
-      DateTime.parse(map['data_publicacao'].toString()),
-      userId: map['user_id'] as String,
-      createdAt: DateTime.parse(map['created_at'].toString()),
-      updatedAt: DateTime.parse(map['updated_at'].toString()),
+      id: map['id']?.toString(),
+      titulo: map['titulo']?.toString() ?? '',
+      descricao: map['descricao']?.toString(),
+      autor: map['autor']?.toString() ?? '',
+      categoria: map['categoria']?.toString() ?? '',
+      urlDocumento: map['url_documento']?.toString() ?? '',
+      anoObra: _parseInt(map['ano_obra']),
+      dataPublicacao: _parseDate(map['data_publicacao']),
+      userId: map['user_id']?.toString() ?? '',
+      createdAt: _parseDate(map['created_at']),
+      updatedAt: _parseDate(map['updated_at']),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id != null) 'id': id,
       'titulo': titulo,
       'descricao': descricao,
       'autor': autor,
       'categoria': categoria,
       'url_documento': urlDocumento,
       'ano_obra': anoObra,
-      'data_publicacao': dataPublicacao.toIso8601String(),
+      'data_publicacao': dataPublicacao?.toIso8601String(),
       'user_id': userId,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 
@@ -87,5 +84,24 @@ class ObraPendente {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
-}
 
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+
+    if (value is int) {
+      return value;
+    }
+
+    return int.tryParse(value.toString());
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    return DateTime.tryParse(value.toString());
+  }
+}

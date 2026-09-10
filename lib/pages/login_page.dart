@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      context.go('/home');
+      context.go('/');
     } on AuthException catch (e) {
       _mostrarMensagem(e.message);
     } catch (e) {
