@@ -11,7 +11,8 @@ class ObrasPendentesRepository {
   static final ObrasPendentesRepository instancia =
   ObrasPendentesRepository._();
 
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
   static const String _campos = '''
     id,
@@ -31,7 +32,10 @@ class ObrasPendentesRepository {
     final resposta = await _supabase
         .from('obras_pendentes')
         .select(_campos)
-        .order('data_publicacao', ascending: false);
+        .order(
+      'data_publicacao',
+      ascending: false,
+    );
 
     return (resposta as List)
         .map(
@@ -42,7 +46,9 @@ class ObrasPendentesRepository {
         .toList();
   }
 
-  Future<ObraPendente?> carregarPorId(String id) async {
+  Future<ObraPendente?> carregarPorId(
+      String id,
+      ) async {
     final resposta = await _supabase
         .from('obras_pendentes')
         .select(_campos)
@@ -65,7 +71,10 @@ class ObrasPendentesRepository {
         .from('obras_pendentes')
         .select(_campos)
         .eq('user_id', userId)
-        .order('data_publicacao', ascending: false);
+        .order(
+      'data_publicacao',
+      ascending: false,
+    );
 
     return (resposta as List)
         .map(
@@ -100,19 +109,22 @@ class ObrasPendentesRepository {
     final pendente = await carregarPorId(id);
 
     if (pendente == null) {
-      throw Exception('Obra pendente não encontrada.');
-    }
-
-    if (pendente.urlDocumento == null ||
-        pendente.urlDocumento!.trim().isEmpty) {
       throw Exception(
-        'O caminho do arquivo da obra pendente não foi encontrado.',
+        'Obra pendente não encontrada.',
       );
     }
 
-    final caminhoArquivo = pendente.urlDocumento!;
+    if (pendente.urlDocumento.trim().isEmpty) {
+      throw Exception(
+        'O caminho do arquivo da obra pendente '
+            'não foi encontrado.',
+      );
+    }
 
-    final Uint8List arquivo = await _supabase.storage
+    final caminhoArquivo = pendente.urlDocumento;
+
+    final Uint8List arquivo =
+    await _supabase.storage
         .from('obras_pendentes')
         .download(caminhoArquivo);
 
@@ -138,9 +150,12 @@ class ObrasPendentesRepository {
       'categoria': pendente.categoria,
       'url_documento': urlPublica,
       'ano_obra': pendente.anoObra,
+
+      // A data já existe porque foi criada
+      // quando a obra foi enviada.
       'data_publicacao':
-      pendente.dataPublicacao?.toIso8601String() ??
-          DateTime.now().toIso8601String(),
+      pendente.dataPublicacao.toIso8601String(),
+
       'user_id': pendente.userId,
     };
 
@@ -161,7 +176,8 @@ class ObrasPendentesRepository {
           .remove([caminhoArquivo]);
     } catch (_) {
       // A publicação já foi concluída.
-      // A remoção do arquivo pendente não deve desfazer a aprovação.
+      // A remoção do arquivo pendente não deve
+      // desfazer a aprovação.
     }
 
     return Obra.fromMap(
@@ -173,7 +189,9 @@ class ObrasPendentesRepository {
     final pendente = await carregarPorId(id);
 
     if (pendente == null) {
-      throw Exception('Obra pendente não encontrada.');
+      throw Exception(
+        'Obra pendente não encontrada.',
+      );
     }
 
     await _supabase
@@ -181,12 +199,11 @@ class ObrasPendentesRepository {
         .delete()
         .eq('id', id);
 
-    if (pendente.urlDocumento != null &&
-        pendente.urlDocumento!.trim().isNotEmpty) {
+    if (pendente.urlDocumento.trim().isNotEmpty) {
       try {
         await _supabase.storage
             .from('obras_pendentes')
-            .remove([pendente.urlDocumento!]);
+            .remove([pendente.urlDocumento]);
       } catch (_) {
         // O registro já foi removido.
       }
@@ -197,3 +214,4 @@ class ObrasPendentesRepository {
     await rejeitar(id);
   }
 }
+

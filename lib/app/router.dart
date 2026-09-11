@@ -10,6 +10,7 @@ import '../pages/auth_callback_page.dart';
 import '../pages/cadastro_page.dart';
 import '../pages/contacto_page.dart';
 import '../pages/configuracoes_page.dart';
+import '../pages/historico_obras_page.dart';
 import '../pages/home_page.dart';
 import '../pages/login_page.dart';
 import '../pages/minha_conta_page.dart';
@@ -28,7 +29,6 @@ final GoRouter router = GoRouter(
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final estaAutenticado = session != null;
-
     final caminho = state.uri.path;
 
     const rotasPublicas = <String>{
@@ -43,10 +43,12 @@ final GoRouter router = GoRouter(
 
     final rotaPublica = rotasPublicas.contains(caminho);
 
+    // Utilizador não autenticado só pode aceder às rotas públicas.
     if (!estaAutenticado && !rotaPublica) {
       return '/login';
     }
 
+    // Utilizador autenticado não precisa permanecer em Login/Cadastro.
     if (estaAutenticado &&
         (caminho == '/login' || caminho == '/cadastro')) {
       return '/';
@@ -89,6 +91,11 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/publicar',
       builder: (context, state) => const PublicarObraPage(),
+    ),
+
+    GoRoute(
+      path: '/historico-obras',
+      builder: (context, state) => const HistoricoObrasPage(),
     ),
 
     GoRoute(

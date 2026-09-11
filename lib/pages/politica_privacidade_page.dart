@@ -163,7 +163,7 @@ class PoliticaPrivacidadePage extends StatelessWidget {
                 SizedBox(height: 32),
 
                 Text(
-                  'Última atualização: setembro de 2026',
+                  'Última atualização: Setembro de 2026',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey,

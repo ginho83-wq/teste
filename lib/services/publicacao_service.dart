@@ -29,7 +29,9 @@ class PublicacaoService {
     final usuario = _auth.usuarioAtual;
 
     if (usuario == null) {
-      throw Exception('É necessário estar autenticado para publicar.');
+      throw Exception(
+        'É necessário estar autenticado para publicar.',
+      );
     }
 
     final tituloLimpo = titulo.trim();
@@ -54,17 +56,23 @@ class PublicacaoService {
     }
 
     if (!nomeArquivoLimpo.toLowerCase().endsWith('.pdf')) {
-      throw Exception('O arquivo selecionado deve estar no formato PDF.');
+      throw Exception(
+        'O arquivo selecionado deve estar no formato PDF.',
+      );
     }
 
     String? caminhoPendente;
 
     try {
-      caminhoPendente = await _storage.enviarDocumentoPendente(
+      caminhoPendente =
+      await _storage.enviarDocumentoPendente(
         userId: usuario.id,
         nomeArquivo: nomeArquivoLimpo,
         bytes: arquivoPdf,
       );
+
+      // Data em que a obra foi enviada para publicação/análise.
+      final dataPublicacao = DateTime.now();
 
       final obra = ObraPendente(
         titulo: tituloLimpo,
@@ -75,6 +83,7 @@ class PublicacaoService {
         categoria: categoriaLimpa,
         urlDocumento: caminhoPendente,
         anoObra: anoObra,
+        dataPublicacao: dataPublicacao,
         userId: usuario.id,
       );
 
@@ -82,7 +91,9 @@ class PublicacaoService {
     } catch (e) {
       if (caminhoPendente != null) {
         try {
-          await _storage.removerDocumentoPendente(caminhoPendente);
+          await _storage.removerDocumentoPendente(
+            caminhoPendente,
+          );
         } catch (_) {}
       }
 
@@ -90,3 +101,4 @@ class PublicacaoService {
     }
   }
 }
+

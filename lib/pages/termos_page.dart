@@ -29,7 +29,7 @@ class TermosPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Última atualização: setembro de 2026',
+                  'Última atualização: Setembro de 2026',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey.shade600,
                   ),

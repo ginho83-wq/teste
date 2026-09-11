@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
+import '../services/historico_obras_service.dart';
 
 class AcervoResultadosPage extends StatefulWidget {
   final String? query;
@@ -21,11 +22,16 @@ class AcervoResultadosPage extends StatefulWidget {
 
 class _AcervoResultadosPageState
     extends State<AcervoResultadosPage> {
-  final ObrasRepository _repository = ObrasRepository.instancia;
+  final ObrasRepository _repository =
+      ObrasRepository.instancia;
+
+  final HistoricoObrasService _historicoService =
+  HistoricoObrasService();
 
   List<Obra> _obras = [];
 
   bool _carregando = true;
+
   String? _erro;
 
   @override
@@ -43,17 +49,23 @@ class _AcervoResultadosPageState
     try {
       List<Obra> resultado;
 
-      final query = widget.query?.trim() ?? '';
-      final categoria = widget.categoria?.trim() ?? '';
+      final query =
+          widget.query?.trim() ?? '';
+
+      final categoria =
+          widget.categoria?.trim() ?? '';
 
       if (categoria.isNotEmpty) {
-        resultado = await _repository.carregarPorCategoria(
+        resultado =
+        await _repository.carregarPorCategoria(
           categoria,
         );
       } else if (query.isNotEmpty) {
-        resultado = await _repository.pesquisar(query);
+        resultado =
+        await _repository.pesquisar(query);
       } else {
-        resultado = await _repository.carregarObras(
+        resultado =
+        await _repository.carregarObras(
           pagina: 1,
           limite: 10,
         );
@@ -86,8 +98,11 @@ class _AcervoResultadosPageState
   }
 
   String _tituloPagina() {
-    final categoria = widget.categoria?.trim() ?? '';
-    final query = widget.query?.trim() ?? '';
+    final categoria =
+        widget.categoria?.trim() ?? '';
+
+    final query =
+        widget.query?.trim() ?? '';
 
     if (categoria.isNotEmpty) {
       return categoria;
@@ -103,12 +118,21 @@ class _AcervoResultadosPageState
   String _formatarData(DateTime data) {
     final local = data.toLocal();
 
-    final dia = local.day.toString().padLeft(2, '0');
-    final mes = local.month.toString().padLeft(2, '0');
-    final ano = local.year.toString();
+    final dia =
+    local.day.toString().padLeft(2, '0');
+
+    final mes =
+    local.month.toString().padLeft(2, '0');
+
+    final ano =
+    local.year.toString();
 
     return '$dia/$mes/$ano';
   }
+
+  // ============================================================
+  // ABRIR DOCUMENTO E REGISTAR HISTÓRICO
+  // ============================================================
 
   Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento.trim();
@@ -129,6 +153,26 @@ class _AcervoResultadosPageState
       return;
     }
 
+    // ==========================================================
+    // REGISTAR CONSULTA NO HISTÓRICO
+    // ==========================================================
+
+    try {
+      await _historicoService.registrarConsulta(
+        obraId: obra.id,
+      );
+    } catch (e) {
+      // O erro do histórico não impede a abertura
+      // do documento.
+      debugPrint(
+        'Erro ao registar consulta no histórico: $e',
+      );
+    }
+
+    // ==========================================================
+    // ABRIR DOCUMENTO
+    // ==========================================================
+
     final abriu = await launchUrl(
       uri,
       webOnlyWindowName: '_blank',
@@ -140,6 +184,10 @@ class _AcervoResultadosPageState
       );
     }
   }
+
+  // ============================================================
+  // MENSAGEM
+  // ============================================================
 
   void _mostrarMensagem(String mensagem) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -153,11 +201,17 @@ class _AcervoResultadosPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_tituloPagina()),
+        title: Text(
+          _tituloPagina(),
+        ),
       ),
       body: _buildBody(),
     );
   }
+
+  // ============================================================
+  // BODY
+  // ============================================================
 
   Widget _buildBody() {
     if (_carregando) {
@@ -185,7 +239,9 @@ class _AcervoResultadosPageState
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _carregar,
-                child: const Text('Tentar novamente'),
+                child: const Text(
+                  'Tentar novamente',
+                ),
               ),
             ],
           ),
@@ -261,7 +317,12 @@ class _AcervoResultadosPageState
   }
 }
 
-class _ObraResultadoCard extends StatelessWidget {
+// ================================================================
+// CARD DE RESULTADO
+// ================================================================
+
+class _ObraResultadoCard
+    extends StatelessWidget {
   final Obra obra;
   final String data;
   final VoidCallback onAbrir;
@@ -275,7 +336,9 @@ class _ObraResultadoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(
+        bottom: 16,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -288,36 +351,51 @@ class _ObraResultadoCard extends StatelessWidget {
                   .textTheme
                   .titleLarge,
             ),
+
             const SizedBox(height: 10),
+
             Text(
               obra.autor,
               style: Theme.of(context)
                   .textTheme
                   .bodyLarge,
             ),
+
             const SizedBox(height: 6),
+
             Text(
               obra.categoria,
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium,
             ),
+
             if (obra.anoObra != null) ...[
               const SizedBox(height: 6),
-              Text('Ano: ${obra.anoObra}'),
+              Text(
+                'Ano: ${obra.anoObra}',
+              ),
             ],
+
             const SizedBox(height: 6),
-            Text('Publicada em $data'),
+
+            Text(
+              'Publicada em $data',
+            ),
+
             if (obra.descricao != null &&
                 obra.descricao!.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 obra.descricao!,
                 maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                overflow:
+                TextOverflow.ellipsis,
               ),
             ],
+
             const SizedBox(height: 16),
+
             Align(
               alignment: Alignment.centerRight,
               child: OutlinedButton.icon(
@@ -325,7 +403,9 @@ class _ObraResultadoCard extends StatelessWidget {
                 icon: const Icon(
                   Icons.picture_as_pdf_outlined,
                 ),
-                label: const Text('Abrir documento'),
+                label: const Text(
+                  'Abrir documento',
+                ),
               ),
             ),
           ],

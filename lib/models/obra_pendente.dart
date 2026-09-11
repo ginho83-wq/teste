@@ -6,7 +6,7 @@ class ObraPendente {
   final String categoria;
   final String urlDocumento;
   final int? anoObra;
-  final DateTime? dataPublicacao;
+  final DateTime dataPublicacao;
   final String userId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -19,13 +19,15 @@ class ObraPendente {
     required this.categoria,
     required this.urlDocumento,
     this.anoObra,
-    this.dataPublicacao,
+    required this.dataPublicacao,
     required this.userId,
     this.createdAt,
     this.updatedAt,
   });
 
-  factory ObraPendente.fromMap(Map<String, dynamic> map) {
+  factory ObraPendente.fromMap(
+      Map<String, dynamic> map,
+      ) {
     return ObraPendente(
       id: map['id']?.toString(),
       titulo: map['titulo']?.toString() ?? '',
@@ -34,7 +36,9 @@ class ObraPendente {
       categoria: map['categoria']?.toString() ?? '',
       urlDocumento: map['url_documento']?.toString() ?? '',
       anoObra: _parseInt(map['ano_obra']),
-      dataPublicacao: _parseDate(map['data_publicacao']),
+      dataPublicacao:
+      _parseDate(map['data_publicacao']) ??
+          DateTime.now(),
       userId: map['user_id']?.toString() ?? '',
       createdAt: _parseDate(map['created_at']),
       updatedAt: _parseDate(map['updated_at']),
@@ -50,7 +54,7 @@ class ObraPendente {
       'categoria': categoria,
       'url_documento': urlDocumento,
       'ano_obra': anoObra,
-      'data_publicacao': dataPublicacao?.toIso8601String(),
+      'data_publicacao': dataPublicacao.toIso8601String(),
       'user_id': userId,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -78,7 +82,8 @@ class ObraPendente {
       categoria: categoria ?? this.categoria,
       urlDocumento: urlDocumento ?? this.urlDocumento,
       anoObra: anoObra ?? this.anoObra,
-      dataPublicacao: dataPublicacao ?? this.dataPublicacao,
+      dataPublicacao:
+      dataPublicacao ?? this.dataPublicacao,
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -86,7 +91,9 @@ class ObraPendente {
   }
 
   static int? _parseInt(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
     if (value is int) {
       return value;
@@ -96,7 +103,9 @@ class ObraPendente {
   }
 
   static DateTime? _parseDate(dynamic value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
 
     if (value is DateTime) {
       return value;
@@ -105,3 +114,4 @@ class ObraPendente {
     return DateTime.tryParse(value.toString());
   }
 }
+
