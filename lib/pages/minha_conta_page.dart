@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/obra.dart';
@@ -19,7 +20,8 @@ class MinhaContaPage extends StatefulWidget {
 
 class _MinhaContaPageState
     extends State<MinhaContaPage> {
-  final AuthService _auth = AuthService.instancia;
+  final AuthService _auth =
+      AuthService.instancia;
 
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
@@ -113,7 +115,8 @@ class _MinhaContaPageState
             metadata['full_name'] ??
             metadata['name'];
 
-    if (nome is String && nome.trim().isNotEmpty) {
+    if (nome is String &&
+        nome.trim().isNotEmpty) {
       return nome.trim();
     }
 
@@ -134,8 +137,10 @@ class _MinhaContaPageState
 
     final local = data.toLocal();
 
-    final dia = local.day.toString().padLeft(2, '0');
-    final mes = local.month.toString().padLeft(2, '0');
+    final dia =
+    local.day.toString().padLeft(2, '0');
+    final mes =
+    local.month.toString().padLeft(2, '0');
     final ano = local.year.toString();
 
     return '$dia/$mes/$ano';
@@ -188,7 +193,8 @@ class _MinhaContaPageState
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _carregar,
-                child: const Text('Tentar novamente'),
+                child:
+                const Text('Tentar novamente'),
               ),
             ],
           ),
@@ -202,11 +208,43 @@ class _MinhaContaPageState
         padding: const EdgeInsets.all(24),
         children: [
           _buildPerfil(),
+
+          const SizedBox(height: 20),
+
+          // ====================================================
+          // HISTÓRICO DE OBRAS
+          // ====================================================
+
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.history,
+              ),
+              title: const Text(
+                'Histórico de obras',
+              ),
+              subtitle: const Text(
+                'Consultar as obras que você consultou',
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+              ),
+              onTap: () {
+                context.go('/historico-obras');
+              },
+            ),
+          ),
+
           const SizedBox(height: 32),
+
           _buildPublicadas(),
+
           const SizedBox(height: 32),
+
           _buildPendentes(),
+
           const SizedBox(height: 32),
+
           OutlinedButton(
             onPressed: _sair,
             child: const Text('Sair'),
@@ -342,3 +380,4 @@ class _MinhaContaPageState
     );
   }
 }
+

@@ -17,9 +17,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
+  final ObrasRepository _obrasRepository =
+      ObrasRepository.instancia;
 
-  final AuthService _authService = AuthService.instancia;
+  final AuthService _authService =
+      AuthService.instancia;
 
   final HistoricoObrasService _historicoService =
   HistoricoObrasService();
@@ -152,7 +154,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // VERIFICAR ADMINISTRADOR
+  // ADMINISTRADOR
   // ============================================================
 
   Future<void> _verificarAdministrador() async {
@@ -167,7 +169,7 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       debugPrint(
-        'Erro ao verificar administrador: $e',
+        'HOME: erro ao verificar administrador: $e',
       );
 
       if (!mounted) return;
@@ -195,37 +197,274 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // ABRIR OBRA
+  // ABRIR DETALHES
   // ============================================================
 
   Future<void> _abrirObra(Obra obra) async {
+    if (!mounted) return;
+
+    // Registra a consulta assim que o utilizador
+    // abre os detalhes da obra.
+    try {
+      await _historicoService.registrarConsulta(
+        obraId: obra.id,
+      );
+
+      debugPrint(
+        'HOME: consulta registrada ao abrir detalhes da obra ${obra.id}',
+      );
+    } catch (e) {
+      // Se o histórico falhar, os detalhes da obra
+      // continuam a abrir normalmente.
+      debugPrint(
+        'HOME: erro ao registrar consulta: $e',
+      );
+    }
+
+    // Abre os detalhes da obra.
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return _buildDetalhesObraDialog(
+          obra,
+          dialogContext,
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    // Atualiza a lista "Obras consultadas recentemente".
+    await _carregarConsultasRecentes();
+  }
+
+  // ============================================================
+  // DIALOG DE DETALHES DA OBRA
+  // ============================================================
+
+  Widget _buildDetalhesObraDialog(
+      Obra obra,
+      BuildContext dialogContext,
+      ) {
+    return AlertDialog(
+      title: Text(
+        obra.titulo,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      content: SizedBox(
+        width: 600,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              if (obra.autor.trim().isNotEmpty) ...[
+                const Text(
+                  'Autor',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  obra.autor,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              const Text(
+                'Categoria',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                obra.categoria,
+                style: const TextStyle(
+                  color: Colors.black54,
+                ),
+              ),
+
+              if (obra.descricao != null &&
+                  obra.descricao!.trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Descrição',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  obra.descricao!,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.of(dialogContext).pop();
+          },
+          child: const Text('Fechar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () async {
+            await _abrirDocumentoNoDialog(
+              obra,
+              dialogContext,
+            );
+          },
+          icon: const Icon(
+            Icons.open_in_new,
+            size: 18,
+          ),
+          label: const Text('Abrir documento'),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // ABRIR DOCUMENTO A PARTIR DO DIALOG
+  // ============================================================
+
+  Future<void> _abrirDocumentoNoDialog(
+      Obra obra,
+      BuildContext dialogContext,
+      ) async {
     final obraId = obra.id;
 
-    if (obraId == null || obraId.isEmpty) {
+    if (obraId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível identificar esta obra.',
+            ),
+          ),
+        );
+      }
+
       return;
     }
 
+    final url = obra.urlDocumento.trim();
+
+    if (url.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Esta obra não possui documento disponível.',
+            ),
+          ),
+        );
+      }
+
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+
+    if (uri == null ||
+        (uri.scheme != 'http' &&
+            uri.scheme != 'https')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'O endereço do documento é inválido.',
+            ),
+          ),
+        );
+      }
+
+      return;
+    }
+
+    // Primeiro abre o documento.
+    try {
+      final abriu = await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
+
+      debugPrint(
+        'HOME: documento aberto: $abriu',
+      );
+
+      if (!abriu) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível abrir o documento.',
+            ),
+          ),
+        );
+
+        return;
+      }
+    } catch (e) {
+      debugPrint(
+        'HOME: erro ao abrir documento: $e',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível abrir o documento.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    // A consulta já foi registrada quando os detalhes
+    // foram abertos. Aqui apenas atualizamos a data
+    // da consulta, colocando a obra novamente no topo
+    // se o documento for aberto outra vez.
     try {
       await _historicoService.registrarConsulta(
         obraId: obraId,
       );
 
       debugPrint(
-        'HOME: consulta registrada para obra $obraId',
+        'HOME: consulta atualizada para obra $obraId',
       );
     } catch (e) {
       debugPrint(
-        'HOME: erro ao registrar consulta: $e',
+        'HOME: erro ao atualizar histórico: $e',
       );
     }
 
-    await _carregarConsultasRecentes();
+    // Fecha o diálogo.
+    if (dialogContext.mounted) {
+      Navigator.of(dialogContext).pop();
+    }
 
-    if (!mounted) return;
-
-    context.go(
-      '/acervo?obra=${Uri.encodeComponent(obraId)}',
-    );
+    // Atualiza imediatamente a seção da Home.
+    if (mounted) {
+      await _carregarConsultasRecentes();
+    }
   }
 
   // ============================================================
@@ -241,37 +480,58 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    try {
-      await _historicoService.registrarConsulta(
-        obraId: obraId,
-      );
+    final url = consulta.urlDocumento?.trim();
 
-      final url =
-      consulta.urlDocumento?.trim();
+    if (url != null && url.isNotEmpty) {
+      final uri = Uri.tryParse(url);
 
-      if (url != null && url.isNotEmpty) {
-        final uri = Uri.tryParse(url);
+      if (uri == null ||
+          (uri.scheme != 'http' &&
+              uri.scheme != 'https')) {
+        return;
+      }
 
-        if (uri != null) {
-          await launchUrl(
-            uri,
-            webOnlyWindowName: '_blank',
-          );
+      try {
+        final abriu = await launchUrl(
+          uri,
+          webOnlyWindowName: '_blank',
+        );
+
+        debugPrint(
+          'HOME: consulta recente aberta: $abriu',
+        );
+
+        if (!abriu) {
+          return;
         }
-      } else {
-        if (!mounted) return;
+      } catch (e) {
+        debugPrint(
+          'HOME: erro ao abrir consulta recente: $e',
+        );
 
-        context.go(
-          '/acervo?obra=${Uri.encodeComponent(obraId)}',
+        return;
+      }
+
+      try {
+        await _historicoService.registrarConsulta(
+          obraId: obraId,
+        );
+
+        await _carregarConsultasRecentes();
+      } catch (e) {
+        debugPrint(
+          'HOME: erro ao atualizar histórico: $e',
         );
       }
 
-      await _carregarConsultasRecentes();
-    } catch (e) {
-      debugPrint(
-        'Erro ao abrir consulta recente: $e',
-      );
+      return;
     }
+
+    if (!mounted) return;
+
+    context.go(
+      '/acervo?obra=${Uri.encodeComponent(obraId)}',
+    );
   }
 
   // ============================================================
@@ -282,19 +542,16 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
-
         title: const Text(
           'Obra Livre',
           style: TextStyle(
             fontWeight: FontWeight.w600,
           ),
         ),
-
         actions: [
           TextButton(
             onPressed: () {
@@ -310,10 +567,6 @@ class _HomePageState extends State<HomePage> {
               },
               child: const Text('Administração'),
             ),
-
-          // ====================================================
-          // BOTÃO PUBLICAR
-          // ====================================================
 
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -343,7 +596,8 @@ class _HomePageState extends State<HomePage> {
               child: const Text(
                 'Publicar',
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                  FontWeight.w600,
                 ),
               ),
             ),
@@ -360,10 +614,6 @@ class _HomePageState extends State<HomePage> {
                   context.go('/configuracoes');
                   break;
 
-                case 'historico':
-                  context.go('/historico-obras');
-                  break;
-
                 case 'sair':
                   await _authService.sair();
 
@@ -373,31 +623,21 @@ class _HomePageState extends State<HomePage> {
                   break;
               }
             },
-
             itemBuilder: (context) => const [
               PopupMenuItem(
                 value: 'conta',
                 child: Text('Minha conta'),
               ),
-
               PopupMenuItem(
                 value: 'configuracoes',
                 child: Text('Configurações'),
               ),
-
-              PopupMenuItem(
-                value: 'historico',
-                child: Text('Histórico de obras'),
-              ),
-
               PopupMenuDivider(),
-
               PopupMenuItem(
                 value: 'sair',
                 child: Text('Sair'),
               ),
             ],
-
             child: const Padding(
               padding:
               EdgeInsets.symmetric(
@@ -415,7 +655,6 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 8),
         ],
       ),
-
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([
@@ -423,11 +662,9 @@ class _HomePageState extends State<HomePage> {
             _carregarConsultasRecentes(),
           ]);
         },
-
         child: SingleChildScrollView(
           physics:
           const AlwaysScrollableScrollPhysics(),
-
           child: Column(
             children: [
               _buildHero(context),
@@ -449,33 +686,28 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHero(BuildContext context) {
     return Container(
       width: double.infinity,
-
       color: Colors.white,
-
-      // Espaçamento reduzido para aproximar
-      // as categorias da pesquisa.
       padding: const EdgeInsets.fromLTRB(
         24,
         45,
         24,
         30,
       ),
-
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
+          constraints:
+          const BoxConstraints(
             maxWidth: 850,
           ),
-
           child: Column(
             children: [
               const Text(
                 'Encontre conhecimento.\nEncontre obras.',
                 textAlign: TextAlign.center,
-
                 style: TextStyle(
                   fontSize: 38,
-                  fontWeight: FontWeight.w700,
+                  fontWeight:
+                  FontWeight.w700,
                   color: Colors.black87,
                 ),
               ),
@@ -483,57 +715,52 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 28),
 
               ConstrainedBox(
-                constraints: const BoxConstraints(
+                constraints:
+                const BoxConstraints(
                   maxWidth: 720,
                 ),
-
                 child: TextField(
                   controller:
                   _pesquisaController,
-
                   onSubmitted: (_) {
                     _executarPesquisa();
                   },
-
                   textInputAction:
                   TextInputAction.search,
-
-                  decoration: InputDecoration(
+                  decoration:
+                  InputDecoration(
                     hintText:
                     'Pesquisar obras académicas',
-
                     filled: true,
                     fillColor: Colors.white,
-
-                    prefixIcon: const Icon(
+                    prefixIcon:
+                    const Icon(
                       Icons.search,
                       color: Colors.black54,
                     ),
-
                     suffixIcon:
                     ValueListenableBuilder<
                         TextEditingValue>(
                       valueListenable:
                       _pesquisaController,
-
                       builder: (
                           context,
                           value,
                           child,
                           ) {
                         if (value.text.isEmpty) {
-                          return const SizedBox.shrink();
+                          return const SizedBox
+                              .shrink();
                         }
 
                         return IconButton(
                           tooltip:
                           'Limpar pesquisa',
-
-                          icon: const Icon(
+                          icon:
+                          const Icon(
                             Icons.close,
                             size: 20,
                           ),
-
                           onPressed: () {
                             _pesquisaController
                                 .clear();
@@ -541,42 +768,42 @@ class _HomePageState extends State<HomePage> {
                         );
                       },
                     ),
-
                     contentPadding:
-                    const EdgeInsets.symmetric(
+                    const EdgeInsets
+                        .symmetric(
                       horizontal: 18,
                       vertical: 16,
                     ),
-
                     border:
                     OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(6),
-
+                      BorderRadius.circular(
+                        6,
+                      ),
                       borderSide:
                       const BorderSide(
                         color:
                         Color(0xffdddddd),
                       ),
                     ),
-
                     enabledBorder:
                     OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(6),
-
+                      BorderRadius.circular(
+                        6,
+                      ),
                       borderSide:
                       const BorderSide(
                         color:
                         Color(0xffdddddd),
                       ),
                     ),
-
                     focusedBorder:
                     OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(6),
-
+                      BorderRadius.circular(
+                        6,
+                      ),
                       borderSide:
                       const BorderSide(
                         color: Colors.black54,
@@ -609,22 +836,17 @@ class _HomePageState extends State<HomePage> {
     ];
 
     return Padding(
-      // Reduzido de 35 para 10 para aproximar
-      // as categorias da barra de pesquisa.
       padding: const EdgeInsets.fromLTRB(
         24,
         10,
         24,
         20,
       ),
-
       child: Wrap(
         spacing: 24,
         runSpacing: 12,
-
         alignment:
         WrapAlignment.center,
-
         children:
         categorias.map((categoria) {
           return InkWell(
@@ -633,20 +855,16 @@ class _HomePageState extends State<HomePage> {
                 '/categoria/${Uri.encodeComponent(categoria)}',
               );
             },
-
             borderRadius:
             BorderRadius.circular(4),
-
             child: Padding(
               padding:
               const EdgeInsets.symmetric(
                 horizontal: 4,
                 vertical: 4,
               ),
-
               child: Text(
                 categoria,
-
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight:
@@ -675,21 +893,17 @@ class _HomePageState extends State<HomePage> {
         24,
         10,
       ),
-
       child: ConstrainedBox(
         constraints:
         const BoxConstraints(
           maxWidth: 1100,
         ),
-
         child: Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
-
           children: [
             const Text(
               'Publicações recentes',
-
               style: TextStyle(
                 fontSize: 23,
                 fontWeight:
@@ -704,28 +918,23 @@ class _HomePageState extends State<HomePage> {
                 child: Padding(
                   padding:
                   EdgeInsets.all(25),
-
                   child:
                   CircularProgressIndicator(),
                 ),
               )
-
             else if (_obrasRecentes.isEmpty)
               const Padding(
                 padding:
                 EdgeInsets.symmetric(
                   vertical: 20,
                 ),
-
                 child: Text(
                   'Ainda não existem publicações.',
-
                   style: TextStyle(
                     color: Colors.black54,
                   ),
                 ),
               )
-
             else
               ..._obrasRecentes.map(
                     (obra) =>
@@ -741,41 +950,30 @@ class _HomePageState extends State<HomePage> {
   // CARD DA OBRA
   // ============================================================
 
-  Widget _buildObraCard(
-      Obra obra,
-      ) {
+  Widget _buildObraCard(Obra obra) {
     return Card(
       margin:
       const EdgeInsets.only(
         bottom: 12,
       ),
-
       elevation: 0,
-
       shape:
       RoundedRectangleBorder(
         borderRadius:
         BorderRadius.circular(6),
-
-        side:
-        const BorderSide(
-          color:
-          Color(0xffe2e2e2),
+        side: const BorderSide(
+          color: Color(0xffe2e2e2),
         ),
       ),
-
       child: InkWell(
         borderRadius:
         BorderRadius.circular(6),
-
         onTap: () async {
           await _abrirObra(obra);
         },
-
         child: Padding(
           padding:
           const EdgeInsets.all(18),
-
           child: Row(
             children: [
               const Icon(
@@ -790,11 +988,9 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-
                   children: [
                     Text(
                       obra.titulo,
-
                       style:
                       const TextStyle(
                         fontSize: 17,
@@ -805,35 +1001,24 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 6),
 
-                    if (obra.autor != null)
-                      Text(
-                        obra.autor!,
-
-                        style:
-                        const TextStyle(
-                          color:
-                          Colors.black54,
-                        ),
+                    Text(
+                      obra.autor,
+                      style:
+                      const TextStyle(
+                        color: Colors.black54,
                       ),
+                    ),
 
-                    if (obra.categoria != null)
-                      Padding(
-                        padding:
-                        const EdgeInsets.only(
-                          top: 4,
-                        ),
+                    const SizedBox(height: 4),
 
-                        child: Text(
-                          obra.categoria!,
-
-                          style:
-                          const TextStyle(
-                            fontSize: 13,
-                            color:
-                            Colors.black45,
-                          ),
-                        ),
+                    Text(
+                      obra.categoria,
+                      style:
+                      const TextStyle(
+                        fontSize: 13,
+                        color: Colors.black45,
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -850,7 +1035,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // OBRAS CONSULTADAS RECENTEMENTE
+  // CONSULTAS RECENTES
   // ============================================================
 
   Widget _buildConsultasRecentes(
@@ -863,21 +1048,17 @@ class _HomePageState extends State<HomePage> {
         24,
         20,
       ),
-
       child: ConstrainedBox(
         constraints:
         const BoxConstraints(
           maxWidth: 1100,
         ),
-
         child: Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
-
           children: [
             const Text(
               'Obras consultadas recentemente',
-
               style: TextStyle(
                 fontSize: 23,
                 fontWeight:
@@ -892,28 +1073,23 @@ class _HomePageState extends State<HomePage> {
                 child: Padding(
                   padding:
                   EdgeInsets.all(25),
-
                   child:
                   CircularProgressIndicator(),
                 ),
               )
-
             else if (_consultasRecentes.isEmpty)
               const Padding(
                 padding:
                 EdgeInsets.symmetric(
                   vertical: 10,
                 ),
-
                 child: Text(
                   'Ainda não consultou nenhuma obra.',
-
                   style: TextStyle(
                     color: Colors.black54,
                   ),
                 ),
               )
-
             else
               ..._consultasRecentes.map(
                     (consulta) =>
@@ -939,72 +1115,55 @@ class _HomePageState extends State<HomePage> {
       const EdgeInsets.only(
         bottom: 12,
       ),
-
       elevation: 0,
-
       shape:
       RoundedRectangleBorder(
         borderRadius:
         BorderRadius.circular(6),
-
-        side:
-        const BorderSide(
-          color:
-          Color(0xffe2e2e2),
+        side: const BorderSide(
+          color: Color(0xffe2e2e2),
         ),
       ),
-
       child: ListTile(
         contentPadding:
         const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 8,
         ),
-
         leading: const Icon(
           Icons.history,
           color: Colors.black54,
         ),
-
         title: Text(
           consulta.titulo,
-
-          style:
-          const TextStyle(
+          style: const TextStyle(
             fontWeight:
             FontWeight.w600,
           ),
         ),
-
         subtitle: Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
-
           children: [
             if (consulta.autor != null)
               Text(
                 consulta.autor!,
               ),
-
             if (consulta.categoria != null)
               Text(
                 consulta.categoria!,
-
                 style:
                 const TextStyle(
                   fontSize: 12,
-                  color:
-                  Colors.black45,
+                  color: Colors.black45,
                 ),
               ),
           ],
         ),
-
         trailing: const Icon(
           Icons.open_in_new,
           size: 20,
         ),
-
         onTap: () async {
           await _abrirConsultaRecente(
             consulta,
@@ -1021,22 +1180,17 @@ class _HomePageState extends State<HomePage> {
   Widget _buildFooter() {
     return Container(
       width: double.infinity,
-
       margin:
       const EdgeInsets.only(
         top: 50,
       ),
-
       padding:
       const EdgeInsets.all(30),
-
       color:
       const Color(0xfff5f5f5),
-
       child: const Center(
         child: Text(
           'Obra Livre',
-
           style: TextStyle(
             color: Colors.black54,
           ),
@@ -1045,3 +1199,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
