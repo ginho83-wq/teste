@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../pages/acervo_resultados_page.dart';
 import '../pages/admin_obras_page.dart';
+import '../pages/ajuda_page.dart';
 import '../pages/auth_callback_page.dart';
 import '../pages/cadastro_page.dart';
 import '../pages/contacto_page.dart';
@@ -57,9 +58,11 @@ final GoRouter router = GoRouter(
       '/politica-privacidade',
       '/cookies',
       '/contacto',
+      '/ajuda',
     };
 
-    final rotaPublica = rotasPublicas.contains(caminho);
+    final rotaPublica =
+    rotasPublicas.contains(caminho);
 
     // Se não estiver autenticado, só pode acessar
     // as rotas públicas.
@@ -82,6 +85,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // LOGIN
     // =====================================================
+
     GoRoute(
       path: '/login',
       builder: (context, state) {
@@ -92,6 +96,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // CADASTRO
     // =====================================================
+
     GoRoute(
       path: '/cadastro',
       builder: (context, state) {
@@ -102,6 +107,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // CALLBACK DE AUTENTICAÇÃO
     // =====================================================
+
     GoRoute(
       path: '/auth/callback',
       builder: (context, state) {
@@ -112,6 +118,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // HOME
     // =====================================================
+
     GoRoute(
       path: '/',
       builder: (context, state) {
@@ -122,6 +129,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // MINHA CONTA
     // =====================================================
+
     GoRoute(
       path: '/minha-conta',
       builder: (context, state) {
@@ -132,6 +140,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // CONFIGURAÇÕES
     // =====================================================
+
     GoRoute(
       path: '/configuracoes',
       builder: (context, state) {
@@ -142,6 +151,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // PUBLICAR OBRA
     // =====================================================
+
     GoRoute(
       path: '/publicar',
       builder: (context, state) {
@@ -152,6 +162,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // HISTÓRICO DE OBRAS CONSULTADAS
     // =====================================================
+
     GoRoute(
       path: '/historico-obras',
       builder: (context, state) {
@@ -162,6 +173,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // ACERVO
     // =====================================================
+
     GoRoute(
       path: '/acervo',
       builder: (context, state) {
@@ -177,6 +189,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // PESQUISA
     // =====================================================
+
     GoRoute(
       path: '/search/:query',
       builder: (context, state) {
@@ -192,6 +205,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // CATEGORIA
     // =====================================================
+
     GoRoute(
       path: '/categoria/:tipo',
       builder: (context, state) {
@@ -207,6 +221,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // ADMINISTRAÇÃO
     // =====================================================
+
     GoRoute(
       path: '/admin-obras',
       builder: (context, state) {
@@ -217,6 +232,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // TERMOS
     // =====================================================
+
     GoRoute(
       path: '/termos',
       builder: (context, state) {
@@ -227,6 +243,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // POLÍTICA DE PRIVACIDADE
     // =====================================================
+
     GoRoute(
       path: '/politica-privacidade',
       builder: (context, state) {
@@ -237,6 +254,7 @@ final GoRouter router = GoRouter(
     // =====================================================
     // COOKIES
     // =====================================================
+
     GoRoute(
       path: '/cookies',
       builder: (context, state) {
@@ -247,11 +265,24 @@ final GoRouter router = GoRouter(
     // =====================================================
     // CONTACTO
     // =====================================================
+
     GoRoute(
       path: '/contacto',
       builder: (context, state) {
         return const ContactoPage();
       },
     ),
+
+    // =====================================================
+    // AJUDA
+    // =====================================================
+
+    GoRoute(
+      path: '/ajuda',
+      builder: (context, state) {
+        return const AjudaPage();
+      },
+    ),
   ],
 );
+
