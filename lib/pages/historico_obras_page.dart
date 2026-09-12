@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/historico_obra.dart';
@@ -8,15 +9,19 @@ class HistoricoObrasPage extends StatefulWidget {
   const HistoricoObrasPage({super.key});
 
   @override
-  State<HistoricoObrasPage> createState() => _HistoricoObrasPageState();
+  State<HistoricoObrasPage> createState() =>
+      _HistoricoObrasPageState();
 }
 
-class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
-  final HistoricoObrasService _service = HistoricoObrasService();
+class _HistoricoObrasPageState
+    extends State<HistoricoObrasPage> {
+  final HistoricoObrasService _service =
+  HistoricoObrasService();
 
   List<HistoricoObra> _historico = [];
+
   bool _carregando = true;
-  String? _erro;
+  bool _limpando = false;
 
   @override
   void initState() {
@@ -25,13 +30,15 @@ class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
   }
 
   Future<void> _carregarHistorico() async {
+    if (!mounted) return;
+
     setState(() {
       _carregando = true;
-      _erro = null;
     });
 
     try {
-      final historico = await _service.obterHistorico();
+      final historico =
+      await _service.obterHistorico();
 
       if (!mounted) return;
 
@@ -40,59 +47,83 @@ class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
         _carregando = false;
       });
     } catch (e) {
+      debugPrint(
+        'Erro ao carregar histórico: $e',
+      );
+
       if (!mounted) return;
 
       setState(() {
-        _erro = 'Não foi possível carregar o histórico.';
         _carregando = false;
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível carregar o histórico.',
+          ),
+        ),
+      );
     }
   }
 
-  Future<void> _removerConsulta(HistoricoObra obra) async {
+  Future<void> _removerConsulta(
+      HistoricoObra obra,
+      ) async {
     try {
-      await _service.removerConsulta(id: obra.id);
+      await _service.removerConsulta(
+        id: obra.id,
+      );
 
       if (!mounted) return;
 
       setState(() {
-        _historico.removeWhere((item) => item.id == obra.id);
+        _historico.removeWhere(
+              (item) => item.id == obra.id,
+        );
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Consulta removida do histórico.'),
-        ),
-      );
     } catch (e) {
+      debugPrint(
+        'Erro ao remover consulta: $e',
+      );
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível remover a consulta.'),
+          content: Text(
+            'Não foi possível remover esta consulta.',
+          ),
         ),
       );
     }
   }
 
   Future<void> _limparHistorico() async {
-    if (_historico.isEmpty) return;
+    if (_historico.isEmpty || _limpando) {
+      return;
+    }
 
-    final confirmar = await showDialog<bool>(
+    final confirmar =
+    await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Limpar histórico'),
+          title: const Text(
+            'Limpar histórico',
+          ),
           content: const Text(
-            'Tem a certeza de que deseja remover todo o histórico de obras consultadas?',
+            'Tem certeza que deseja limpar todo o histórico de obras consultadas?',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () =>
+                  Navigator.of(context).pop(false),
               child: const Text('Cancelar'),
             ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(true),
               child: const Text('Limpar'),
             ),
           ],
@@ -100,7 +131,13 @@ class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
       },
     );
 
-    if (confirmar != true) return;
+    if (confirmar != true) {
+      return;
+    }
+
+    setState(() {
+      _limpando = true;
+    });
 
     try {
       await _service.limparHistorico();
@@ -109,165 +146,121 @@ class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
 
       setState(() {
         _historico.clear();
+        _limpando = false;
+      });
+    } catch (e) {
+      debugPrint(
+        'Erro ao limpar histórico: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _limpando = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Histórico limpo com sucesso.'),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível limpar o histórico.'),
+          content: Text(
+            'Não foi possível limpar o histórico.',
+          ),
         ),
       );
     }
   }
 
-  Future<void> _abrirDocumento(HistoricoObra obra) async {
-    final url = obra.urlDocumento;
+  Future<void> _abrirDocumento(
+      HistoricoObra obra,
+      ) async {
+    final url = obra.urlDocumento?.trim();
 
-    if (url == null || url.trim().isEmpty) {
+    if (url == null || url.isEmpty) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Documento não disponível.'),
+          content: Text(
+            'Esta obra não possui documento disponível.',
+          ),
         ),
       );
+
       return;
     }
 
     final uri = Uri.tryParse(url);
 
     if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Endereço do documento inválido.'),
-        ),
-      );
       return;
     }
 
-    final abriu = await launchUrl(
-      uri,
-      webOnlyWindowName: '_blank',
-    );
-
-    if (!abriu && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível abrir o documento.'),
-        ),
+    try {
+      await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
+    } catch (e) {
+      debugPrint(
+        'Erro ao abrir documento: $e',
       );
     }
-  }
-
-  String _formatarData(DateTime data) {
-    final local = data.toLocal();
-
-    final dia = local.day.toString().padLeft(2, '0');
-    final mes = local.month.toString().padLeft(2, '0');
-    final ano = local.year.toString();
-
-    final hora = local.hour.toString().padLeft(2, '0');
-    final minuto = local.minute.toString().padLeft(2, '0');
-
-    return '$dia/$mes/$ano às $hora:$minuto';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Histórico de obras'),
+        title: const Text(
+          'Obras consultadas',
+        ),
         actions: [
-          if (!_carregando && _historico.isNotEmpty)
-            TextButton(
-              onPressed: _limparHistorico,
-              child: const Text('Limpar histórico'),
+          if (_historico.isNotEmpty)
+            TextButton.icon(
+              onPressed:
+              _limpando ? null : _limparHistorico,
+              icon: const Icon(
+                Icons.delete_outline,
+              ),
+              label: const Text(
+                'Limpar',
+              ),
             ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 1080,
-          ),
-          child: _buildConteudo(),
-        ),
-      ),
+      body: _construirConteudo(),
     );
   }
 
-  Widget _buildConteudo() {
+  Widget _construirConteudo() {
     if (_carregando) {
       return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(40),
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (_erro != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _erro!,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: _carregarHistorico,
-                child: const Text('Tentar novamente'),
-              ),
-            ],
-          ),
-        ),
+        child: CircularProgressIndicator(),
       );
     }
 
     if (_historico.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.history,
                 size: 56,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
+                color: Colors.grey.shade500,
               ),
               const SizedBox(height: 16),
               const Text(
-                'O seu histórico está vazio.',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
+                'Nenhuma obra consultada recentemente.',
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
-                'As obras que consultar aparecerão aqui.',
+                'As obras que você consultar aparecerão aqui.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
@@ -279,101 +272,122 @@ class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
     return RefreshIndicator(
       onRefresh: _carregarHistorico,
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          40,
-        ),
+        padding: const EdgeInsets.all(20),
         itemCount: _historico.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (_, __) =>
+        const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final obra = _historico[index];
 
-          return _HistoricoObraCard(
-            obra: obra,
-            dataFormatada: _formatarData(obra.dataConsulta),
-            onAbrir: () => _abrirDocumento(obra),
-            onRemover: () => _removerConsulta(obra),
-          );
+          return _buildHistoricoCard(obra);
         },
       ),
     );
   }
-}
 
-class _HistoricoObraCard extends StatelessWidget {
-  final HistoricoObra obra;
-  final String dataFormatada;
-  final VoidCallback onAbrir;
-  final VoidCallback onRemover;
-
-  const _HistoricoObraCard({
-    required this.obra,
-    required this.dataFormatada,
-    required this.onAbrir,
-    required this.onRemover,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-
+  Widget _buildHistoricoCard(
+      HistoricoObra obra,
+      ) {
     return Card(
-      margin: EdgeInsets.zero,
       elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: Colors.grey.shade300,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius:
+                BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.description_outlined,
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  Text(
                     obra.titulo,
-                    style: tema.textTheme.titleMedium?.copyWith(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Remover do histórico',
-                  onPressed: onRemover,
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (obra.autor != null &&
-                obra.autor!.trim().isNotEmpty)
-              Text(
-                obra.autor!,
-                style: tema.textTheme.bodyMedium,
-              ),
-            if (obra.categoria != null &&
-                obra.categoria!.trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                obra.categoria!,
-                style: tema.textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: 12),
-            Text(
-              'Consultado em $dataFormatada',
-              style: tema.textTheme.bodySmall?.copyWith(
-                color: tema.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: onAbrir,
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Abrir documento'),
+
+                  if (obra.autor != null &&
+                      obra.autor!
+                          .trim()
+                          .isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      obra.autor!,
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+
+                  if (obra.categoria != null &&
+                      obra.categoria!
+                          .trim()
+                          .isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      obra.categoria!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            _abrirDocumento(obra),
+                        icon: const Icon(
+                          Icons.open_in_new,
+                          size: 17,
+                        ),
+                        label: const Text(
+                          'Abrir',
+                        ),
+                      ),
+
+                      IconButton(
+                        tooltip:
+                        'Remover do histórico',
+                        onPressed: () =>
+                            _removerConsulta(obra),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -382,4 +396,3 @@ class _HistoricoObraCard extends StatelessWidget {
     );
   }
 }
-

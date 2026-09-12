@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
 import '../services/auth_service.dart';
+import '../services/historico_obras_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,17 +20,17 @@ class _HomePageState extends State<HomePage> {
   final AuthService _authService =
       AuthService.instancia;
 
+  final HistoricoObrasService _historicoService =
+  HistoricoObrasService();
+
   final TextEditingController _pesquisaController =
   TextEditingController();
 
   List<Obra> _obrasRecentes = [];
+  List<dynamic> _historicoRecente = [];
 
   bool _carregandoObras = true;
-
-  // ============================================================
-  // CONTROLE DO ADMINISTRADOR
-  // ============================================================
-
+  bool _carregandoHistorico = true;
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
@@ -39,6 +39,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
 
     _carregarObrasRecentes();
+    _carregarHistoricoRecente();
     _verificarAdministrador();
   }
 
@@ -47,38 +48,6 @@ class _HomePageState extends State<HomePage> {
     _pesquisaController.dispose();
     super.dispose();
   }
-
-  // ============================================================
-  // VERIFICAR ADMINISTRADOR
-  // ============================================================
-
-  Future<void> _verificarAdministrador() async {
-    try {
-      final ehAdmin = await _authService.ehAdmin();
-
-      if (!mounted) return;
-
-      setState(() {
-        _ehAdmin = ehAdmin;
-        _carregandoPerfil = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _ehAdmin = false;
-        _carregandoPerfil = false;
-      });
-
-      debugPrint(
-        'Erro ao verificar administrador: $e',
-      );
-    }
-  }
-
-  // ============================================================
-  // CARREGAR OBRAS RECENTES
-  // ============================================================
 
   Future<void> _carregarObrasRecentes() async {
     try {
@@ -94,37 +63,109 @@ class _HomePageState extends State<HomePage> {
         _obrasRecentes = obras;
         _carregandoObras = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint(
+        'Erro ao carregar publicações recentes: $e',
+      );
+
       if (!mounted) return;
 
       setState(() {
-        _obrasRecentes = [];
         _carregandoObras = false;
       });
     }
   }
 
-  // ============================================================
-  // PESQUISA
-  // ============================================================
+  Future<void> _carregarHistoricoRecente() async {
+    try {
+      final historico =
+      await _historicoService.obterHistorico();
 
-  void _pesquisar() {
-    final termo =
-    _pesquisaController.text.trim();
+      if (!mounted) return;
 
-    if (termo.isEmpty) {
-      context.go('/acervo');
-      return;
+      setState(() {
+        _historicoRecente =
+            historico.take(3).toList();
+
+        _carregandoHistorico = false;
+      });
+    } catch (e) {
+      debugPrint(
+        'Erro ao carregar histórico recente: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _carregandoHistorico = false;
+      });
+    }
+  }
+
+  Future<void> _verificarAdministrador() async {
+    try {
+      final ehAdmin =
+      await _authService.ehAdmin();
+
+      if (!mounted) return;
+
+      setState(() {
+        _ehAdmin = ehAdmin;
+        _carregandoPerfil = false;
+      });
+    } catch (e) {
+      debugPrint(
+        'Erro ao verificar administrador: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _ehAdmin = false;
+        _carregandoPerfil = false;
+      });
+    }
+  }
+
+  Future<void> _abrirObra(Obra obra) async {
+    if (obra.id.isEmpty) return;
+
+    // Regista imediatamente a obra como consultada.
+    try {
+      await _historicoService.registrarConsulta(
+        obraId: obra.id,
+      );
+
+      // Atualiza a seção de histórico da Home
+      // antes de sair da página.
+      await _carregarHistoricoRecente();
+    } catch (e) {
+      debugPrint(
+        'Erro ao registar consulta: $e',
+      );
     }
 
+    if (!mounted) return;
+
     context.go(
-      '/search/${Uri.encodeComponent(termo)}',
+      '/acervo?obra=${Uri.encodeComponent(obra.id)}',
     );
   }
 
-  // ============================================================
-  // CATEGORIA
-  // ============================================================
+  void _pesquisar() {
+    final texto =
+    _pesquisaController.text.trim();
+
+    if (texto.isEmpty) return;
+
+    context.go(
+      '/search/${Uri.encodeComponent(texto)}',
+    );
+  }
+
+  void _abrirHistorico() {
+    context.go('/historico-obras');
+  }
 
   void _abrirCategoria(String categoria) {
     context.go(
@@ -132,857 +173,377 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // ABRIR OBRA
-  // ============================================================
-
-  void _abrirObra(Obra obra) {
-    if (obra.id.isEmpty) return;
-
-    context.go(
-      '/acervo?obra=${obra.id}',
-    );
-  }
-
-  // ============================================================
-  // SAIR
-  // ============================================================
-
-  Future<void> _sair() async {
+  void _sair() async {
     await _authService.sair();
 
     if (!mounted) return;
 
-    context.go('/');
+    context.go('/login');
   }
-
-  // ============================================================
-  // NOME DO UTILIZADOR
-  // ============================================================
-
-  String _nomeUtilizador() {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
-
-    if (usuario == null) {
-      return 'Conta';
-    }
-
-    final metadata =
-        usuario.userMetadata;
-
-    final nome =
-        metadata?['nome'] ??
-            metadata?['full_name'] ??
-            metadata?['name'];
-
-    if (nome != null &&
-        nome.toString().trim().isNotEmpty) {
-      return nome.toString().trim();
-    }
-
-    return usuario.email ?? 'Conta';
-  }
-
-  // ============================================================
-  // AVATAR
-  // ============================================================
-
-  String? _urlAvatar() {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
-
-    if (usuario == null) return null;
-
-    final metadata =
-        usuario.userMetadata;
-
-    final avatar =
-        metadata?['avatar_url'] ??
-            metadata?['picture'];
-
-    if (avatar == null) return null;
-
-    final valor =
-    avatar.toString().trim();
-
-    return valor.isEmpty ? null : valor;
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
-
-    final autenticado =
-        usuario != null;
-
-    final nome =
-    _nomeUtilizador();
-
-    final avatar =
-    _urlAvatar();
-
     return Scaffold(
-      backgroundColor: Colors.white,
-
-      appBar: _buildAppBar(
-        context,
-        autenticado: autenticado,
-        nome: nome,
-        avatar: avatar,
-      ),
-
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildHero(),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              _carregarObrasRecentes(),
+              _carregarHistoricoRecente(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            physics:
+            const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
 
-              const SizedBox(height: 34),
+                const SizedBox(height: 30),
 
-              _buildCategorias(),
+                _buildHero(),
 
-              const SizedBox(height: 58),
+                const SizedBox(height: 28),
 
-              _buildObrasRecentes(),
+                _buildCategorias(),
 
-              const SizedBox(height: 64),
+                const SizedBox(height: 32),
 
-              _buildFooter(),
-            ],
+                _buildObrasRecentes(),
+
+                const SizedBox(height: 32),
+
+                // IMPORTANTE:
+                // Histórico vem imediatamente depois
+                // das publicações recentes.
+                _buildHistoricoRecente(),
+
+                const SizedBox(height: 40),
+
+                _buildFooter(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ============================================================
-  // APP BAR
-  // ============================================================
-
-  PreferredSizeWidget _buildAppBar(
-      BuildContext context, {
-        required bool autenticado,
-        required String nome,
-        required String? avatar,
-      }) {
-    return AppBar(
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      centerTitle: false,
-      automaticallyImplyLeading: false,
-      titleSpacing: 0,
-      toolbarHeight: 72,
-
-      title: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 1080,
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        const Text(
+          'Teste',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
         ),
 
-        child: Padding(
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
+        const Spacer(),
 
-          child: Row(
-            children: [
-              InkWell(
-                borderRadius:
-                BorderRadius.circular(8),
+        TextButton(
+          onPressed: () =>
+              context.go('/acervo'),
+          child: const Text('Acervo'),
+        ),
 
-                onTap: () {
-                  context.go('/');
-                },
+        TextButton(
+          onPressed: () =>
+              context.go('/publicar'),
+          child: const Text('Publicar'),
+        ),
 
-                child: const Padding(
-                  padding:
-                  EdgeInsets.symmetric(
-                    vertical: 8,
-                  ),
+        PopupMenuButton<String>(
+          onSelected: (valor) {
+            switch (valor) {
+              case 'conta':
+                context.go('/minha-conta');
+                break;
 
+              case 'configuracoes':
+                context.go('/configuracoes');
+                break;
+
+              case 'admin':
+                context.go('/admin-obras');
+                break;
+
+              case 'historico':
+                context.go('/historico-obras');
+                break;
+
+              case 'sair':
+                _sair();
+                break;
+            }
+          },
+          itemBuilder: (context) {
+            final itens = <PopupMenuEntry<String>>[
+              const PopupMenuItem(
+                value: 'conta',
+                child: Text('Minha conta'),
+              ),
+              const PopupMenuItem(
+                value: 'configuracoes',
+                child: Text('Configurações'),
+              ),
+              const PopupMenuItem(
+                value: 'historico',
+                child: Text(
+                  'Obras consultadas',
+                ),
+              ),
+            ];
+
+            if (_ehAdmin) {
+              itens.add(
+                const PopupMenuItem(
+                  value: 'admin',
                   child: Text(
-                    'Obra Livre',
-
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight:
-                      FontWeight.w700,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                ),
-              ),
-
-              const Spacer(),
-
-              // ==================================================
-              // BIBLIOTECA
-              // ==================================================
-
-              TextButton(
-                onPressed: () {
-                  context.go('/acervo');
-                },
-
-                child: const Text(
-                  'Biblioteca',
-                ),
-              ),
-
-              // ==================================================
-              // ADMINISTRAÇÃO
-              // ==================================================
-
-              if (autenticado && _ehAdmin) ...[
-                const SizedBox(width: 8),
-
-                TextButton(
-                  onPressed: () {
-                    context.go(
-                      '/admin-obras',
-                    );
-                  },
-
-                  child: const Text(
                     'Administração',
                   ),
                 ),
-              ],
+              );
+            }
 
-              // ==================================================
-              // PUBLICAR
-              // ==================================================
+            itens.add(
+              const PopupMenuDivider(),
+            );
 
-              if (autenticado) ...[
-                const SizedBox(width: 8),
+            itens.add(
+              const PopupMenuItem(
+                value: 'sair',
+                child: Text('Sair'),
+              ),
+            );
 
-                TextButton(
-                  onPressed: () {
-                    context.go('/publicar');
-                  },
-
-                  child: const Text(
-                    'Publicar',
-                  ),
-                ),
-              ],
-
-              const SizedBox(width: 8),
-
-              // ==================================================
-              // ENTRAR / AVATAR
-              // ==================================================
-
-              if (!autenticado)
-                FilledButton(
-                  onPressed: () {
-                    context.go('/login');
-                  },
-
-                  child: const Text(
-                    'Entrar',
-                  ),
-                )
-              else
-                _buildAvatarMenu(
-                  context,
-                  nome: nome,
-                  avatar: avatar,
-                ),
-            ],
+            return itens;
+          },
+          child: const CircleAvatar(
+            radius: 18,
+            child: Icon(
+              Icons.person_outline,
+              size: 20,
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
-
-  // ============================================================
-  // MENU DO AVATAR
-  // ============================================================
-
-  Widget _buildAvatarMenu(
-      BuildContext context, {
-        required String nome,
-        required String? avatar,
-      }) {
-    return PopupMenuButton<String>(
-      tooltip: 'Conta',
-
-      offset:
-      const Offset(0, 48),
-
-      onSelected: (valor) {
-        switch (valor) {
-          case 'conta':
-            context.go(
-              '/minha-conta',
-            );
-            break;
-
-          case 'configuracoes':
-            context.go(
-              '/configuracoes',
-            );
-            break;
-
-          case 'sair':
-            _sair();
-            break;
-        }
-      },
-
-      itemBuilder: (context) {
-        return const [
-          PopupMenuItem<String>(
-            value: 'conta',
-
-            child: ListTile(
-              contentPadding:
-              EdgeInsets.zero,
-
-              leading: Icon(
-                Icons.person_outline,
-              ),
-
-              title: Text(
-                'Minha conta',
-              ),
-            ),
-          ),
-
-          PopupMenuItem<String>(
-            value: 'configuracoes',
-
-            child: ListTile(
-              contentPadding:
-              EdgeInsets.zero,
-
-              leading: Icon(
-                Icons.settings_outlined,
-              ),
-
-              title: Text(
-                'Configurações',
-              ),
-            ),
-          ),
-
-          PopupMenuDivider(),
-
-          PopupMenuItem<String>(
-            value: 'sair',
-
-            child: ListTile(
-              contentPadding:
-              EdgeInsets.zero,
-
-              leading: Icon(
-                Icons.logout,
-              ),
-
-              title: Text(
-                'Sair',
-              ),
-            ),
-          ),
-        ];
-      },
-
-      child: CircleAvatar(
-        radius: 18,
-
-        backgroundImage:
-        avatar != null
-            ? NetworkImage(avatar)
-            : null,
-
-        child: avatar == null
-            ? Text(
-          nome.isNotEmpty
-              ? nome
-              .substring(0, 1)
-              .toUpperCase()
-              : 'U',
-
-          style:
-          const TextStyle(
-            fontWeight:
-            FontWeight.w600,
-          ),
-        )
-            : null,
-      ),
-    );
-  }
-
-  // ============================================================
-  // HERO
-  // ============================================================
 
   Widget _buildHero() {
-    return Center(
-      child: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 1080,
-        ),
-
-        child: Padding(
-          padding:
-          const EdgeInsets.fromLTRB(
-            24,
-            64,
-            24,
-            0,
-          ),
-
-          child: Column(
-            children: [
-              const Text(
-                'Encontre conhecimento. Encontre obras.',
-
-                textAlign:
-                TextAlign.center,
-
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight:
-                  FontWeight.w600,
-                  letterSpacing: -0.8,
-                  height: 1.2,
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              const Text(
-                'Pesquise teses, dissertações, artigos e outras obras académicas.',
-
-                textAlign:
-                TextAlign.center,
-
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                  height: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              ConstrainedBox(
-                constraints:
-                const BoxConstraints(
-                  maxWidth: 700,
-                ),
-
-                child: TextField(
-                  controller:
-                  _pesquisaController,
-
-                  textInputAction:
-                  TextInputAction.search,
-
-                  onSubmitted: (_) {
-                    _pesquisar();
-                  },
-
-                  decoration:
-                  InputDecoration(
-                    hintText:
-                    'Pesquisar obras académicas',
-
-                    prefixIcon:
-                    const Icon(
-                      Icons.search,
-                    ),
-
-                    suffixIcon:
-                    IconButton(
-                      tooltip:
-                      'Pesquisar',
-
-                      onPressed:
-                      _pesquisar,
-
-                      icon:
-                      const Icon(
-                        Icons.arrow_forward,
-                      ),
-                    ),
-
-                    filled: true,
-
-                    fillColor:
-                    const Color(
-                      0xFFF7F7F7,
-                    ),
-
-                    border:
-                    OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(
-                        28,
-                      ),
-
-                      borderSide:
-                      BorderSide.none,
-                    ),
-
-                    contentPadding:
-                    const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Encontre conhecimento.\nEncontre obras.',
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            height: 1.15,
           ),
         ),
-      ),
+
+        const SizedBox(height: 12),
+
+        Text(
+          'Pesquise obras académicas e científicas.',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey.shade700,
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        TextField(
+          controller: _pesquisaController,
+          onSubmitted: (_) => _pesquisar(),
+          decoration: InputDecoration(
+            hintText:
+            'Pesquisar obras académicas',
+            prefixIcon:
+            const Icon(Icons.search),
+            suffixIcon: IconButton(
+              onPressed: _pesquisar,
+              icon: const Icon(
+                Icons.arrow_forward,
+              ),
+            ),
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius:
+              BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
     );
   }
-
-  // ============================================================
-  // CATEGORIAS
-  // ============================================================
 
   Widget _buildCategorias() {
     const categorias = [
-      'Tese de Doutoramento',
-      'Tese de Mestrado',
+      'Tese Doutoramento',
+      'Tese Mestrado',
       'Monografia',
       'Artigos Científicos',
+      'Literatura',
     ];
 
-    return Center(
-      child: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 1080,
-        ),
-
-        child: Padding(
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
-
-          child: Wrap(
-            alignment:
-            WrapAlignment.center,
-
-            spacing: 8,
-            runSpacing: 8,
-
-            children:
-            categorias.map(
-                  (categoria) {
-                return TextButton(
-                  onPressed: () {
-                    _abrirCategoria(
-                      categoria,
-                    );
-                  },
-
-                  child: Text(
-                    categoria,
-                  ),
-                );
-              },
-            ).toList(),
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Categorias',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
           ),
         ),
-      ),
+
+        const SizedBox(height: 14),
+
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: categorias.map((categoria) {
+            return OutlinedButton(
+              onPressed: () =>
+                  _abrirCategoria(categoria),
+              child: Text(categoria),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
-
-  // ============================================================
-  // OBRAS RECENTES
-  // ============================================================
 
   Widget _buildObrasRecentes() {
-    return Center(
-      child: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 1080,
-        ),
-
-        child: Padding(
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 24,
-          ),
-
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'Publicações recentes',
-
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight:
-                      FontWeight.w600,
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  TextButton(
-                    onPressed: () {
-                      context.go(
-                        '/acervo',
-                      );
-                    },
-
-                    child: const Text(
-                      'Ver biblioteca',
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              if (_carregandoObras)
-                const Padding(
-                  padding:
-                  EdgeInsets.symmetric(
-                    vertical: 40,
-                  ),
-
-                  child: Center(
-                    child:
-                    CircularProgressIndicator(),
-                  ),
-                )
-              else if (_obrasRecentes
-                  .isEmpty)
-                _buildEstadoVazio()
-              else
-                LayoutBuilder(
-                  builder:
-                      (context, constraints) {
-                    if (constraints
-                        .maxWidth <
-                        700) {
-                      return Column(
-                        children:
-                        _obrasRecentes
-                            .map(
-                          _buildObraCard,
-                        )
-                            .toList(),
-                      );
-                    }
-
-                    return Row(
-                      crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-
-                      children:
-                      _obrasRecentes
-                          .map(
-                            (obra) =>
-                            Expanded(
-                              child: Padding(
-                                padding:
-                                const EdgeInsets
-                                    .only(
-                                  right: 8,
-                                ),
-
-                                child:
-                                _buildObraCard(
-                                  obra,
-                                ),
-                              ),
-                            ),
-                      )
-                          .toList(),
-                    );
-                  },
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Publicações recentes',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                 ),
-            ],
-          ),
+              ),
+            ),
+
+            TextButton(
+              onPressed: () =>
+                  context.go('/acervo'),
+              child: const Text('Ver todas'),
+            ),
+          ],
         ),
-      ),
+
+        const SizedBox(height: 14),
+
+        if (_carregandoObras)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_obrasRecentes.isEmpty)
+          _buildEstadoVazio(
+            'Ainda não existem publicações recentes.',
+          )
+        else
+          ..._obrasRecentes.map(
+            _buildObraRecenteCard,
+          ),
+      ],
     );
   }
 
-  // ============================================================
-  // CARD DA OBRA
-  // ============================================================
-
-  Widget _buildObraCard(
-      Obra obra,
-      ) {
+  Widget _buildObraRecenteCard(Obra obra) {
     return Card(
       elevation: 0,
-
-      margin:
-      const EdgeInsets.only(
-        bottom: 12,
+      margin: const EdgeInsets.only(
+        bottom: 10,
       ),
-
-      shape:
-      RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.circular(12),
-
-        side:
-        const BorderSide(
-          color:
-          Color(0xFFE5E7EB),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: Colors.grey.shade300,
         ),
       ),
-
       child: InkWell(
-        borderRadius:
-        BorderRadius.circular(12),
-
-        onTap: () {
-          _abrirObra(obra);
-        },
-
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _abrirObra(obra),
         child: Padding(
-          padding:
-          const EdgeInsets.all(20),
-
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              Text(
-                obra.categoria,
-
-                style:
-                const TextStyle(
-                  fontSize: 13,
-                  fontWeight:
-                  FontWeight.w600,
-                  color:
-                  Colors.black54,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius:
+                  BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(width: 12),
 
-              Text(
-                obra.titulo,
-
-                maxLines: 3,
-
-                overflow:
-                TextOverflow.ellipsis,
-
-                style:
-                const TextStyle(
-                  fontSize: 18,
-                  fontWeight:
-                  FontWeight.w600,
-                  height: 1.3,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Text(
-                obra.autor,
-
-                maxLines: 1,
-
-                overflow:
-                TextOverflow.ellipsis,
-
-                style:
-                const TextStyle(
-                  color:
-                  Colors.black87,
-                ),
-              ),
-
-              if (obra.anoObra != null) ...[
-                const SizedBox(height: 5),
-
-                Text(
-                  obra.anoObra.toString(),
-
-                  style:
-                  const TextStyle(
-                    fontSize: 13,
-                    color:
-                    Colors.black54,
-                  ),
-                ),
-              ],
-
-              if (obra.descricao != null &&
-                  obra.descricao!
-                      .trim()
-                      .isNotEmpty) ...[
-                const SizedBox(height: 12),
-
-                Text(
-                  obra.descricao!,
-
-                  maxLines: 3,
-
-                  overflow:
-                  TextOverflow.ellipsis,
-
-                  style:
-                  const TextStyle(
-                    fontSize: 14,
-                    color:
-                    Colors.black54,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-
-              const Row(
-                mainAxisSize:
-                MainAxisSize.min,
-
-                children: [
-                  Text(
-                    'Ver obra',
-
-                    style:
-                    TextStyle(
-                      fontWeight:
-                      FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      obra.titulo,
+                      maxLines: 2,
+                      overflow:
+                      TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
 
-                  SizedBox(width: 5),
+                    if (obra.autor != null &&
+                        obra.autor!
+                            .trim()
+                            .isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        obra.autor!,
+                        style: TextStyle(
+                          color:
+                          Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
 
-                  Icon(
-                    Icons.arrow_forward,
-                    size: 17,
-                  ),
-                ],
+              const Icon(
+                Icons.chevron_right,
               ),
             ],
           ),
@@ -991,154 +552,184 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // ESTADO VAZIO
-  // ============================================================
+  Widget _buildHistoricoRecente() {
+    return Column(
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Obras consultadas recentemente',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
 
-  Widget _buildEstadoVazio() {
-    return Container(
-      width: double.infinity,
-
-      padding:
-      const EdgeInsets.symmetric(
-        vertical: 42,
-        horizontal: 24,
-      ),
-
-      decoration:
-      BoxDecoration(
-        border:
-        Border.all(
-          color:
-          const Color(
-            0xFFE5E7EB,
-          ),
+            TextButton(
+              onPressed: _abrirHistorico,
+              child: const Text(
+                'Ver histórico',
+              ),
+            ),
+          ],
         ),
 
-        borderRadius:
-        BorderRadius.circular(12),
-      ),
+        const SizedBox(height: 14),
 
-      child: const Column(
-        children: [
-          Icon(
-            Icons.menu_book_outlined,
-            size: 34,
-            color: Colors.black45,
-          ),
-
-          SizedBox(height: 12),
-
-          Text(
-            'Ainda não existem publicações disponíveis.',
-
-            textAlign:
-            TextAlign.center,
-
-            style:
-            TextStyle(
-              color:
-              Colors.black54,
+        if (_carregandoHistorico)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
             ),
+          )
+        else if (_historicoRecente.isEmpty)
+          _buildEstadoVazio(
+            'As obras que consultar aparecerão aqui.',
+          )
+        else
+          ..._historicoRecente.map(
+            _buildHistoricoCard,
           ),
-        ],
+      ],
+    );
+  }
+
+  Widget _buildHistoricoCard(dynamic obra) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(
+        bottom: 10,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: Colors.grey.shade300,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          if (obra.obraId == null ||
+              obra.obraId.toString().isEmpty) {
+            return;
+          }
+
+          context.go(
+            '/acervo?obra=${Uri.encodeComponent(obra.obraId)}',
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius:
+                  BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.history,
+                ),
+              ),
+
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      obra.titulo,
+                      maxLines: 2,
+                      overflow:
+                      TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    if (obra.autor != null &&
+                        obra.autor!
+                            .trim()
+                            .isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        obra.autor!,
+                        style: TextStyle(
+                          color:
+                          Colors.grey.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+
+                    if (obra.categoria != null &&
+                        obra.categoria!
+                            .trim()
+                            .isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        obra.categoria!,
+                        style: TextStyle(
+                          color:
+                          Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const Icon(
+                Icons.chevron_right,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  // ============================================================
-  // FOOTER
-  // ============================================================
-
-  Widget _buildFooter() {
+  Widget _buildEstadoVazio(String texto) {
     return Container(
       width: double.infinity,
-
-      decoration:
-      const BoxDecoration(
-        border:
-        Border(
-          top:
-          BorderSide(
-            color:
-            Color(0xFFE5E7EB),
-          ),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius:
+        BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.grey.shade200,
         ),
       ),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: Colors.grey.shade600,
+        ),
+      ),
+    );
+  }
 
-      child: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 1080,
-          ),
-
-          child: Padding(
-            padding:
-            const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 28,
-            ),
-
-            child: Row(
-              children: [
-                const Text(
-                  '© Obra Livre',
-
-                  style:
-                  TextStyle(
-                    fontSize: 13,
-                    color:
-                    Colors.black54,
-                  ),
-                ),
-
-                const Spacer(),
-
-                TextButton(
-                  onPressed: () {
-                    context.go(
-                      '/politica-privacidade',
-                    );
-                  },
-
-                  child:
-                  const Text(
-                    'Privacidade',
-                  ),
-                ),
-
-                TextButton(
-                  onPressed: () {
-                    context.go(
-                      '/termos',
-                    );
-                  },
-
-                  child:
-                  const Text(
-                    'Termos',
-                  ),
-                ),
-
-                TextButton(
-                  onPressed: () {
-                    context.go(
-                      '/contacto',
-                    );
-                  },
-
-                  child:
-                  const Text(
-                    'Contacto',
-                  ),
-                ),
-              ],
-            ),
-          ),
+  Widget _buildFooter() {
+    return Center(
+      child: Text(
+        '© ${DateTime.now().year} Teste',
+        style: TextStyle(
+          color: Colors.grey.shade600,
+          fontSize: 13,
         ),
       ),
     );
   }
 }
-
