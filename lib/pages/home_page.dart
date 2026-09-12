@@ -34,6 +34,8 @@ class _HomePageState extends State<HomePage> {
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
+  String? _avatarUrl;
+
   @override
   void initState() {
     super.initState();
@@ -41,12 +43,39 @@ class _HomePageState extends State<HomePage> {
     _carregarObrasRecentes();
     _carregarHistoricoRecente();
     _verificarAdministrador();
+    _carregarAvatar();
   }
 
   @override
   void dispose() {
     _pesquisaController.dispose();
     super.dispose();
+  }
+
+  void _carregarAvatar() {
+    final usuario = _authService.usuarioAtual;
+
+    if (usuario == null) return;
+
+    final metadata = usuario.userMetadata;
+
+    final possiveisUrls = [
+      metadata?['avatar_url'],
+      metadata?['picture'],
+      metadata?['photo_url'],
+    ];
+
+    for (final valor in possiveisUrls) {
+      if (valor is String && valor.trim().isNotEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _avatarUrl = valor.trim();
+        });
+
+        return;
+      }
+    }
   }
 
   Future<void> _carregarObrasRecentes() async {
@@ -130,14 +159,11 @@ class _HomePageState extends State<HomePage> {
   Future<void> _abrirObra(Obra obra) async {
     if (obra.id.isEmpty) return;
 
-    // Regista imediatamente a obra como consultada.
     try {
       await _historicoService.registrarConsulta(
         obraId: obra.id,
       );
 
-      // Atualiza a seção de histórico da Home
-      // antes de sair da página.
       await _carregarHistoricoRecente();
     } catch (e) {
       debugPrint(
@@ -173,7 +199,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _sair() async {
+  Future<void> _sair() async {
     await _authService.sair();
 
     if (!mounted) return;
@@ -219,9 +245,6 @@ class _HomePageState extends State<HomePage> {
 
                 const SizedBox(height: 32),
 
-                // IMPORTANTE:
-                // Histórico vem imediatamente depois
-                // das publicações recentes.
                 _buildHistoricoRecente(),
 
                 const SizedBox(height: 40),
@@ -285,15 +308,18 @@ class _HomePageState extends State<HomePage> {
             }
           },
           itemBuilder: (context) {
-            final itens = <PopupMenuEntry<String>>[
+            final itens =
+            <PopupMenuEntry<String>>[
               const PopupMenuItem(
                 value: 'conta',
                 child: Text('Minha conta'),
               ),
+
               const PopupMenuItem(
                 value: 'configuracoes',
                 child: Text('Configurações'),
               ),
+
               const PopupMenuItem(
                 value: 'historico',
                 child: Text(
@@ -326,15 +352,37 @@ class _HomePageState extends State<HomePage> {
 
             return itens;
           },
-          child: const CircleAvatar(
-            radius: 18,
-            child: Icon(
-              Icons.person_outline,
-              size: 20,
-            ),
-          ),
+
+          child: _buildAvatar(),
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatar() {
+    if (_avatarUrl != null &&
+        _avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundImage:
+        NetworkImage(_avatarUrl!),
+        onBackgroundImageError:
+            (_, __) {
+          if (!mounted) return;
+
+          setState(() {
+            _avatarUrl = null;
+          });
+        },
+      );
+    }
+
+    return const CircleAvatar(
+      radius: 18,
+      child: Icon(
+        Icons.person_outline,
+        size: 20,
+      ),
     );
   }
 
@@ -417,7 +465,8 @@ class _HomePageState extends State<HomePage> {
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: categorias.map((categoria) {
+          children:
+          categorias.map((categoria) {
             return OutlinedButton(
               onPressed: () =>
                   _abrirCategoria(categoria),
@@ -460,7 +509,8 @@ class _HomePageState extends State<HomePage> {
           const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(),
+              child:
+              CircularProgressIndicator(),
             ),
           )
         else if (_obrasRecentes.isEmpty)
@@ -478,27 +528,30 @@ class _HomePageState extends State<HomePage> {
   Widget _buildObraRecenteCard(Obra obra) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin:
+      const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+        BorderRadius.circular(8),
         side: BorderSide(
           color: Colors.grey.shade300,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+        BorderRadius.circular(8),
         onTap: () => _abrirObra(obra),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding:
+          const EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color:
+                  Colors.grey.shade100,
                   borderRadius:
                   BorderRadius.circular(8),
                 ),
@@ -519,8 +572,10 @@ class _HomePageState extends State<HomePage> {
                       maxLines: 2,
                       overflow:
                       TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
+                      style:
+                      const TextStyle(
+                        fontWeight:
+                        FontWeight.w600,
                         fontSize: 16,
                       ),
                     ),
@@ -584,7 +639,8 @@ class _HomePageState extends State<HomePage> {
           const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(),
+              child:
+              CircularProgressIndicator(),
             ),
           )
         else if (_historicoRecente.isEmpty)
@@ -602,36 +658,39 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHistoricoCard(dynamic obra) {
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin:
+      const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+        BorderRadius.circular(8),
         side: BorderSide(
           color: Colors.grey.shade300,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+        BorderRadius.circular(8),
         onTap: () {
-          if (obra.obraId == null ||
-              obra.obraId.toString().isEmpty) {
-            return;
-          }
+          final obraId =
+              obra.obraId?.toString() ?? '';
+
+          if (obraId.isEmpty) return;
 
           context.go(
-            '/acervo?obra=${Uri.encodeComponent(obra.obraId)}',
+            '/acervo?obra=${Uri.encodeComponent(obraId)}',
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding:
+          const EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color:
+                  Colors.grey.shade100,
                   borderRadius:
                   BorderRadius.circular(8),
                 ),
@@ -652,8 +711,10 @@ class _HomePageState extends State<HomePage> {
                       maxLines: 2,
                       overflow:
                       TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
+                      style:
+                      const TextStyle(
+                        fontWeight:
+                        FontWeight.w600,
                       ),
                     ),
 
@@ -703,7 +764,8 @@ class _HomePageState extends State<HomePage> {
   Widget _buildEstadoVazio(String texto) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding:
+      const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         borderRadius:

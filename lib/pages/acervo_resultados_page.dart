@@ -36,7 +36,7 @@ class _AcervoResultadosPageState
   bool _carregando = true;
   String? _erro;
 
-  bool _consultaRegistrada = false;
+  final Set<String> _consultasRegistradas = {};
 
   @override
   void initState() {
@@ -53,43 +53,38 @@ class _AcervoResultadosPageState
     });
 
     try {
-      final obraId = widget.obraId?.trim() ?? '';
-      final categoria = widget.categoria?.trim() ?? '';
-      final query = widget.query?.trim() ?? '';
+      final obraId =
+          widget.obraId?.trim() ?? '';
+
+      final categoria =
+          widget.categoria?.trim() ?? '';
+
+      final query =
+          widget.query?.trim() ?? '';
 
       // ============================================================
       // 1. OBRA ESPECÍFICA
       // ============================================================
+
       if (obraId.isNotEmpty) {
         final obra =
-        await _repository.carregarPorId(obraId);
+        await _repository.carregarPorId(
+          obraId,
+        );
 
         if (obra == null) {
           _resultados = [];
         } else {
           _resultados = [obra];
 
-          // Regista a obra como consultada quando o utilizador
-          // realmente abre a página da obra.
-          if (!_consultaRegistrada) {
-            try {
-              await _historicoService.registrarConsulta(
-                obraId: obra.id,
-              );
-
-              _consultaRegistrada = true;
-            } catch (e) {
-              debugPrint(
-                'Erro ao registar consulta no histórico: $e',
-              );
-            }
-          }
+          await _registrarConsulta(obra);
         }
       }
 
       // ============================================================
       // 2. PESQUISA POR CATEGORIA
       // ============================================================
+
       else if (categoria.isNotEmpty) {
         _resultados =
         await _repository.carregarPorCategoria(
@@ -100,14 +95,18 @@ class _AcervoResultadosPageState
       // ============================================================
       // 3. PESQUISA
       // ============================================================
+
       else if (query.isNotEmpty) {
         _resultados =
-        await _repository.pesquisar(query);
+        await _repository.pesquisar(
+          query,
+        );
       }
 
       // ============================================================
       // 4. ACERVO GERAL
       // ============================================================
+
       else {
         _resultados =
         await _repository.carregarObras(
@@ -116,7 +115,9 @@ class _AcervoResultadosPageState
         );
       }
     } catch (e) {
-      debugPrint('Erro ao carregar obras: $e');
+      debugPrint(
+        'Erro ao carregar obras: $e',
+      );
 
       _erro =
       'Não foi possível carregar as obras.';
@@ -129,13 +130,47 @@ class _AcervoResultadosPageState
     }
   }
 
-  Future<void> _abrirDocumento(Obra obra) async {
-    final url = obra.urlDocumento?.trim();
+  Future<void> _registrarConsulta(
+      Obra obra,
+      ) async {
+    if (obra.id.isEmpty) return;
+
+    if (_consultasRegistradas.contains(
+      obra.id,
+    )) {
+      return;
+    }
+
+    try {
+      await _historicoService.registrarConsulta(
+        obraId: obra.id,
+      );
+
+      _consultasRegistradas.add(
+        obra.id,
+      );
+    } catch (e) {
+      debugPrint(
+        'Erro ao registar consulta no histórico: $e',
+      );
+    }
+  }
+
+  Future<void> _abrirDocumento(
+      Obra obra,
+      ) async {
+    // Registra a obra no histórico quando
+    // o utilizador realmente decide consultá-la.
+    await _registrarConsulta(obra);
+
+    final url =
+    obra.urlDocumento?.trim();
 
     if (url == null || url.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Esta obra não possui um documento disponível.',
@@ -151,7 +186,8 @@ class _AcervoResultadosPageState
     if (uri == null) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'O endereço do documento é inválido.',
@@ -169,7 +205,8 @@ class _AcervoResultadosPageState
       );
 
       if (!abriu && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
           const SnackBar(
             content: Text(
               'Não foi possível abrir o documento.',
@@ -195,15 +232,18 @@ class _AcervoResultadosPageState
   @override
   Widget build(BuildContext context) {
     final ehObraEspecifica =
-        widget.obraId?.trim().isNotEmpty == true;
+        widget.obraId?.trim().isNotEmpty ==
+            true;
 
     String titulo;
 
     if (ehObraEspecifica) {
       titulo = 'Obra';
-    } else if ((widget.categoria ?? '').isNotEmpty) {
+    } else if ((widget.categoria ?? '')
+        .isNotEmpty) {
       titulo = widget.categoria!;
-    } else if ((widget.query ?? '').isNotEmpty) {
+    } else if ((widget.query ?? '')
+        .isNotEmpty) {
       titulo = 'Resultados';
     } else {
       titulo = 'Acervo';
@@ -213,7 +253,9 @@ class _AcervoResultadosPageState
       appBar: AppBar(
         title: Text(titulo),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(
+            Icons.arrow_back,
+          ),
           onPressed: _voltar,
         ),
       ),
@@ -231,23 +273,32 @@ class _AcervoResultadosPageState
     if (_erro != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding:
+          const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+            MainAxisSize.min,
             children: [
               const Icon(
                 Icons.error_outline,
                 size: 48,
               ),
+
               const SizedBox(height: 16),
+
               Text(
                 _erro!,
-                textAlign: TextAlign.center,
+                textAlign:
+                TextAlign.center,
               ),
+
               const SizedBox(height: 16),
+
               ElevatedButton(
                 onPressed: _carregar,
-                child: const Text('Tentar novamente'),
+                child: const Text(
+                  'Tentar novamente',
+                ),
               ),
             ],
           ),
@@ -258,81 +309,104 @@ class _AcervoResultadosPageState
     if (_resultados.isEmpty) {
       return const Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding:
+          EdgeInsets.all(24),
           child: Text(
             'Nenhuma obra encontrada.',
-            textAlign: TextAlign.center,
+            textAlign:
+            TextAlign.center,
           ),
         ),
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: _resultados.length,
+      padding:
+      const EdgeInsets.all(20),
+      itemCount:
+      _resultados.length,
       separatorBuilder: (_, __) =>
       const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final obra = _resultados[index];
+      itemBuilder:
+          (context, index) {
+        final obra =
+        _resultados[index];
 
-        return _buildObraCard(obra);
+        return _buildObraCard(
+          obra,
+        );
       },
     );
   }
 
-  Widget _buildObraCard(Obra obra) {
+  Widget _buildObraCard(
+      Obra obra,
+      ) {
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius:
+        BorderRadius.circular(8),
         side: BorderSide(
           color: Colors.grey.shade300,
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+        const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
           children: [
             Text(
               obra.titulo,
-              style: const TextStyle(
+              style:
+              const TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                FontWeight.w600,
               ),
             ),
 
             if (obra.autor != null &&
-                obra.autor!.trim().isNotEmpty) ...[
+                obra.autor!
+                    .trim()
+                    .isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 'Autor: ${obra.autor}',
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color:
+                  Colors.grey.shade700,
                 ),
               ),
             ],
 
             if (obra.categoria != null &&
-                obra.categoria!.trim().isNotEmpty) ...[
+                obra.categoria!
+                    .trim()
+                    .isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 'Categoria: ${obra.categoria}',
                 style: TextStyle(
-                  color: Colors.grey.shade700,
+                  color:
+                  Colors.grey.shade700,
                 ),
               ),
             ],
 
             if (obra.descricao != null &&
-                obra.descricao!.trim().isNotEmpty) ...[
+                obra.descricao!
+                    .trim()
+                    .isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 obra.descricao!,
                 maxLines: 4,
-                overflow: TextOverflow.ellipsis,
+                overflow:
+                TextOverflow.ellipsis,
               ),
             ],
 
@@ -340,9 +414,12 @@ class _AcervoResultadosPageState
 
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child:
+              ElevatedButton.icon(
                 onPressed: () =>
-                    _abrirDocumento(obra),
+                    _abrirDocumento(
+                      obra,
+                    ),
                 icon: const Icon(
                   Icons.open_in_new,
                   size: 18,
