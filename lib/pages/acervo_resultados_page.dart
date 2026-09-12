@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -9,11 +8,13 @@ import '../services/historico_obras_service.dart';
 class AcervoResultadosPage extends StatefulWidget {
   final String? query;
   final String? categoria;
+  final String? obraId;
 
   const AcervoResultadosPage({
     super.key,
     this.query,
     this.categoria,
+    this.obraId,
   });
 
   @override
@@ -33,7 +34,9 @@ class _AcervoResultadosPageState
 
   bool _carregando = true;
 
-  String? _erro;
+  String get _query => widget.query?.trim() ?? '';
+  String get _categoria => widget.categoria?.trim() ?? '';
+  String get _obraId => widget.obraId?.trim() ?? '';
 
   @override
   void initState() {
@@ -44,26 +47,25 @@ class _AcervoResultadosPageState
   Future<void> _carregar() async {
     setState(() {
       _carregando = true;
-      _erro = null;
     });
 
     try {
       List<Obra> resultado;
 
-      final query =
-          widget.query?.trim() ?? '';
+      // Primeiro verifica se foi solicitada uma obra específica.
+      if (_obraId.isNotEmpty) {
+        final obra =
+        await _repository.carregarPorId(_obraId);
 
-      final categoria =
-          widget.categoria?.trim() ?? '';
-
-      if (categoria.isNotEmpty) {
+        resultado = obra != null ? [obra] : [];
+      } else if (_categoria.isNotEmpty) {
         resultado =
         await _repository.carregarPorCategoria(
-          categoria,
+          _categoria,
         );
-      } else if (query.isNotEmpty) {
+      } else if (_query.isNotEmpty) {
         resultado =
-        await _repository.pesquisar(query);
+        await _repository.pesquisar(_query);
       } else {
         resultado =
         await _repository.carregarObras(
@@ -79,266 +81,144 @@ class _AcervoResultadosPageState
         _carregando = false;
       });
     } catch (e) {
+      debugPrint('Erro ao carregar obras: $e');
+
       if (!mounted) return;
 
       setState(() {
-        _erro = _mensagemErro(e);
+        _obras = [];
         _carregando = false;
       });
     }
   }
 
-  String _mensagemErro(Object erro) {
-    final texto = erro.toString();
-
-    if (texto.startsWith('Exception: ')) {
-      return texto.substring(11);
-    }
-
-    return texto;
-  }
-
-  String _tituloPagina() {
-    final categoria =
-        widget.categoria?.trim() ?? '';
-
-    final query =
-        widget.query?.trim() ?? '';
-
-    if (categoria.isNotEmpty) {
-      return categoria;
-    }
-
-    if (query.isNotEmpty) {
-      return 'Resultados para "$query"';
-    }
-
-    return 'Acervo';
-  }
-
-  String _formatarData(DateTime data) {
-    final local = data.toLocal();
-
-    final dia =
-    local.day.toString().padLeft(2, '0');
-
-    final mes =
-    local.month.toString().padLeft(2, '0');
-
-    final ano =
-    local.year.toString();
-
-    return '$dia/$mes/$ano';
-  }
-
-  // ============================================================
-  // ABRIR DOCUMENTO E REGISTAR HISTÓRICO
-  // ============================================================
-
   Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento.trim();
 
     if (url.isEmpty) {
-      _mostrarMensagem(
-        'O documento não possui um endereço válido.',
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Esta obra não possui documento disponível.',
+          ),
+        ),
       );
+
       return;
     }
 
     final uri = Uri.tryParse(url);
 
     if (uri == null) {
-      _mostrarMensagem(
-        'Não foi possível abrir o documento.',
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O endereço do documento é inválido.',
+          ),
+        ),
       );
+
       return;
     }
-
-    // ==========================================================
-    // REGISTAR CONSULTA NO HISTÓRICO
-    // ==========================================================
 
     try {
       await _historicoService.registrarConsulta(
         obraId: obra.id,
       );
+
+      await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
     } catch (e) {
-      // O erro do histórico não impede a abertura
-      // do documento.
-      debugPrint(
-        'Erro ao registar consulta no histórico: $e',
+      debugPrint('Erro ao abrir documento: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível abrir o documento.',
+          ),
+        ),
       );
     }
-
-    // ==========================================================
-    // ABRIR DOCUMENTO
-    // ==========================================================
-
-    final abriu = await launchUrl(
-      uri,
-      webOnlyWindowName: '_blank',
-    );
-
-    if (!abriu && mounted) {
-      _mostrarMensagem(
-        'Não foi possível abrir o documento.',
-      );
-    }
-  }
-
-  // ============================================================
-  // MENSAGEM
-  // ============================================================
-
-  void _mostrarMensagem(String mensagem) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    String titulo = 'Acervo';
+
+    if (_obraId.isNotEmpty && _obras.length == 1) {
+      titulo = 'Obra';
+    } else if (_categoria.isNotEmpty) {
+      titulo = _categoria;
+    } else if (_query.isNotEmpty) {
+      titulo = 'Resultados para "$_query"';
+    }
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          _tituloPagina(),
-        ),
+        title: Text(titulo),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
       ),
-      body: _buildBody(),
-    );
-  }
-
-  // ============================================================
-  // BODY
-  // ============================================================
-
-  Widget _buildBody() {
-    if (_carregando) {
-      return const Center(
+      body: _carregando
+          ? const Center(
         child: CircularProgressIndicator(),
-      );
-    }
-
-    if (_erro != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _erro!,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: _carregar,
-                child: const Text(
-                  'Tentar novamente',
-                ),
-              ),
-            ],
+      )
+          : _obras.isEmpty
+          ? const Center(
+        child: Text(
+          'Nenhuma obra encontrada.',
+          style: TextStyle(
+            color: Colors.black54,
           ),
         ),
-      );
-    }
-
-    if (_obras.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.search_off,
-                size: 52,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Nenhuma obra encontrada.',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Tente pesquisar utilizando outros termos.',
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _carregar,
-      child: ListView(
+      )
+          : ListView.builder(
         padding: const EdgeInsets.all(24),
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 1080,
-            ),
-            child: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${_obras.length} obra(s) encontrada(s)',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge,
-                ),
-                const SizedBox(height: 20),
-                ..._obras.map(
-                      (obra) => _ObraResultadoCard(
-                    obra: obra,
-                    data: _formatarData(
-                      obra.dataPublicacao,
-                    ),
-                    onAbrir: () =>
-                        _abrirDocumento(obra),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        itemCount: _obras.length,
+        itemBuilder: (context, index) {
+          final obra = _obras[index];
+
+          return _ObraResultadoCard(
+            obra: obra,
+            onAbrir: () async {
+              await _abrirDocumento(obra);
+            },
+          );
+        },
       ),
     );
   }
 }
 
-// ================================================================
-// CARD DE RESULTADO
-// ================================================================
-
-class _ObraResultadoCard
-    extends StatelessWidget {
+class _ObraResultadoCard extends StatelessWidget {
   final Obra obra;
-  final String data;
   final VoidCallback onAbrir;
 
   const _ObraResultadoCard({
     required this.obra,
-    required this.data,
     required this.onAbrir,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(
-        bottom: 16,
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: const BorderSide(
+          color: Color(0xffe2e2e2),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -348,61 +228,46 @@ class _ObraResultadoCard
           children: [
             Text(
               obra.titulo,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge,
+              style: const TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-
-            const SizedBox(height: 10),
-
+            const SizedBox(height: 8),
             Text(
               obra.autor,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge,
+              style: const TextStyle(
+                color: Colors.black54,
+              ),
             ),
-
-            const SizedBox(height: 6),
-
+            const SizedBox(height: 4),
             Text(
               obra.categoria,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium,
-            ),
-
-            if (obra.anoObra != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Ano: ${obra.anoObra}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.black45,
               ),
-            ],
-
-            const SizedBox(height: 6),
-
-            Text(
-              'Publicada em $data',
             ),
-
             if (obra.descricao != null &&
                 obra.descricao!.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 obra.descricao!,
                 maxLines: 3,
-                overflow:
-                TextOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.black87,
+                ),
               ),
             ],
-
-            const SizedBox(height: 16),
-
+            const SizedBox(height: 18),
             Align(
               alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
+              child: ElevatedButton.icon(
                 onPressed: onAbrir,
                 icon: const Icon(
-                  Icons.picture_as_pdf_outlined,
+                  Icons.open_in_new,
+                  size: 18,
                 ),
                 label: const Text(
                   'Abrir documento',
@@ -415,5 +280,3 @@ class _ObraResultadoCard
     );
   }
 }
-
-

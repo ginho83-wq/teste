@@ -7,21 +7,43 @@ class HistoricoObrasService {
   final HistoricoObrasRepository _repository =
   HistoricoObrasRepository();
 
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
-  /// Obtém o utilizador atualmente autenticado.
-  String? get userId => _supabase.auth.currentUser?.id;
+  /// ID do utilizador atualmente autenticado.
+  String? get userId =>
+      _supabase.auth.currentUser?.id;
 
-  /// Obtém o histórico do utilizador autenticado.
+  /// Obtém o histórico completo.
   Future<List<HistoricoObra>> obterHistorico() async {
     final utilizadorId = userId;
 
     if (utilizadorId == null) {
-      throw Exception('Utilizador não autenticado.');
+      throw Exception(
+        'Utilizador não autenticado.',
+      );
     }
 
     return await _repository.obterHistorico(
       userId: utilizadorId,
+    );
+  }
+
+  /// Obtém apenas as últimas consultas.
+  ///
+  /// Por padrão, devolve as 5 últimas.
+  Future<List<HistoricoObra>> obterConsultasRecentes({
+    int limite = 5,
+  }) async {
+    final utilizadorId = userId;
+
+    if (utilizadorId == null) {
+      return [];
+    }
+
+    return await _repository.obterConsultasRecentes(
+      userId: utilizadorId,
+      limite: limite,
     );
   }
 
@@ -32,7 +54,9 @@ class HistoricoObrasService {
     final utilizadorId = userId;
 
     if (utilizadorId == null) {
-      throw Exception('Utilizador não autenticado.');
+      throw Exception(
+        'Utilizador não autenticado.',
+      );
     }
 
     await _repository.registrarConsulta(
@@ -48,7 +72,9 @@ class HistoricoObrasService {
     final utilizadorId = userId;
 
     if (utilizadorId == null) {
-      throw Exception('Utilizador não autenticado.');
+      throw Exception(
+        'Utilizador não autenticado.',
+      );
     }
 
     await _repository.removerConsulta(
@@ -56,12 +82,14 @@ class HistoricoObrasService {
     );
   }
 
-  /// Limpa todo o histórico do utilizador.
+  /// Limpa todo o histórico.
   Future<void> limparHistorico() async {
     final utilizadorId = userId;
 
     if (utilizadorId == null) {
-      throw Exception('Utilizador não autenticado.');
+      throw Exception(
+        'Utilizador não autenticado.',
+      );
     }
 
     await _repository.limparHistorico(
@@ -69,4 +97,3 @@ class HistoricoObrasService {
     );
   }
 }
-
