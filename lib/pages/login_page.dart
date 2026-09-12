@@ -58,7 +58,6 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (!mounted) return;
-
       context.go('/');
     } on AuthException catch (e) {
       _mostrarMensagem(e.message);
@@ -118,6 +117,99 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _mostrarFormulario = true;
     });
+  }
+
+  // ============================================================
+  // MENU PLATAFORMA
+  // ============================================================
+
+  Widget _menuPlataforma() {
+    return PopupMenuButton<String>(
+      enabled: !_carregando,
+      tooltip: 'Plataforma',
+      offset: const Offset(0, 45),
+      onSelected: (valor) {
+        switch (valor) {
+          case 'inicio':
+            context.go('/');
+            break;
+
+          case 'acervo':
+            context.push('/acervo');
+            break;
+
+          case 'pesquisar':
+            context.push('/acervo');
+            break;
+
+          case 'publicar':
+            context.push('/publicar');
+            break;
+
+          case 'sobre':
+            context.push('/sobre');
+            break;
+
+          case 'contacto':
+            context.push('/contacto');
+            break;
+
+          case 'termos':
+            context.push('/termos');
+            break;
+
+          case 'privacidade':
+            context.push('/politica-privacidade');
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem<String>(
+          value: 'inicio',
+          child: Text('Início'),
+        ),
+        PopupMenuItem<String>(
+          value: 'acervo',
+          child: Text('Acervo'),
+        ),
+        PopupMenuItem<String>(
+          value: 'pesquisar',
+          child: Text('Pesquisar obras'),
+        ),
+        PopupMenuItem<String>(
+          value: 'publicar',
+          child: Text('Publicar uma obra'),
+        ),
+        PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'sobre',
+          child: Text('Sobre a plataforma'),
+        ),
+        PopupMenuItem<String>(
+          value: 'contacto',
+          child: Text('Contacto'),
+        ),
+        PopupMenuItem<String>(
+          value: 'termos',
+          child: Text('Termos de Uso'),
+        ),
+        PopupMenuItem<String>(
+          value: 'privacidade',
+          child: Text('Política de Privacidade'),
+        ),
+      ],
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Plataforma'),
+          SizedBox(width: 3),
+          Icon(
+            Icons.keyboard_arrow_down,
+            size: 18,
+          ),
+        ],
+      ),
+    );
   }
 
   // ============================================================
@@ -219,7 +311,8 @@ class _LoginPageState extends State<LoginPage> {
             ),
 
             // ==================================================
-            // ENTRAR + CRIAR CONTA — CANTO SUPERIOR DIREITO
+            // PLATAFORMA + ENTRAR + CRIAR CONTA
+            // CANTO SUPERIOR DIREITO
             // ==================================================
 
             Positioned(
@@ -228,12 +321,18 @@ class _LoginPageState extends State<LoginPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // PLATAFORMA
+                  _menuPlataforma(),
+
+                  // ENTRAR
                   TextButton(
                     onPressed: _carregando
                         ? null
                         : _abrirFormularioLogin,
                     child: const Text('Entrar'),
                   ),
+
+                  // CRIAR CONTA
                   TextButton(
                     onPressed: _carregando
                         ? null
@@ -322,23 +421,14 @@ class _LoginPageState extends State<LoginPage> {
       key: const ValueKey('inicio'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ==================================================
-        // GOOGLE
-        // ==================================================
-
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: _carregando
-                ? null
-                : _entrarGoogle,
-            icon: const Icon(
-              Icons.login,
-            ),
-            label: const Text(
-              'Continuar com Google',
-            ),
+        Text(
+          'Explore, consulte e publique obras académicas e conteúdos de conhecimento.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontSize: 16,
+            height: 1.5,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -437,6 +527,28 @@ class _LoginPageState extends State<LoginPage> {
             )
                 : const Text(
               'Entrar',
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // ==================================================
+        // BOTÃO CONTINUAR COM GOOGLE
+        // ==================================================
+
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _carregando
+                ? null
+                : _entrarGoogle,
+            icon: const Icon(
+              Icons.login,
+            ),
+            label: const Text(
+              'Continuar com Google',
             ),
           ),
         ),
