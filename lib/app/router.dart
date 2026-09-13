@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../pages/acervo_resultados_page.dart';
 import '../pages/admin_obras_page.dart';
+import '../pages/admin_solicitacoes_remocao_page.dart';
 import '../pages/ajuda_page.dart';
 import '../pages/auth_callback_page.dart';
 import '../pages/cadastro_page.dart';
@@ -19,15 +20,21 @@ import '../pages/minha_conta_page.dart';
 import '../pages/politica_privacidade_page.dart';
 import '../pages/publicar_obra_page.dart';
 import '../pages/termos_page.dart';
+import '../services/auth_service.dart';
 
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen(
-          (_) => notifyListeners(),
-    );
+class GoRouterRefreshStream
+    extends ChangeNotifier {
+  GoRouterRefreshStream(
+      Stream<dynamic> stream,
+      ) {
+    _subscription =
+        stream.asBroadcastStream().listen(
+              (_) => notifyListeners(),
+        );
   }
 
-  late final StreamSubscription<dynamic> _subscription;
+  late final StreamSubscription<dynamic>
+  _subscription;
 
   @override
   void dispose() {
@@ -39,18 +46,27 @@ class GoRouterRefreshStream extends ChangeNotifier {
 final GoRouter router = GoRouter(
   initialLocation: '/login',
 
-  refreshListenable: GoRouterRefreshStream(
-    Supabase.instance.client.auth.onAuthStateChange,
+  refreshListenable:
+  GoRouterRefreshStream(
+    Supabase.instance.client.auth
+        .onAuthStateChange,
   ),
 
-  redirect: (context, state) {
+  redirect: (
+      context,
+      state,
+      ) async {
     final session =
         Supabase.instance.client.auth.currentSession;
 
-    final estaAutenticado = session != null;
-    final caminho = state.uri.path;
+    final estaAutenticado =
+        session != null;
 
-    const rotasPublicas = <String>{
+    final caminho =
+        state.uri.path;
+
+    const rotasPublicas =
+    <String>{
       '/login',
       '/cadastro',
       '/auth/callback',
@@ -64,18 +80,42 @@ final GoRouter router = GoRouter(
     final rotaPublica =
     rotasPublicas.contains(caminho);
 
-    // Se não estiver autenticado, só pode acessar
-    // as rotas públicas.
-    if (!estaAutenticado && !rotaPublica) {
+    // =====================================================
+    // USUÁRIO NÃO AUTENTICADO
+    // =====================================================
+
+    if (!estaAutenticado &&
+        !rotaPublica) {
       return '/login';
     }
 
-    // Se já estiver autenticado e tentar voltar
-    // para login ou cadastro, vai para a Home.
+    // =====================================================
+    // USUÁRIO AUTENTICADO
+    // =====================================================
+
     if (estaAutenticado &&
         (caminho == '/login' ||
             caminho == '/cadastro')) {
       return '/';
+    }
+
+    // =====================================================
+    // PROTEÇÃO DAS ROTAS ADMINISTRATIVAS
+    // =====================================================
+
+    final rotaAdministrativa =
+        caminho == '/admin-obras' ||
+            caminho ==
+                '/admin-solicitacoes-remocao';
+
+    if (rotaAdministrativa) {
+      final ehAdmin =
+      await AuthService.instancia
+          .ehAdmin();
+
+      if (!ehAdmin) {
+        return '/';
+      }
     }
 
     return null;
@@ -88,7 +128,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/login',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const LoginPage();
       },
     ),
@@ -99,7 +142,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/cadastro',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const CadastroPage();
       },
     ),
@@ -110,7 +156,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/auth/callback',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const AuthCallbackPage();
       },
     ),
@@ -121,7 +170,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const HomePage();
       },
     ),
@@ -132,7 +184,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/minha-conta',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const MinhaContaPage();
       },
     ),
@@ -143,7 +198,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/configuracoes',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const ConfiguracoesPage();
       },
     ),
@@ -154,7 +212,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/publicar',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const PublicarObraPage();
       },
     ),
@@ -165,7 +226,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/historico-obras',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const HistoricoObrasPage();
       },
     ),
@@ -176,9 +240,13 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/acervo',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         final obraId =
-        state.uri.queryParameters['obra'];
+        state.uri.queryParameters[
+        'obra'];
 
         return AcervoResultadosPage(
           obraId: obraId,
@@ -192,9 +260,14 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/search/:query',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         final query =
-            state.pathParameters['query'] ?? '';
+            state.pathParameters[
+            'query'] ??
+                '';
 
         return AcervoResultadosPage(
           query: query,
@@ -208,9 +281,14 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/categoria/:tipo',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         final categoria =
-            state.pathParameters['tipo'] ?? '';
+            state.pathParameters[
+            'tipo'] ??
+                '';
 
         return AcervoResultadosPage(
           categoria: categoria,
@@ -219,13 +297,31 @@ final GoRouter router = GoRouter(
     ),
 
     // =====================================================
-    // ADMINISTRAÇÃO
+    // ADMINISTRAÇÃO — OBRAS
     // =====================================================
 
     GoRoute(
       path: '/admin-obras',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const AdminObrasPage();
+      },
+    ),
+
+    // =====================================================
+    // ADMINISTRAÇÃO — SOLICITAÇÕES DE REMOÇÃO
+    // =====================================================
+
+    GoRoute(
+      path:
+      '/admin-solicitacoes-remocao',
+      builder: (
+          context,
+          state,
+          ) {
+        return const AdminSolicitacoesRemocaoPage();
       },
     ),
 
@@ -235,7 +331,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/termos',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const TermosPage();
       },
     ),
@@ -245,8 +344,12 @@ final GoRouter router = GoRouter(
     // =====================================================
 
     GoRoute(
-      path: '/politica-privacidade',
-      builder: (context, state) {
+      path:
+      '/politica-privacidade',
+      builder: (
+          context,
+          state,
+          ) {
         return const PoliticaPrivacidadePage();
       },
     ),
@@ -257,7 +360,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/cookies',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const CookiesPage();
       },
     ),
@@ -268,7 +374,10 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/contacto',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const ContactoPage();
       },
     ),
@@ -279,10 +388,12 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/ajuda',
-      builder: (context, state) {
+      builder: (
+          context,
+          state,
+          ) {
         return const AjudaPage();
       },
     ),
   ],
 );
-

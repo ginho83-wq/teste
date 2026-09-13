@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/obra_pendente.dart';
 import '../services/admin_service.dart';
+import 'admin_solicitacoes_remocao_page.dart';
 
 class AdminObrasPage extends StatefulWidget {
   const AdminObrasPage({
@@ -59,6 +60,18 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
   }
 
   // ============================================================
+  // ABRIR SOLICITAÇÕES DE REMOÇÃO
+  // ============================================================
+
+  Future<void> _abrirSolicitacoesRemocao() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const AdminSolicitacoesRemocaoPage(),
+      ),
+    );
+  }
+
+  // ============================================================
   // APROVAR
   // ============================================================
 
@@ -106,12 +119,14 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     } catch (e) {
       if (!mounted) return;
 
+      final mensagem = _mensagemErro(e);
+
       setState(() {
         _processandoId = null;
-        _erro = _mensagemErro(e);
+        _erro = mensagem;
       });
 
-      _mostrarErro(_mensagemErro(e));
+      _mostrarErro(mensagem);
     }
   }
 
@@ -163,12 +178,14 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     } catch (e) {
       if (!mounted) return;
 
+      final mensagem = _mensagemErro(e);
+
       setState(() {
         _processandoId = null;
-        _erro = _mensagemErro(e);
+        _erro = mensagem;
       });
 
-      _mostrarErro(_mensagemErro(e));
+      _mostrarErro(mensagem);
     }
   }
 
@@ -220,12 +237,14 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     } catch (e) {
       if (!mounted) return;
 
+      final mensagem = _mensagemErro(e);
+
       setState(() {
         _processandoId = null;
-        _erro = _mensagemErro(e);
+        _erro = mensagem;
       });
 
-      _mostrarErro(_mensagemErro(e));
+      _mostrarErro(mensagem);
     }
   }
 
@@ -328,6 +347,10 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     );
   }
 
+  // ============================================================
+  // CORPO
+  // ============================================================
+
   Widget _buildBody() {
     if (_carregando) {
       return const Center(
@@ -335,68 +358,10 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
       );
     }
 
-    if (_erro != null && _obras.isEmpty) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 500,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 48,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _erro!,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: _carregar,
-                  child: const Text('Tentar novamente'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_obras.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _carregar,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 160),
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 56,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Não existem publicações pendentes.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: _carregar,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
         children: [
           if (_erro != null) ...[
@@ -410,28 +375,149 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
             ),
             const SizedBox(height: 16),
           ],
+
+          // ======================================================
+          // SOLICITAÇÕES DE REMOÇÃO
+          // ======================================================
+
+          _buildSolicitacoesRemocaoCard(),
+
+          const SizedBox(height: 30),
+
+          // ======================================================
+          // PUBLICAÇÕES PENDENTES
+          // ======================================================
+
           Text(
             'Publicações pendentes',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
+
           const SizedBox(height: 8),
+
           Text(
-            '${_obras.length} publicação(ões) aguardando análise.',
+            _obras.isEmpty
+                ? 'Não existem publicações aguardando análise.'
+                : '${_obras.length} publicação(ões) aguardando análise.',
           ),
+
           const SizedBox(height: 24),
-          ..._obras.map(_buildObraCard),
+
+          if (_obras.isEmpty)
+            _buildSemPublicacoes()
+          else
+            ..._obras.map(_buildObraCard),
         ],
       ),
     );
   }
 
   // ============================================================
-  // CARD
+  // CARD DE SOLICITAÇÕES DE REMOÇÃO
+  // ============================================================
+
+  Widget _buildSolicitacoesRemocaoCard() {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(
+          color: Color(0xFFE2E2E2),
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: _abrirSolicitacoesRemocao,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F3F3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.black87,
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Solicitações de remoção',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Analisar pedidos de remoção enviados pelos utilizadores.',
+                      style: TextStyle(
+                        color: Colors.black54,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.black45,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SEM PUBLICAÇÕES
+  // ============================================================
+
+  Widget _buildSemPublicacoes() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 55,
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            size: 56,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Não existem publicações pendentes.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CARD DA OBRA
   // ============================================================
 
   Widget _buildObraCard(ObraPendente obra) {
     final id = obra.id;
-    final processando = id != null && _processandoId == id;
+    final processando =
+        id != null && _processandoId == id;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -444,16 +530,21 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
               obra.titulo,
               style: Theme.of(context).textTheme.titleLarge,
             ),
+
             const SizedBox(height: 12),
+
             _InfoLinha(
               icone: Icons.person_outline,
               texto: obra.autor,
             ),
+
             const SizedBox(height: 6),
+
             _InfoLinha(
               icone: Icons.category_outlined,
               texto: obra.categoria,
             ),
+
             if (obra.anoObra != null) ...[
               const SizedBox(height: 6),
               _InfoLinha(
@@ -461,12 +552,15 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
                 texto: obra.anoObra.toString(),
               ),
             ],
+
             const SizedBox(height: 6),
+
             _InfoLinha(
               icone: Icons.schedule_outlined,
               texto:
               'Enviada em ${_formatarData(obra.dataPublicacao)}',
             ),
+
             if (obra.descricao != null &&
                 obra.descricao!.trim().isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -476,7 +570,9 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
+
             const SizedBox(height: 20),
+
             if (processando)
               const Align(
                 alignment: Alignment.centerRight,
@@ -577,7 +673,9 @@ class _MensagemErroWidget extends StatelessWidget {
                   .colorScheme
                   .onErrorContainer,
             ),
+
             const SizedBox(width: 12),
+
             Expanded(
               child: Text(
                 mensagem,
@@ -588,6 +686,7 @@ class _MensagemErroWidget extends StatelessWidget {
                 ),
               ),
             ),
+
             IconButton(
               onPressed: onFechar,
               icon: const Icon(Icons.close),
@@ -601,3 +700,4 @@ class _MensagemErroWidget extends StatelessWidget {
     );
   }
 }
+
