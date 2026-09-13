@@ -28,7 +28,7 @@ class SolicitacoesRemocaoRepository {
       throw Exception('Informe o motivo da remoção.');
     }
 
-    // Confirma que o utilizador autenticado possui perfil.
+    // Confirma que o utilizador possui perfil.
     final perfil = await _supabase
         .from('profiles')
         .select('id')
@@ -53,7 +53,8 @@ class SolicitacoesRemocaoRepository {
       throw Exception('A obra não foi encontrada.');
     }
 
-    // Verifica se já existe uma solicitação pendente.
+    // Só impede uma nova solicitação se houver uma
+    // solicitação atualmente pendente.
     final existente = await _supabase
         .from('solicitacoes_remocao')
         .select('id')
@@ -73,6 +74,8 @@ class SolicitacoesRemocaoRepository {
       'user_id': usuario.id,
       'motivo': motivoLimpo,
       'status': 'pendente',
+      'observacao_admin': null,
+      'updated_at': DateTime.now().toIso8601String(),
     });
   }
 
@@ -149,7 +152,9 @@ class SolicitacoesRemocaoRepository {
         .maybeSingle();
 
     if (perfil == null || perfil['role'] != 'admin') {
-      throw Exception('Acesso permitido apenas para administradores.');
+      throw Exception(
+        'Acesso permitido apenas para administradores.',
+      );
     }
 
     var consulta = _supabase.from('solicitacoes_remocao').select('''
@@ -193,7 +198,6 @@ class SolicitacoesRemocaoRepository {
       throw Exception('É necessário estar autenticado.');
     }
 
-    // Confirma administrador.
     final perfil = await _supabase
         .from('profiles')
         .select('role')
@@ -206,7 +210,6 @@ class SolicitacoesRemocaoRepository {
       );
     }
 
-    // Obtém a solicitação.
     final solicitacao = await _supabase
         .from('solicitacoes_remocao')
         .select('obra_id, status')
@@ -233,21 +236,28 @@ class SolicitacoesRemocaoRepository {
       );
     }
 
-    // Primeiro remove a obra.
-    await _supabase
-        .from('obras')
-        .delete()
-        .eq('id', obraId);
-
-    // Depois marca a solicitação como aprovada.
-    await _supabase
+    // Primeiro atualiza a solicitação.
+    final atualizada = await _supabase
         .from('solicitacoes_remocao')
         .update({
       'status': 'aprovada',
       'updated_at': DateTime.now().toIso8601String(),
     })
         .eq('id', solicitacaoId)
-        .eq('status', 'pendente');
+        .eq('status', 'pendente')
+        .select('id');
+
+    if (atualizada.isEmpty) {
+      throw Exception(
+        'A solicitação não pôde ser aprovada.',
+      );
+    }
+
+    // Depois remove a obra.
+    await _supabase
+        .from('obras')
+        .delete()
+        .eq('id', obraId);
   }
 
   // ============================================================
@@ -277,25 +287,49 @@ class SolicitacoesRemocaoRepository {
       );
     }
 
+    final observacaoLimpa =
+        observacao?.trim() ?? '';
+
     final dados = <String, dynamic>{
       'status': 'rejeitada',
       'updated_at': DateTime.now().toIso8601String(),
     };
 
-    if (observacao != null && observacao.trim().isNotEmpty) {
-      dados['observacao_admin'] = observacao.trim();
+    if (observacaoLimpa.isNotEmpty) {
+      dados['observacao_admin'] = observacaoLimpa;
+    } else {
+      dados['observacao_admin'] = null;
     }
 
+    // IMPORTANTE:
+    // O filtro status = pendente garante que apenas
+    // uma solicitação ainda pendente possa ser rejeitada.
     final resultado = await _supabase
         .from('solicitacoes_remocao')
         .update(dados)
         .eq('id', solicitacaoId)
         .eq('status', 'pendente')
-        .select('id');
+        .select('id, status, observacao_admin');
 
     if (resultado.isEmpty) {
       throw Exception(
-        'A solicitação não foi encontrada ou já foi processada.',
+        'A solicitação não foi encontrada, '
+            'já foi processada ou não está mais pendente.',
+      );
+    }
+
+    // Confirma que o Supabase realmente gravou
+    // o novo estado.
+    final confirmacao = await _supabase
+        .from('solicitacoes_remocao')
+        .select('status')
+        .eq('id', solicitacaoId)
+        .maybeSingle();
+
+    if (confirmacao == null ||
+        confirmacao['status']?.toString() != 'rejeitada') {
+      throw Exception(
+        'A rejeição não foi gravada corretamente.',
       );
     }
   }

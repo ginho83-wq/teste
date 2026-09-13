@@ -23,6 +23,7 @@ class _AdminSolicitacoesRemocaoPageState
   List<Map<String, dynamic>> _solicitacoes = [];
 
   bool _carregando = true;
+  bool _processando = false;
 
   String _filtroStatus = 'pendente';
 
@@ -108,6 +109,8 @@ class _AdminSolicitacoesRemocaoPageState
   Future<void> _aprovar(
       Map<String, dynamic> solicitacao,
       ) async {
+    if (_processando) return;
+
     final id = solicitacao['id']?.toString();
 
     if (id == null || id.isEmpty) {
@@ -130,6 +133,10 @@ class _AdminSolicitacoesRemocaoPageState
 
     if (!confirmar) return;
 
+    setState(() {
+      _processando = true;
+    });
+
     try {
       await _repository.aprovarSolicitacao(id);
 
@@ -147,12 +154,20 @@ class _AdminSolicitacoesRemocaoPageState
         _mensagemErro(e),
         erro: true,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processando = false;
+        });
+      }
     }
   }
 
   Future<void> _rejeitar(
       Map<String, dynamic> solicitacao,
       ) async {
+    if (_processando) return;
+
     final id = solicitacao['id']?.toString();
 
     if (id == null || id.isEmpty) {
@@ -166,7 +181,9 @@ class _AdminSolicitacoesRemocaoPageState
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Rejeitar solicitação'),
+          title: const Text(
+            'Rejeitar solicitação',
+          ),
           content: TextField(
             controller: observacaoController,
             maxLines: 4,
@@ -194,6 +211,10 @@ class _AdminSolicitacoesRemocaoPageState
                 final texto =
                 observacaoController.text.trim();
 
+                if (texto.isEmpty) {
+                  return;
+                }
+
                 Navigator.pop(
                   context,
                   texto,
@@ -208,30 +229,30 @@ class _AdminSolicitacoesRemocaoPageState
 
     observacaoController.dispose();
 
-    if (resultado == null) {
+    if (resultado == null ||
+        resultado.trim().isEmpty) {
       return;
     }
 
-    if (resultado.trim().isEmpty) {
-      _mostrarMensagem(
-        'Informe o motivo da rejeição.',
-        erro: true,
-      );
-      return;
-    }
+    setState(() {
+      _processando = true;
+    });
 
     try {
       await _repository.rejeitarSolicitacao(
         id,
-        observacao: resultado,
+        observacao: resultado.trim(),
       );
 
       if (!mounted) return;
 
       _mostrarMensagem(
-        'Solicitação rejeitada.',
+        'Solicitação rejeitada com sucesso.',
       );
 
+      // Recarrega diretamente o filtro atual.
+      // Como estamos em "pendente", o pedido
+      // rejeitado desaparece imediatamente.
       await _carregarSolicitacoes();
     } catch (e) {
       if (!mounted) return;
@@ -240,6 +261,12 @@ class _AdminSolicitacoesRemocaoPageState
         _mensagemErro(e),
         erro: true,
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processando = false;
+        });
+      }
     }
   }
 
@@ -289,12 +316,16 @@ class _AdminSolicitacoesRemocaoPageState
       String mensagem, {
         bool erro = false,
       }) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   String _textoData(dynamic valor) {
@@ -372,7 +403,8 @@ class _AdminSolicitacoesRemocaoPageState
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFFDF2F2),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius:
+        BorderRadius.circular(6),
       ),
       child: Column(
         crossAxisAlignment:
@@ -392,12 +424,26 @@ class _AdminSolicitacoesRemocaoPageState
     );
   }
 
+  void _selecionarFiltro(String status) {
+    if (_filtroStatus == status) {
+      return;
+    }
+
+    setState(() {
+      _filtroStatus = status;
+    });
+
+    _carregarSolicitacoes();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final solicitacoes = _solicitacoesFiltradas;
+    final solicitacoes =
+        _solicitacoesFiltradas;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      backgroundColor:
+      const Color(0xFFF7F7F7),
       appBar: AppBar(
         title: const Text(
           'Solicitações de remoção',
@@ -408,8 +454,11 @@ class _AdminSolicitacoesRemocaoPageState
         actions: [
           IconButton(
             tooltip: 'Atualizar',
-            onPressed: _carregarSolicitacoes,
-            icon: const Icon(Icons.refresh),
+            onPressed: _carregando
+                ? null
+                : _carregarSolicitacoes,
+            icon:
+            const Icon(Icons.refresh),
           ),
         ],
       ),
@@ -417,7 +466,8 @@ class _AdminSolicitacoesRemocaoPageState
         children: [
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+            const EdgeInsets.fromLTRB(
               20,
               16,
               20,
@@ -426,15 +476,19 @@ class _AdminSolicitacoesRemocaoPageState
             child: Column(
               children: [
                 TextField(
-                  controller: _pesquisaController,
+                  controller:
+                  _pesquisaController,
                   onChanged: (_) {
                     setState(() {});
                   },
-                  decoration: InputDecoration(
+                  decoration:
+                  InputDecoration(
                     hintText:
                     'Pesquisar obra, autor ou usuário',
                     prefixIcon:
-                    const Icon(Icons.search),
+                    const Icon(
+                      Icons.search,
+                    ),
                     suffixIcon:
                     _pesquisaController
                         .text
@@ -445,70 +499,75 @@ class _AdminSolicitacoesRemocaoPageState
                             .clear();
                         setState(() {});
                       },
-                      icon: const Icon(
+                      icon:
+                      const Icon(
                         Icons.clear,
                       ),
                     )
                         : null,
                     filled: true,
                     fillColor:
-                    const Color(0xFFF2F2F2),
-                    border: OutlineInputBorder(
+                    const Color(
+                      0xFFF2F2F2,
+                    ),
+                    border:
+                    OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(6),
-                      borderSide: BorderSide.none,
+                      BorderRadius.circular(
+                        6,
+                      ),
+                      borderSide:
+                      BorderSide.none,
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment:
+                  Alignment.centerLeft,
                   child: Wrap(
                     spacing: 8,
                     children: [
                       ChoiceChip(
                         label:
-                        const Text('Pendentes'),
+                        const Text(
+                          'Pendentes',
+                        ),
                         selected:
                         _filtroStatus ==
                             'pendente',
                         onSelected: (_) {
-                          setState(() {
-                            _filtroStatus =
-                            'pendente';
-                          });
-
-                          _carregarSolicitacoes();
+                          _selecionarFiltro(
+                            'pendente',
+                          );
                         },
                       ),
                       ChoiceChip(
                         label:
-                        const Text('Aprovadas'),
+                        const Text(
+                          'Aprovadas',
+                        ),
                         selected:
                         _filtroStatus ==
                             'aprovada',
                         onSelected: (_) {
-                          setState(() {
-                            _filtroStatus =
-                            'aprovada';
-                          });
-
-                          _carregarSolicitacoes();
+                          _selecionarFiltro(
+                            'aprovada',
+                          );
                         },
                       ),
                       ChoiceChip(
                         label:
-                        const Text('Rejeitadas'),
+                        const Text(
+                          'Rejeitadas',
+                        ),
                         selected:
                         _filtroStatus ==
                             'rejeitada',
                         onSelected: (_) {
-                          setState(() {
-                            _filtroStatus =
-                            'rejeitada';
-                          });
-
-                          _carregarSolicitacoes();
+                          _selecionarFiltro(
+                            'rejeitada',
+                          );
                         },
                       ),
                     ],
@@ -528,7 +587,8 @@ class _AdminSolicitacoesRemocaoPageState
               child: Text(
                 'Nenhuma solicitação encontrada.',
                 style: TextStyle(
-                  color: Colors.black54,
+                  color:
+                  Colors.black54,
                   fontSize: 15,
                 ),
               ),
@@ -536,9 +596,11 @@ class _AdminSolicitacoesRemocaoPageState
                 : RefreshIndicator(
               onRefresh:
               _carregarSolicitacoes,
-              child: ListView.separated(
+              child:
+              ListView.separated(
                 padding:
-                const EdgeInsets.all(20),
+                const EdgeInsets
+                    .all(20),
                 itemCount:
                 solicitacoes.length,
                 separatorBuilder:
@@ -549,13 +611,14 @@ class _AdminSolicitacoesRemocaoPageState
                 itemBuilder:
                     (context, index) {
                   final solicitacao =
-                  solicitacoes[index];
+                  solicitacoes[
+                  index];
 
                   final obra =
-                  solicitacao['obras']
+                  solicitacao[
+                  'obras']
                   is Map
-                      ? Map<
-                      String,
+                      ? Map<String,
                       dynamic>.from(
                     solicitacao[
                     'obras'],
@@ -564,10 +627,10 @@ class _AdminSolicitacoesRemocaoPageState
                       dynamic>{};
 
                   final perfil =
-                  solicitacao['profiles']
+                  solicitacao[
+                  'profiles']
                   is Map
-                      ? Map<
-                      String,
+                      ? Map<String,
                       dynamic>.from(
                     solicitacao[
                     'profiles'],
@@ -596,12 +659,14 @@ class _AdminSolicitacoesRemocaoPageState
                       .toString();
 
                   final motivo =
-                  (solicitacao['motivo'] ??
+                  (solicitacao[
+                  'motivo'] ??
                       '')
                       .toString();
 
                   final status =
-                  (solicitacao['status'] ??
+                  (solicitacao[
+                  'status'] ??
                       '')
                       .toString();
 
@@ -613,25 +678,30 @@ class _AdminSolicitacoesRemocaoPageState
 
                   return Card(
                     elevation: 0,
-                    color: Colors.white,
+                    color:
+                    Colors.white,
                     shape:
                     RoundedRectangleBorder(
                       borderRadius:
-                      BorderRadius.circular(
+                      BorderRadius
+                          .circular(
                         8,
                       ),
                       side:
                       const BorderSide(
                         color:
-                        Color(0xFFE5E5E5),
+                        Color(
+                          0xFFE5E5E5,
+                        ),
                       ),
                     ),
-                    child: Padding(
+                    child:
+                    Padding(
                       padding:
-                      const EdgeInsets.all(
-                        18,
-                      ),
-                      child: Column(
+                      const EdgeInsets
+                          .all(18),
+                      child:
+                      Column(
                         crossAxisAlignment:
                         CrossAxisAlignment
                             .start,
@@ -651,14 +721,15 @@ class _AdminSolicitacoesRemocaoPageState
                                 width: 12,
                               ),
                               Expanded(
-                                child: Text(
+                                child:
+                                Text(
                                   titulo,
                                   style:
                                   const TextStyle(
-                                    fontSize: 17,
+                                    fontSize:
+                                    17,
                                     fontWeight:
-                                    FontWeight
-                                        .w600,
+                                    FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -667,47 +738,48 @@ class _AdminSolicitacoesRemocaoPageState
                           const SizedBox(
                             height: 10,
                           ),
-                          Row(
-                            children: [
-                              Container(
-                                padding:
-                                const EdgeInsets
-                                    .symmetric(
-                                  horizontal: 9,
-                                  vertical: 5,
-                                ),
-                                decoration:
-                                BoxDecoration(
-                                  color:
-                                  _statusCor(
-                                    status,
-                                  ).withValues(
-                                    alpha: 0.10,
-                                  ),
-                                  borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                    20,
-                                  ),
-                                ),
-                                child: Text(
-                                  _statusTexto(
-                                    status,
-                                  ),
-                                  style:
-                                  TextStyle(
-                                    color:
-                                    _statusCor(
-                                      status,
-                                    ),
-                                    fontSize: 12,
-                                    fontWeight:
-                                    FontWeight
-                                        .w600,
-                                  ),
-                                ),
+                          Container(
+                            padding:
+                            const EdgeInsets
+                                .symmetric(
+                              horizontal:
+                              9,
+                              vertical:
+                              5,
+                            ),
+                            decoration:
+                            BoxDecoration(
+                              color:
+                              _statusCor(
+                                status,
+                              ).withValues(
+                                alpha:
+                                0.10,
                               ),
-                            ],
+                              borderRadius:
+                              BorderRadius
+                                  .circular(
+                                20,
+                              ),
+                            ),
+                            child:
+                            Text(
+                              _statusTexto(
+                                status,
+                              ),
+                              style:
+                              TextStyle(
+                                color:
+                                _statusCor(
+                                  status,
+                                ),
+                                fontSize:
+                                12,
+                                fontWeight:
+                                FontWeight
+                                    .w600,
+                              ),
+                            ),
                           ),
                           const SizedBox(
                             height: 12,
@@ -731,7 +803,8 @@ class _AdminSolicitacoesRemocaoPageState
                               Colors.black54,
                             ),
                           ),
-                          if (email.isNotEmpty) ...[
+                          if (email
+                              .isNotEmpty) ...[
                             const SizedBox(
                               height: 5,
                             ),
@@ -741,7 +814,8 @@ class _AdminSolicitacoesRemocaoPageState
                               const TextStyle(
                                 color:
                                 Colors.black54,
-                                fontSize: 13,
+                                fontSize:
+                                13,
                               ),
                             ),
                           ],
@@ -766,7 +840,8 @@ class _AdminSolicitacoesRemocaoPageState
                                 6,
                               ),
                             ),
-                            child: Column(
+                            child:
+                            Column(
                               crossAxisAlignment:
                               CrossAxisAlignment
                                   .start,
@@ -778,7 +853,8 @@ class _AdminSolicitacoesRemocaoPageState
                                     fontWeight:
                                     FontWeight
                                         .w600,
-                                    fontSize: 13,
+                                    fontSize:
+                                    13,
                                   ),
                                 ),
                                 const SizedBox(
@@ -788,11 +864,6 @@ class _AdminSolicitacoesRemocaoPageState
                                   motivo.isEmpty
                                       ? 'Nenhum motivo informado.'
                                       : motivo,
-                                  style:
-                                  const TextStyle(
-                                    color:
-                                    Colors.black87,
-                                  ),
                                 ),
                               ],
                             ),
@@ -806,7 +877,8 @@ class _AdminSolicitacoesRemocaoPageState
                             const TextStyle(
                               color:
                               Colors.black54,
-                              fontSize: 12,
+                              fontSize:
+                              12,
                             ),
                           ),
                           if (status ==
@@ -829,7 +901,10 @@ class _AdminSolicitacoesRemocaoPageState
                                   .end,
                               children: [
                                 OutlinedButton(
-                                  onPressed: () =>
+                                  onPressed:
+                                  _processando
+                                      ? null
+                                      : () =>
                                       _rejeitar(
                                         solicitacao,
                                       ),
@@ -842,7 +917,10 @@ class _AdminSolicitacoesRemocaoPageState
                                   width: 10,
                                 ),
                                 FilledButton(
-                                  onPressed: () =>
+                                  onPressed:
+                                  _processando
+                                      ? null
+                                      : () =>
                                       _aprovar(
                                         solicitacao,
                                       ),
@@ -867,3 +945,4 @@ class _AdminSolicitacoesRemocaoPageState
     );
   }
 }
+

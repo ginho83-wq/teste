@@ -8,6 +8,7 @@ import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
 import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
+import '../widgets/avatar_utilizador.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -63,10 +64,6 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // ============================================================
-  // PUBLICAÇÕES RECENTES
-  // ============================================================
-
   Future<void> _carregarObrasRecentes() async {
     try {
       final obras = await _obrasRepository.carregarObras(
@@ -97,10 +94,6 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
-
-  // ============================================================
-  // OBRAS CONSULTADAS RECENTEMENTE
-  // ============================================================
 
   Future<void> _carregarConsultasRecentes() async {
     try {
@@ -153,10 +146,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ============================================================
-  // ADMINISTRADOR
-  // ============================================================
-
   Future<void> _verificarAdministrador() async {
     try {
       final admin = await _authService.ehAdmin();
@@ -181,10 +170,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ============================================================
-  // PESQUISA
-  // ============================================================
-
   void _executarPesquisa() {
     final pesquisa =
     _pesquisaController.text.trim();
@@ -196,15 +181,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // ABRIR DETALHES
-  // ============================================================
-
   Future<void> _abrirObra(Obra obra) async {
     if (!mounted) return;
 
-    // Registra a consulta assim que o utilizador
-    // abre os detalhes da obra.
     try {
       await _historicoService.registrarConsulta(
         obraId: obra.id,
@@ -214,14 +193,11 @@ class _HomePageState extends State<HomePage> {
         'HOME: consulta registrada ao abrir detalhes da obra ${obra.id}',
       );
     } catch (e) {
-      // Se o histórico falhar, os detalhes da obra
-      // continuam a abrir normalmente.
       debugPrint(
         'HOME: erro ao registrar consulta: $e',
       );
     }
 
-    // Abre os detalhes da obra.
     await showDialog(
       context: context,
       builder: (dialogContext) {
@@ -234,13 +210,8 @@ class _HomePageState extends State<HomePage> {
 
     if (!mounted) return;
 
-    // Atualiza a lista "Obras consultadas recentemente".
     await _carregarConsultasRecentes();
   }
-
-  // ============================================================
-  // DIALOG DE DETALHES DA OBRA
-  // ============================================================
 
   Widget _buildDetalhesObraDialog(
       Obra obra,
@@ -277,7 +248,6 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 16),
               ],
-
               const Text(
                 'Categoria',
                 style: TextStyle(
@@ -291,7 +261,6 @@ class _HomePageState extends State<HomePage> {
                   color: Colors.black54,
                 ),
               ),
-
               if (obra.descricao != null &&
                   obra.descricao!.trim().isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -337,10 +306,6 @@ class _HomePageState extends State<HomePage> {
       ],
     );
   }
-
-  // ============================================================
-  // ABRIR DOCUMENTO A PARTIR DO DIALOG
-  // ============================================================
 
   Future<void> _abrirDocumentoNoDialog(
       Obra obra,
@@ -396,7 +361,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // Primeiro abre o documento.
     try {
       final abriu = await launchUrl(
         uri,
@@ -438,10 +402,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // A consulta já foi registrada quando os detalhes
-    // foram abertos. Aqui apenas atualizamos a data
-    // da consulta, colocando a obra novamente no topo
-    // se o documento for aberto outra vez.
     try {
       await _historicoService.registrarConsulta(
         obraId: obraId,
@@ -456,20 +416,14 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Fecha o diálogo.
     if (dialogContext.mounted) {
       Navigator.of(dialogContext).pop();
     }
 
-    // Atualiza imediatamente a seção da Home.
     if (mounted) {
       await _carregarConsultasRecentes();
     }
   }
-
-  // ============================================================
-  // ABRIR CONSULTA RECENTE
-  // ============================================================
 
   Future<void> _abrirConsultaRecente(
       HistoricoObra consulta,
@@ -534,10 +488,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -596,8 +546,7 @@ class _HomePageState extends State<HomePage> {
               child: const Text(
                 'Publicar',
                 style: TextStyle(
-                  fontWeight:
-                  FontWeight.w600,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ),
@@ -643,11 +592,8 @@ class _HomePageState extends State<HomePage> {
               EdgeInsets.symmetric(
                 horizontal: 12,
               ),
-              child: CircleAvatar(
+              child: AvatarUtilizador(
                 radius: 17,
-                child: Icon(
-                  Icons.person_outline,
-                ),
               ),
             ),
           ),
@@ -679,10 +625,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // HERO
-  // ============================================================
-
   Widget _buildHero(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -706,14 +648,11 @@ class _HomePageState extends State<HomePage> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 38,
-                  fontWeight:
-                  FontWeight.w700,
+                  fontWeight: FontWeight.w700,
                   color: Colors.black87,
                 ),
               ),
-
               const SizedBox(height: 28),
-
               ConstrainedBox(
                 constraints:
                 const BoxConstraints(
@@ -777,9 +716,7 @@ class _HomePageState extends State<HomePage> {
                     border:
                     OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(
-                        6,
-                      ),
+                      BorderRadius.circular(6),
                       borderSide:
                       const BorderSide(
                         color:
@@ -789,9 +726,7 @@ class _HomePageState extends State<HomePage> {
                     enabledBorder:
                     OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(
-                        6,
-                      ),
+                      BorderRadius.circular(6),
                       borderSide:
                       const BorderSide(
                         color:
@@ -801,9 +736,7 @@ class _HomePageState extends State<HomePage> {
                     focusedBorder:
                     OutlineInputBorder(
                       borderRadius:
-                      BorderRadius.circular(
-                        6,
-                      ),
+                      BorderRadius.circular(6),
                       borderSide:
                       const BorderSide(
                         color: Colors.black54,
@@ -819,10 +752,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // ============================================================
-  // CATEGORIAS
-  // ============================================================
 
   Widget _buildCategorias(
       BuildContext context,
@@ -845,8 +774,7 @@ class _HomePageState extends State<HomePage> {
       child: Wrap(
         spacing: 24,
         runSpacing: 12,
-        alignment:
-        WrapAlignment.center,
+        alignment: WrapAlignment.center,
         children:
         categorias.map((categoria) {
           return InkWell(
@@ -879,10 +807,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // PUBLICAÇÕES RECENTES
-  // ============================================================
-
   Widget _buildObrasRecentes(
       BuildContext context,
       ) {
@@ -910,9 +834,7 @@ class _HomePageState extends State<HomePage> {
                 FontWeight.w700,
               ),
             ),
-
             const SizedBox(height: 16),
-
             if (_carregandoObras)
               const Center(
                 child: Padding(
@@ -946,10 +868,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // CARD DA OBRA
-  // ============================================================
-
   Widget _buildObraCard(Obra obra) {
     return Card(
       margin:
@@ -981,9 +899,7 @@ class _HomePageState extends State<HomePage> {
                 size: 30,
                 color: Colors.black54,
               ),
-
               const SizedBox(width: 15),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -998,31 +914,28 @@ class _HomePageState extends State<HomePage> {
                         FontWeight.w600,
                       ),
                     ),
-
                     const SizedBox(height: 6),
-
                     Text(
                       obra.autor,
                       style:
                       const TextStyle(
-                        color: Colors.black54,
+                        color:
+                        Colors.black54,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
                       obra.categoria,
                       style:
                       const TextStyle(
                         fontSize: 13,
-                        color: Colors.black45,
+                        color:
+                        Colors.black45,
                       ),
                     ),
                   ],
                 ),
               ),
-
               const Icon(
                 Icons.chevron_right,
                 color: Colors.black45,
@@ -1033,10 +946,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // ============================================================
-  // CONSULTAS RECENTES
-  // ============================================================
 
   Widget _buildConsultasRecentes(
       BuildContext context,
@@ -1065,9 +974,7 @@ class _HomePageState extends State<HomePage> {
                 FontWeight.w700,
               ),
             ),
-
             const SizedBox(height: 16),
-
             if (_carregandoConsultas)
               const Center(
                 child: Padding(
@@ -1102,10 +1009,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // ============================================================
-  // CARD DO HISTÓRICO
-  // ============================================================
 
   Widget _buildConsultaCard(
       HistoricoObra consulta,
@@ -1155,7 +1058,8 @@ class _HomePageState extends State<HomePage> {
                 style:
                 const TextStyle(
                   fontSize: 12,
-                  color: Colors.black45,
+                  color:
+                  Colors.black45,
                 ),
               ),
           ],
@@ -1172,10 +1076,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // ============================================================
-  // FOOTER
-  // ============================================================
 
   Widget _buildFooter() {
     return Container(
