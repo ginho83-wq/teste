@@ -9,6 +9,7 @@ import '../repositories/obras_repository.dart';
 import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
 import '../widgets/avatar_utilizador.dart';
+import '../widgets/detalhes_obra_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,12 +19,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository =
-      ObrasRepository.instancia;
-
-  final AuthService _authService =
-      AuthService.instancia;
-
+  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
+  final AuthService _authService = AuthService.instancia;
   final HistoricoObrasService _historicoService =
   HistoricoObrasService();
 
@@ -35,6 +32,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _carregandoObras = true;
   bool _carregandoConsultas = true;
+
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
@@ -52,9 +50,9 @@ class _HomePageState extends State<HomePage> {
     super.didChangeDependencies();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      _carregarConsultasRecentes();
+      if (mounted) {
+        _carregarConsultasRecentes();
+      }
     });
   }
 
@@ -64,7 +62,17 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  // ============================================================
+  // CARREGAMENTO
+  // ============================================================
+
   Future<void> _carregarObrasRecentes() async {
+    if (mounted) {
+      setState(() {
+        _carregandoObras = true;
+      });
+    }
+
     try {
       final obras = await _obrasRepository.carregarObras(
         pagina: 1,
@@ -77,13 +85,9 @@ class _HomePageState extends State<HomePage> {
         _obrasRecentes = obras;
         _carregandoObras = false;
       });
-
-      debugPrint(
-        'HOME: ${obras.length} publicações recentes encontradas.',
-      );
     } catch (e) {
       debugPrint(
-        'HOME: erro ao carregar publicações recentes: $e',
+        'HOME: erro ao carregar obras recentes: $e',
       );
 
       if (!mounted) return;
@@ -96,27 +100,27 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _carregarConsultasRecentes() async {
+    final usuario =
+        Supabase.instance.client.auth.currentUser;
+
+    if (usuario == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _consultasRecentes = [];
+        _carregandoConsultas = false;
+      });
+
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _carregandoConsultas = true;
+      });
+    }
+
     try {
-      final utilizador =
-          Supabase.instance.client.auth.currentUser;
-
-      if (utilizador == null) {
-        if (!mounted) return;
-
-        setState(() {
-          _consultasRecentes = [];
-          _carregandoConsultas = false;
-        });
-
-        return;
-      }
-
-      if (mounted) {
-        setState(() {
-          _carregandoConsultas = true;
-        });
-      }
-
       final consultas =
       await _historicoService.obterConsultasRecentes(
         limite: 5,
@@ -128,13 +132,9 @@ class _HomePageState extends State<HomePage> {
         _consultasRecentes = consultas;
         _carregandoConsultas = false;
       });
-
-      debugPrint(
-        'HOME: ${consultas.length} obras consultadas encontradas.',
-      );
     } catch (e) {
       debugPrint(
-        'HOME: erro ao carregar histórico: $e',
+        'HOME: erro ao carregar consultas recentes: $e',
       );
 
       if (!mounted) return;
@@ -148,12 +148,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _verificarAdministrador() async {
     try {
-      final admin = await _authService.ehAdmin();
+      final ehAdmin = await _authService.ehAdmin();
 
       if (!mounted) return;
 
       setState(() {
-        _ehAdmin = admin;
+        _ehAdmin = ehAdmin;
         _carregandoPerfil = false;
       });
     } catch (e) {
@@ -170,9 +170,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ============================================================
+  // PESQUISA
+  // ============================================================
+
   void _executarPesquisa() {
-    final pesquisa =
-    _pesquisaController.text.trim();
+    final pesquisa = _pesquisaController.text.trim();
 
     if (pesquisa.isEmpty) return;
 
@@ -181,16 +184,30 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _limparPesquisa() {
+    _pesquisaController.clear();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // ============================================================
+  // ABRIR OBRA
+  // ============================================================
+
   Future<void> _abrirObra(Obra obra) async {
     if (!mounted) return;
 
+    // Registra a consulta.
     try {
       await _historicoService.registrarConsulta(
         obraId: obra.id,
       );
 
       debugPrint(
-        'HOME: consulta registrada ao abrir detalhes da obra ${obra.id}',
+        'HOME: consulta registrada ao abrir detalhes '
+            'da obra ${obra.id}',
       );
     } catch (e) {
       debugPrint(
@@ -198,14 +215,16 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return _buildDetalhesObraDialog(
-          obra,
-          dialogContext,
-        );
-      },
+    if (!mounted) return;
+
+    // ==========================================================
+    // USA O MESMO DIÁLOGO DO ACERVO
+    // ==========================================================
+    await mostrarDetalhesObraDialog(
+      context,
+      obra: obra,
+      mostrarAbrir: true,
+      onAbrir: () => _abrirDocumento(obra),
     );
 
     if (!mounted) return;
@@ -213,133 +232,13 @@ class _HomePageState extends State<HomePage> {
     await _carregarConsultasRecentes();
   }
 
-  Widget _buildDetalhesObraDialog(
-      Obra obra,
-      BuildContext dialogContext,
-      ) {
-    return AlertDialog(
-      title: Text(
-        obra.titulo,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      content: SizedBox(
-        width: 600,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              if (obra.autor.trim().isNotEmpty) ...[
-                const Text(
-                  'Autor',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  obra.autor,
-                  style: const TextStyle(
-                    color: Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              const Text(
-                'Categoria',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                obra.categoria,
-                style: const TextStyle(
-                  color: Colors.black54,
-                ),
-              ),
-              if (obra.descricao != null &&
-                  obra.descricao!.trim().isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  'Descrição',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  obra.descricao!,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(dialogContext).pop();
-          },
-          child: const Text('Fechar'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () async {
-            await _abrirDocumentoNoDialog(
-              obra,
-              dialogContext,
-            );
-          },
-          icon: const Icon(
-            Icons.open_in_new,
-            size: 18,
-          ),
-          label: const Text('Abrir documento'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _abrirDocumentoNoDialog(
-      Obra obra,
-      BuildContext dialogContext,
-      ) async {
-    final obraId = obra.id;
-
-    if (obraId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não foi possível identificar esta obra.',
-            ),
-          ),
-        );
-      }
-
-      return;
-    }
-
-    final url = obra.urlDocumento.trim();
+  Future<void> _abrirDocumento(Obra obra) async {
+    final url = (obra.urlDocumento ?? '').trim();
 
     if (url.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Esta obra não possui documento disponível.',
-            ),
-          ),
-        );
-      }
-
+      _mostrarMensagem(
+        'Esta obra não possui um documento disponível.',
+      );
       return;
     }
 
@@ -348,16 +247,9 @@ class _HomePageState extends State<HomePage> {
     if (uri == null ||
         (uri.scheme != 'http' &&
             uri.scheme != 'https')) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'O endereço do documento é inválido.',
-            ),
-          ),
-        );
-      }
-
+      _mostrarMensagem(
+        'O endereço do documento é inválido.',
+      );
       return;
     }
 
@@ -372,195 +264,208 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (!abriu) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não foi possível abrir o documento.',
-            ),
-          ),
+        _mostrarMensagem(
+          'Não foi possível abrir o documento.',
         );
-
-        return;
       }
     } catch (e) {
       debugPrint(
         'HOME: erro ao abrir documento: $e',
       );
 
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Não foi possível abrir o documento.',
-          ),
-        ),
+      _mostrarMensagem(
+        'Ocorreu um erro ao abrir o documento.',
       );
-
-      return;
-    }
-
-    try {
-      await _historicoService.registrarConsulta(
-        obraId: obraId,
-      );
-
-      debugPrint(
-        'HOME: consulta atualizada para obra $obraId',
-      );
-    } catch (e) {
-      debugPrint(
-        'HOME: erro ao atualizar histórico: $e',
-      );
-    }
-
-    if (dialogContext.mounted) {
-      Navigator.of(dialogContext).pop();
-    }
-
-    if (mounted) {
-      await _carregarConsultasRecentes();
     }
   }
 
   Future<void> _abrirConsultaRecente(
       HistoricoObra consulta,
       ) async {
-    final obraId = consulta.obraId;
+    final url = (consulta.urlDocumento ?? '').trim();
 
-    if (obraId.isEmpty) {
+    if (url.isEmpty) {
+      _mostrarMensagem(
+        'Esta obra não possui um documento disponível.',
+      );
       return;
     }
 
-    final url = consulta.urlDocumento?.trim();
+    final uri = Uri.tryParse(url);
 
-    if (url != null && url.isNotEmpty) {
-      final uri = Uri.tryParse(url);
+    if (uri == null ||
+        (uri.scheme != 'http' &&
+            uri.scheme != 'https')) {
+      _mostrarMensagem(
+        'O endereço do documento é inválido.',
+      );
+      return;
+    }
 
-      if (uri == null ||
-          (uri.scheme != 'http' &&
-              uri.scheme != 'https')) {
-        return;
-      }
+    try {
+      final abriu = await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
 
-      try {
-        final abriu = await launchUrl(
-          uri,
-          webOnlyWindowName: '_blank',
+      if (!abriu) {
+        _mostrarMensagem(
+          'Não foi possível abrir o documento.',
         );
-
-        debugPrint(
-          'HOME: consulta recente aberta: $abriu',
-        );
-
-        if (!abriu) {
-          return;
-        }
-      } catch (e) {
-        debugPrint(
-          'HOME: erro ao abrir consulta recente: $e',
-        );
-
         return;
       }
 
       try {
         await _historicoService.registrarConsulta(
-          obraId: obraId,
+          obraId: consulta.obraId,
         );
-
-        await _carregarConsultasRecentes();
       } catch (e) {
         debugPrint(
           'HOME: erro ao atualizar histórico: $e',
         );
       }
 
-      return;
-    }
+      if (mounted) {
+        await _carregarConsultasRecentes();
+      }
+    } catch (e) {
+      debugPrint(
+        'HOME: erro ao abrir consulta recente: $e',
+      );
 
+      _mostrarMensagem(
+        'Ocorreu um erro ao abrir o documento.',
+      );
+    }
+  }
+
+  void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
-    context.go(
-      '/acervo?obra=${Uri.encodeComponent(obraId)}',
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        title: const Text(
-          'Obra Livre',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
+      appBar: _buildAppBar(),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            _carregarObrasRecentes(),
+            _carregarConsultasRecentes(),
+            _verificarAdministrador(),
+          ]);
+        },
+        child: SingleChildScrollView(
+          physics:
+          const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHero(),
+              _buildCategorias(),
+              _buildObrasRecentes(),
+              _buildConsultasRecentes(),
+              _buildFooter(),
+            ],
           ),
         ),
-        actions: [
+      ),
+    );
+  }
+
+  // ============================================================
+  // APP BAR
+  // ============================================================
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      surfaceTintColor: Colors.white,
+      automaticallyImplyLeading: false,
+      titleSpacing: 24,
+      title: const Text(
+        'Obra Livre',
+        style: TextStyle(
+          color: Color(0xFF222222),
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            context.go('/acervo');
+          },
+          child: const Text(
+            'Acervo',
+            style: TextStyle(
+              color: Color(0xFF444444),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+
+        if (!_carregandoPerfil && _ehAdmin)
           TextButton(
             onPressed: () {
-              context.go('/acervo');
+              context.go('/admin-obras');
             },
-            child: const Text('Acervo'),
-          ),
-
-          if (!_carregandoPerfil && _ehAdmin)
-            TextButton(
-              onPressed: () {
-                context.go('/admin-obras');
-              },
-              child: const Text('Administração'),
-            ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 9,
-              horizontal: 4,
-            ),
-            child: TextButton(
-              onPressed: () {
-                context.go('/publicar');
-              },
-              style: TextButton.styleFrom(
-                backgroundColor:
-                const Color(0xffe8f1ff),
-                foregroundColor:
-                const Color(0xff2457a6),
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                shape:
-                RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(6),
-                ),
-              ),
-              child: const Text(
-                'Publicar',
-                style: TextStyle(
-                  fontWeight: FontWeight.w300,
-                ),
+            child: const Text(
+              'Administração',
+              style: TextStyle(
+                color: Color(0xFF444444),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
 
-          PopupMenuButton<String>(
-            onSelected: (valor) async {
-              switch (valor) {
+        TextButton(
+          onPressed: () {
+            context.go('/publicar');
+          },
+          child: const Text(
+            'Publicar',
+            style: TextStyle(
+              color: Color(0xFF444444),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 8),
+
+        Padding(
+          padding:
+          const EdgeInsets.only(right: 18),
+          child: PopupMenuButton<String>(
+            tooltip: 'Conta',
+            offset: const Offset(0, 48),
+            onSelected: (value) async {
+              switch (value) {
                 case 'conta':
-                  context.go('/minha-conta');
+                  if (mounted) {
+                    context.go('/minha-conta');
+                  }
                   break;
 
                 case 'configuracoes':
-                  context.go('/configuracoes');
+                  if (mounted) {
+                    context.go('/configuracoes');
+                  }
                   break;
 
                 case 'sair':
@@ -572,52 +477,100 @@ class _HomePageState extends State<HomePage> {
                   break;
               }
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
                 value: 'conta',
-                child: Text('Minha conta'),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person_outline,
+                      size: 19,
+                    ),
+                    SizedBox(width: 10),
+                    Text('Minha conta'),
+                  ],
+                ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem<String>(
                 value: 'configuracoes',
-                child: Text('Configurações'),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.settings_outlined,
+                      size: 19,
+                    ),
+                    SizedBox(width: 10),
+                    Text('Configurações'),
+                  ],
+                ),
               ),
-              PopupMenuDivider(),
-              PopupMenuItem(
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
                 value: 'sair',
-                child: Text('Sair'),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.logout,
+                      size: 19,
+                    ),
+                    SizedBox(width: 10),
+                    Text('Sair'),
+                  ],
+                ),
               ),
             ],
-            child: const Padding(
-              padding:
-              EdgeInsets.symmetric(
-                horizontal: 12,
-              ),
-              child: AvatarUtilizador(
-                radius: 17,
-              ),
+            child: const AvatarUtilizador(
+              radius: 20,
             ),
           ),
+        ),
+      ],
+    );
+  }
 
-          const SizedBox(width: 8),
-        ],
+  // ============================================================
+  // HERO
+  // ============================================================
+
+  Widget _buildHero() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        24,
+        55,
+        24,
+        55,
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            _carregarObrasRecentes(),
-            _carregarConsultasRecentes(),
-          ]);
-        },
-        child: SingleChildScrollView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
+      color: const Color(0xFFF5F5F5),
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+          const BoxConstraints(maxWidth: 850),
           child: Column(
             children: [
-              _buildHero(context),
-              _buildCategorias(context),
-              _buildObrasRecentes(context),
-              _buildConsultasRecentes(context),
-              _buildFooter(),
+              const Text(
+                'Encontre conhecimento. Encontre obras.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Pesquise e consulte trabalhos académicos, '
+                    'científicos e literários.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF666666),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+              _buildBarraPesquisaHome(),
             ],
           ),
         ),
@@ -625,126 +578,197 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHero(BuildContext context) {
+  Widget _buildBarraPesquisaHome() {
+    return Container(
+      constraints:
+      const BoxConstraints(maxWidth: 720),
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: const Color(0xFFD5D5D5),
+        ),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          const Icon(
+            Icons.search,
+            color: Color(0xFF777777),
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: TextField(
+              controller: _pesquisaController,
+              textInputAction:
+              TextInputAction.search,
+              onSubmitted: (_) {
+                _executarPesquisa();
+              },
+              onChanged: (_) {
+                setState(() {});
+              },
+              decoration:
+              const InputDecoration(
+                hintText:
+                'Pesquisar obras académicas',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+
+          if (_pesquisaController.text
+              .trim()
+              .isNotEmpty)
+            IconButton(
+              tooltip: 'Limpar pesquisa',
+              onPressed: _limparPesquisa,
+              icon: const Icon(
+                Icons.close,
+                size: 20,
+                color: Color(0xFF777777),
+              ),
+            ),
+
+          const SizedBox(width: 4),
+
+          SizedBox(
+            height: 42,
+            child: Padding(
+              padding:
+              const EdgeInsets.only(right: 5),
+              child: ElevatedButton(
+                onPressed: _executarPesquisa,
+                style:
+                ElevatedButton.styleFrom(
+                  elevation: 0,
+                  backgroundColor:
+                  const Color(0xFF222222),
+                  foregroundColor: Colors.white,
+                  padding:
+                  const EdgeInsets.symmetric(
+                    horizontal: 20,
+                  ),
+                  shape:
+                  RoundedRectangleBorder(
+                    borderRadius:
+                    BorderRadius.circular(5),
+                  ),
+                ),
+                child: const Text(
+                  'Pesquisar',
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CATEGORIAS
+  // ============================================================
+
+  Widget _buildCategorias() {
+    const categorias = [
+      (
+      nome: 'Tese Doutoramento',
+      icone: Icons.school_outlined,
+      ),
+      (
+      nome: 'Tese Mestrado',
+      icone: Icons.menu_book_outlined,
+      ),
+      (
+      nome: 'Monografia',
+      icone: Icons.description_outlined,
+      ),
+      (
+      nome: 'Artigos Científicos',
+      icone: Icons.article_outlined,
+      ),
+      (
+      nome: 'Literatura',
+      icone: Icons.auto_stories_outlined,
+      ),
+    ];
+
     return Container(
       width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        45,
-        24,
-        30,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 42,
       ),
       child: Center(
         child: ConstrainedBox(
           constraints:
-          const BoxConstraints(
-            maxWidth: 850,
-          ),
+          const BoxConstraints(maxWidth: 1100),
           child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
             children: [
               const Text(
-                'Encontre conhecimento.\nEncontre obras.',
-                textAlign: TextAlign.center,
+                'Categorias',
                 style: TextStyle(
-                  fontSize: 38,
+                  fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: Color(0xFF222222),
                 ),
               ),
-              const SizedBox(height: 28),
-              ConstrainedBox(
-                constraints:
-                const BoxConstraints(
-                  maxWidth: 720,
+              const SizedBox(height: 6),
+              const Text(
+                'Explore obras por categoria.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF777777),
                 ),
-                child: TextField(
-                  controller:
-                  _pesquisaController,
-                  onSubmitted: (_) {
-                    _executarPesquisa();
-                  },
-                  textInputAction:
-                  TextInputAction.search,
-                  decoration:
-                  InputDecoration(
-                    hintText:
-                    'Pesquisar obras académicas',
-                    filled: true,
-                    fillColor: Colors.white,
-                    prefixIcon:
-                    const Icon(
-                      Icons.search,
-                      color: Colors.black54,
-                    ),
-                    suffixIcon:
-                    ValueListenableBuilder<
-                        TextEditingValue>(
-                      valueListenable:
-                      _pesquisaController,
-                      builder: (
-                          context,
-                          value,
-                          child,
-                          ) {
-                        if (value.text.isEmpty) {
-                          return const SizedBox
-                              .shrink();
-                        }
+              ),
+              const SizedBox(height: 22),
 
-                        return IconButton(
-                          tooltip:
-                          'Limpar pesquisa',
-                          icon:
-                          const Icon(
-                            Icons.close,
-                            size: 20,
+              LayoutBuilder(
+                builder:
+                    (context, constraints) {
+                  final largura =
+                      constraints.maxWidth;
+
+                  final colunas =
+                  largura >= 900
+                      ? 5
+                      : largura >= 650
+                      ? 3
+                      : 2;
+
+                  const espacamento = 12.0;
+
+                  final itemLargura =
+                      (largura -
+                          ((colunas - 1) *
+                              espacamento)) /
+                          colunas;
+
+                  return Wrap(
+                    spacing: espacamento,
+                    runSpacing: espacamento,
+                    children: categorias
+                        .map(
+                          (categoria) =>
+                          SizedBox(
+                            width: itemLargura,
+                            child:
+                            _buildCategoriaCard(
+                              categoria.nome,
+                              categoria.icone,
+                            ),
                           ),
-                          onPressed: () {
-                            _pesquisaController
-                                .clear();
-                          },
-                        );
-                      },
-                    ),
-                    contentPadding:
-                    const EdgeInsets
-                        .symmetric(
-                      horizontal: 18,
-                      vertical: 16,
-                    ),
-                    border:
-                    OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(6),
-                      borderSide:
-                      const BorderSide(
-                        color:
-                        Color(0xffdddddd),
-                      ),
-                    ),
-                    enabledBorder:
-                    OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(6),
-                      borderSide:
-                      const BorderSide(
-                        color:
-                        Color(0xffdddddd),
-                      ),
-                    ),
-                    focusedBorder:
-                    OutlineInputBorder(
-                      borderRadius:
-                      BorderRadius.circular(6),
-                      borderSide:
-                      const BorderSide(
-                        color: Colors.black54,
-                        width: 1.2,
-                      ),
-                    ),
-                  ),
-                ),
+                    )
+                        .toList(),
+                  );
+                },
               ),
             ],
           ),
@@ -753,258 +777,454 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCategorias(
-      BuildContext context,
+  Widget _buildCategoriaCard(
+      String nome,
+      IconData icone,
       ) {
-    const categorias = [
-      'Tese Doutoramento',
-      'Tese Mestrado',
-      'Monografia',
-      'Artigos Científicos',
-      'Literatura',
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        10,
-        24,
-        20,
-      ),
-      child: Wrap(
-        spacing: 24,
-        runSpacing: 12,
-        alignment: WrapAlignment.center,
-        children:
-        categorias.map((categoria) {
-          return InkWell(
-            onTap: () {
-              context.go(
-                '/categoria/${Uri.encodeComponent(categoria)}',
-              );
-            },
-            borderRadius:
-            BorderRadius.circular(4),
-            child: Padding(
-              padding:
-              const EdgeInsets.symmetric(
-                horizontal: 4,
-                vertical: 4,
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () {
+        context.go(
+          '/categoria/${Uri.encodeComponent(nome)}',
+        );
+      },
+      child: Container(
+        height: 100,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: const Color(0xFFE0E0E0),
+          ),
+          borderRadius:
+          BorderRadius.circular(6),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F1F1),
+                borderRadius:
+                BorderRadius.circular(6),
               ),
+              child: Icon(
+                icone,
+                color: const Color(0xFF444444),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Text(
-                categoria,
+                nome,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight:
-                  FontWeight.w500,
-                  color: Colors.black87,
+                  FontWeight.w600,
+                  color: Color(0xFF333333),
                 ),
               ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildObrasRecentes(
-      BuildContext context,
-      ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        30,
-        24,
-        10,
+  // ============================================================
+  // OBRAS RECENTES
+  // ============================================================
+
+  Widget _buildObrasRecentes() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF7F7F7),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 42,
       ),
-      child: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 1100,
-        ),
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Publicações recentes',
-              style: TextStyle(
-                fontSize: 23,
-                fontWeight:
-                FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_carregandoObras)
-              const Center(
-                child: Padding(
-                  padding:
-                  EdgeInsets.all(25),
-                  child:
-                  CircularProgressIndicator(),
-                ),
-              )
-            else if (_obrasRecentes.isEmpty)
-              const Padding(
-                padding:
-                EdgeInsets.symmetric(
-                  vertical: 20,
-                ),
-                child: Text(
-                  'Ainda não existem publicações.',
-                  style: TextStyle(
-                    color: Colors.black54,
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+          const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Publicações recentes',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight:
+                            FontWeight.w700,
+                            color:
+                            Color(0xFF222222),
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Confira as obras publicadas recentemente.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                            Color(0xFF777777),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              )
-            else
-              ..._obrasRecentes.map(
-                    (obra) =>
-                    _buildObraCard(obra),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/acervo');
+                    },
+                    child: const Text(
+                      'Ver acervo',
+                    ),
+                  ),
+                ],
               ),
-          ],
+
+              const SizedBox(height: 22),
+
+              if (_carregandoObras)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(30),
+                    child:
+                    CircularProgressIndicator(),
+                  ),
+                )
+              else if (_obrasRecentes.isEmpty)
+                _buildEstadoVazio(
+                  'Ainda não existem publicações disponíveis.',
+                )
+              else
+                LayoutBuilder(
+                  builder:
+                      (context, constraints) {
+                    final largura =
+                        constraints.maxWidth;
+
+                    final colunas =
+                    largura >= 900
+                        ? 3
+                        : largura >= 600
+                        ? 2
+                        : 1;
+
+                    const espacamento = 14.0;
+
+                    final itemLargura =
+                    colunas == 1
+                        ? largura
+                        : (largura -
+                        ((colunas - 1) *
+                            espacamento)) /
+                        colunas;
+
+                    return Wrap(
+                      spacing: espacamento,
+                      runSpacing: espacamento,
+                      children:
+                      _obrasRecentes
+                          .map(
+                            (obra) =>
+                            SizedBox(
+                              width:
+                              itemLargura,
+                              child:
+                              _buildObraCard(
+                                obra,
+                              ),
+                            ),
+                      )
+                          .toList(),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildObraCard(Obra obra) {
-    return Card(
-      margin:
-      const EdgeInsets.only(
-        bottom: 12,
-      ),
-      elevation: 0,
-      shape:
-      RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.circular(6),
-        side: const BorderSide(
-          color: Color(0xffe2e2e2),
-        ),
-      ),
-      child: InkWell(
-        borderRadius:
-        BorderRadius.circular(6),
-        onTap: () async {
-          await _abrirObra(obra);
-        },
-        child: Padding(
-          padding:
-          const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.description_outlined,
-                size: 30,
-                color: Colors.black54,
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      obra.titulo,
-                      style:
-                      const TextStyle(
-                        fontSize: 17,
-                        fontWeight:
-                        FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      obra.autor,
-                      style:
-                      const TextStyle(
-                        color:
-                        Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      obra.categoria,
-                      style:
-                      const TextStyle(
-                        fontSize: 13,
-                        color:
-                        Colors.black45,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: Colors.black45,
-              ),
-            ],
+    return InkWell(
+      borderRadius:
+      BorderRadius.circular(6),
+      onTap: () {
+        _abrirObra(obra);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: const Color(0xFFE0E0E0),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConsultasRecentes(
-      BuildContext context,
-      ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        35,
-        24,
-        20,
-      ),
-      child: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 1100,
+          borderRadius:
+          BorderRadius.circular(6),
         ),
         child: Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Obras consultadas recentemente',
-              style: TextStyle(
-                fontSize: 23,
-                fontWeight:
-                FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_carregandoConsultas)
-              const Center(
-                child: Padding(
-                  padding:
-                  EdgeInsets.all(25),
-                  child:
-                  CircularProgressIndicator(),
-                ),
-              )
-            else if (_consultasRecentes.isEmpty)
-              const Padding(
-                padding:
-                EdgeInsets.symmetric(
-                  vertical: 10,
-                ),
-                child: Text(
-                  'Ainda não consultou nenhuma obra.',
-                  style: TextStyle(
-                    color: Colors.black54,
+            Row(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color:
+                    const Color(0xFFF1F1F1),
+                    borderRadius:
+                    BorderRadius.circular(5),
+                  ),
+                  child: const Icon(
+                    Icons.description_outlined,
+                    size: 21,
+                    color:
+                    Color(0xFF555555),
                   ),
                 ),
-              )
-            else
-              ..._consultasRecentes.map(
-                    (consulta) =>
-                    _buildConsultaCard(
-                      consulta,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    obra.titulo,
+                    maxLines: 2,
+                    overflow:
+                    TextOverflow.ellipsis,
+                    style:
+                    const TextStyle(
+                      fontSize: 15,
+                      fontWeight:
+                      FontWeight.w700,
+                      color:
+                      Color(0xFF222222),
+                      height: 1.3,
                     ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            if (obra.autor.trim().isNotEmpty)
+              Text(
+                obra.autor,
+                maxLines: 1,
+                overflow:
+                TextOverflow.ellipsis,
+                style:
+                const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF666666),
+                ),
               ),
+
+            const SizedBox(height: 8),
+
+            if (obra.categoria
+                .trim()
+                .isNotEmpty)
+              Container(
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 5,
+                ),
+                decoration:
+                BoxDecoration(
+                  color:
+                  const Color(0xFFF3F3F3),
+                  borderRadius:
+                  BorderRadius.circular(4),
+                ),
+                child: Text(
+                  obra.categoria,
+                  style:
+                  const TextStyle(
+                    fontSize: 11,
+                    fontWeight:
+                    FontWeight.w600,
+                    color:
+                    Color(0xFF555555),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 14),
+
+            const Row(
+              mainAxisAlignment:
+              MainAxisAlignment.end,
+              children: [
+                Text(
+                  'Ver detalhes',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight:
+                    FontWeight.w600,
+                    color:
+                    Color(0xFF444444),
+                  ),
+                ),
+                SizedBox(width: 5),
+                Icon(
+                  Icons.arrow_forward,
+                  size: 15,
+                  color:
+                  Color(0xFF444444),
+                ),
+              ],
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CONSULTAS RECENTES
+  // ============================================================
+
+  Widget _buildConsultasRecentes() {
+    final usuario =
+        Supabase.instance.client.auth.currentUser;
+
+    if (usuario == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 42,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+          const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Obras consultadas recentemente',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight:
+                            FontWeight.w700,
+                            color:
+                            Color(0xFF222222),
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Aceda rapidamente às obras que consultou.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color:
+                            Color(0xFF777777),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      context.go(
+                        '/historico-obras',
+                      );
+                    },
+                    child: const Text(
+                      'Ver histórico',
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 22),
+
+              if (_carregandoConsultas)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(30),
+                    child:
+                    CircularProgressIndicator(),
+                  ),
+                )
+              else if (_consultasRecentes.isEmpty)
+                _buildEstadoVazio(
+                  'Ainda não consultou nenhuma obra.',
+                )
+              else
+                LayoutBuilder(
+                  builder:
+                      (context, constraints) {
+                    final largura =
+                        constraints.maxWidth;
+
+                    final colunas =
+                    largura >= 900
+                        ? 3
+                        : largura >= 600
+                        ? 2
+                        : 1;
+
+                    const espacamento = 14.0;
+
+                    final itemLargura =
+                    colunas == 1
+                        ? largura
+                        : (largura -
+                        ((colunas - 1) *
+                            espacamento)) /
+                        colunas;
+
+                    return Wrap(
+                      spacing: espacamento,
+                      runSpacing: espacamento,
+                      children:
+                      _consultasRecentes
+                          .map(
+                            (consulta) =>
+                            SizedBox(
+                              width:
+                              itemLargura,
+                              child:
+                              _buildConsultaCard(
+                                consulta,
+                              ),
+                            ),
+                      )
+                          .toList(),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1013,90 +1233,210 @@ class _HomePageState extends State<HomePage> {
   Widget _buildConsultaCard(
       HistoricoObra consulta,
       ) {
-    return Card(
-      margin:
-      const EdgeInsets.only(
-        bottom: 12,
-      ),
-      elevation: 0,
-      shape:
-      RoundedRectangleBorder(
-        borderRadius:
-        BorderRadius.circular(6),
-        side: const BorderSide(
-          color: Color(0xffe2e2e2),
-        ),
-      ),
-      child: ListTile(
-        contentPadding:
-        const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 8,
-        ),
-        leading: const Icon(
-          Icons.history,
-          color: Colors.black54,
-        ),
-        title: Text(
-          consulta.titulo,
-          style: const TextStyle(
-            fontWeight:
-            FontWeight.w600,
+    return InkWell(
+      borderRadius:
+      BorderRadius.circular(6),
+      onTap: () {
+        _abrirConsultaRecente(consulta);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: const Color(0xFFE0E0E0),
           ),
+          borderRadius:
+          BorderRadius.circular(6),
         ),
-        subtitle: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+        child: Row(
           children: [
-            if (consulta.autor != null)
-              Text(
-                consulta.autor!,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color:
+                const Color(0xFFF1F1F1),
+                borderRadius:
+                BorderRadius.circular(5),
               ),
-            if (consulta.categoria != null)
-              Text(
-                consulta.categoria!,
-                style:
-                const TextStyle(
-                  fontSize: 12,
-                  color:
-                  Colors.black45,
-                ),
+              child: const Icon(
+                Icons.history,
+                size: 20,
+                color: Color(0xFF555555),
               ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    consulta.titulo,
+                    maxLines: 2,
+                    overflow:
+                    TextOverflow.ellipsis,
+                    style:
+                    const TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                      FontWeight.w600,
+                      color:
+                      Color(0xFF333333),
+                    ),
+                  ),
+
+                  if ((consulta.autor ?? '')
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      consulta.autor ?? '',
+                      maxLines: 1,
+                      overflow:
+                      TextOverflow.ellipsis,
+                      style:
+                      const TextStyle(
+                        fontSize: 12,
+                        color:
+                        Color(0xFF777777),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            const Icon(
+              Icons.open_in_new,
+              size: 18,
+              color: Color(0xFF666666),
+            ),
           ],
         ),
-        trailing: const Icon(
-          Icons.open_in_new,
-          size: 20,
-        ),
-        onTap: () async {
-          await _abrirConsultaRecente(
-            consulta,
-          );
-        },
       ),
     );
   }
 
+  // ============================================================
+  // ESTADO VAZIO
+  // ============================================================
+
+  Widget _buildEstadoVazio(
+      String mensagem,
+      ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: const Color(0xFFE0E0E0),
+        ),
+        borderRadius:
+        BorderRadius.circular(6),
+      ),
+      child: Center(
+        child: Text(
+          mensagem,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF777777),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // FOOTER
+  // ============================================================
+
   Widget _buildFooter() {
     return Container(
       width: double.infinity,
-      margin:
-      const EdgeInsets.only(
-        top: 50,
+      color: const Color(0xFF222222),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+        vertical: 35,
       ),
-      padding:
-      const EdgeInsets.all(30),
-      color:
-      const Color(0xfff5f5f5),
-      child: const Center(
-        child: Text(
-          'Obra Livre',
-          style: TextStyle(
-            color: Colors.black54,
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+          const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment:
+                MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      context.go('/sobre');
+                    },
+                    child: const Text(
+                      'Sobre',
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/contacto');
+                    },
+                    child: const Text(
+                      'Contacto',
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/termos');
+                    },
+                    child: const Text(
+                      'Termos',
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/privacidade');
+                    },
+                    child: const Text(
+                      'Privacidade',
+                      style: TextStyle(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              const Text(
+                '© Obra Livre. Todos os direitos reservados.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
-
