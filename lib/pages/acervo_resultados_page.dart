@@ -5,6 +5,7 @@ import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
 import '../services/historico_obras_service.dart';
 import '../widgets/barra_pesquisa.dart';
+import '../widgets/detalhes_obra_dialog.dart';
 
 class AcervoResultadosPage extends StatefulWidget {
   final String? query;
@@ -35,10 +36,6 @@ class _AcervoResultadosPageState
   TextEditingController();
 
   List<Obra> _obras = [];
-
-  // IMPORTANTE:
-  // Só recebe uma obra depois de o utilizador clicar nela.
-  Obra? _obraSelecionada;
 
   bool _carregando = true;
   bool _pesquisando = false;
@@ -81,11 +78,14 @@ class _AcervoResultadosPageState
     super.dispose();
   }
 
+  // ==========================================================
+  // CARREGAR OBRAS
+  // ==========================================================
+
   Future<void> _carregar() async {
     if (mounted) {
       setState(() {
         _carregando = true;
-        _obraSelecionada = null;
       });
     }
 
@@ -119,12 +119,6 @@ class _AcervoResultadosPageState
       setState(() {
         _obras = resultado;
         _carregando = false;
-
-        // Nunca selecionar automaticamente.
-        //
-        // Mesmo que a página seja aberta com obraId,
-        // os detalhes só aparecem depois do clique.
-        _obraSelecionada = null;
       });
     } catch (e) {
       debugPrint(
@@ -135,11 +129,14 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = [];
-        _obraSelecionada = null;
         _carregando = false;
       });
     }
   }
+
+  // ==========================================================
+  // PESQUISA
+  // ==========================================================
 
   Future<void> _pesquisar() async {
     final texto =
@@ -148,7 +145,6 @@ class _AcervoResultadosPageState
     if (texto.isEmpty) {
       setState(() {
         _textoPesquisaAtual = '';
-        _obraSelecionada = null;
       });
 
       await _carregar();
@@ -159,7 +155,6 @@ class _AcervoResultadosPageState
       setState(() {
         _pesquisando = true;
         _textoPesquisaAtual = texto;
-        _obraSelecionada = null;
       });
     }
 
@@ -171,7 +166,6 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = resultado;
-        _obraSelecionada = null;
         _pesquisando = false;
       });
     } catch (e) {
@@ -183,11 +177,14 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = [];
-        _obraSelecionada = null;
         _pesquisando = false;
       });
     }
   }
+
+  // ==========================================================
+  // LIMPAR PESQUISA
+  // ==========================================================
 
   Future<void> _limparPesquisa() async {
     _pesquisaController.clear();
@@ -195,12 +192,15 @@ class _AcervoResultadosPageState
     if (mounted) {
       setState(() {
         _textoPesquisaAtual = '';
-        _obraSelecionada = null;
       });
     }
 
     await _carregar();
   }
+
+  // ==========================================================
+  // FILTRO POR CATEGORIA
+  // ==========================================================
 
   Future<void> _filtrarCategoria(
       String categoria,
@@ -210,7 +210,6 @@ class _AcervoResultadosPageState
         setState(() {
           _filtroCategoria = '';
           _carregando = true;
-          _obraSelecionada = null;
         });
       }
 
@@ -225,7 +224,6 @@ class _AcervoResultadosPageState
 
         setState(() {
           _obras = resultado;
-          _obraSelecionada = null;
           _carregando = false;
         });
       } catch (e) {
@@ -237,7 +235,6 @@ class _AcervoResultadosPageState
 
         setState(() {
           _obras = [];
-          _obraSelecionada = null;
           _carregando = false;
         });
       }
@@ -249,7 +246,6 @@ class _AcervoResultadosPageState
       setState(() {
         _filtroCategoria = categoria;
         _carregando = true;
-        _obraSelecionada = null;
       });
     }
 
@@ -263,7 +259,6 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = resultado;
-        _obraSelecionada = null;
         _carregando = false;
       });
     } catch (e) {
@@ -275,19 +270,39 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = [];
-        _obraSelecionada = null;
         _carregando = false;
       });
     }
   }
 
-  // Este método é chamado SOMENTE quando o utilizador
-  // clica numa publicação.
-  void _selecionarObra(Obra obra) {
-    setState(() {
-      _obraSelecionada = obra;
-    });
+  // ==========================================================
+  // ABRIR DETALHES
+  // ==========================================================
+  //
+  // IMPORTANTE:
+  // Os detalhes NÃO são construídos nesta página.
+  //
+  // É utilizado exatamente o diálogo reutilizável
+  // de detalhes existente em:
+  //
+  // widgets/detalhes_dialog.dart
+  //
+  // ==========================================================
+
+  Future<void> _abrirDetalhes(
+      Obra obra,
+      ) async {
+    await mostrarDetalhesObraDialog(
+      context,
+      obra: obra,
+      mostrarAbrir: true,
+      onAbrir: () => _abrirDocumento(obra),
+    );
   }
+
+  // ==========================================================
+  // ABRIR DOCUMENTO
+  // ==========================================================
 
   Future<void> _abrirDocumento(
       Obra obra,
@@ -368,6 +383,10 @@ class _AcervoResultadosPageState
       return;
     }
 
+    // ========================================================
+    // REGISTRAR NO HISTÓRICO
+    // ========================================================
+
     try {
       await _historicoService.registrarConsulta(
         obraId: obra.id,
@@ -382,6 +401,10 @@ class _AcervoResultadosPageState
       );
     }
   }
+
+  // ==========================================================
+  // TÍTULO
+  // ==========================================================
 
   String get _titulo {
     if (_textoPesquisaAtual.isNotEmpty) {
@@ -403,6 +426,10 @@ class _AcervoResultadosPageState
     return 'Acervo';
   }
 
+  // ==========================================================
+  // BUILD
+  // ==========================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -423,8 +450,7 @@ class _AcervoResultadosPageState
 
       body: _carregando
           ? const Center(
-        child:
-        CircularProgressIndicator(),
+        child: CircularProgressIndicator(),
       )
           : LayoutBuilder(
         builder: (
@@ -441,18 +467,26 @@ class _AcervoResultadosPageState
     );
   }
 
+  // ==========================================================
+  // DESKTOP
+  // ==========================================================
+
   Widget _buildDesktop() {
     return Row(
       crossAxisAlignment:
       CrossAxisAlignment.stretch,
+
       children: [
-        // ==================================================
-        // PAINEL ESQUERDO - PUBLICAÇÕES
-        // ==================================================
+        // ======================================================
+        // PAINEL ESQUERDO
+        // ======================================================
+
         Container(
           width: 340,
+
           decoration: const BoxDecoration(
             color: Color(0xfff0f2f5),
+
             border: Border(
               right: BorderSide(
                 color: Color(0xffdfe2e6),
@@ -463,15 +497,21 @@ class _AcervoResultadosPageState
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
+
             children: [
+              // ==================================================
               // CABEÇALHO PUBLICAÇÕES
+              // ==================================================
+
               Container(
                 width: double.infinity,
+
                 padding:
                 const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 16,
                 ),
+
                 decoration:
                 const BoxDecoration(
                   color: Color(0xff1565C0),
@@ -497,6 +537,7 @@ class _AcervoResultadosPageState
                         horizontal: 9,
                         vertical: 4,
                       ),
+
                       decoration:
                       BoxDecoration(
                         color: Colors.white
@@ -506,6 +547,7 @@ class _AcervoResultadosPageState
                           12,
                         ),
                       ),
+
                       child: Text(
                         '${_obras.length}',
                         style:
@@ -521,13 +563,17 @@ class _AcervoResultadosPageState
                 ),
               ),
 
+              // ==================================================
               // LISTA
+              // ==================================================
+
               Expanded(
                 child: _obras.isEmpty
                     ? const Center(
                   child: Padding(
                     padding:
                     EdgeInsets.all(20),
+
                     child: Text(
                       'Nenhuma publicação encontrada.',
                       textAlign:
@@ -545,32 +591,23 @@ class _AcervoResultadosPageState
                     top: 8,
                     bottom: 8,
                   ),
+
                   itemCount:
                   _obras.length,
+
                   itemBuilder:
                       (context, index) {
                     final obra =
                     _obras[index];
 
-                    final selecionada =
-                        _obraSelecionada
-                            ?.id ==
-                            obra.id;
+                    return _PublicacaoListaItem(
+                      obra: obra,
 
-                    return
-                      _PublicacaoListaItem(
-                        obra: obra,
-                        selecionada:
-                        selecionada,
-
-                        // O detalhe só aparece
-                        // depois deste clique.
-                        onTap: () {
-                          _selecionarObra(
+                      onTap: () =>
+                          _abrirDetalhes(
                             obra,
-                          );
-                        },
-                      );
+                          ),
+                    );
                   },
                 ),
               ),
@@ -578,13 +615,17 @@ class _AcervoResultadosPageState
           ),
         ),
 
-        // ==================================================
+        // ======================================================
         // ÁREA DIREITA
-        // ==================================================
+        // ======================================================
+
         Expanded(
           child: Column(
             children: [
+              // ==================================================
               // PESQUISA
+              // ==================================================
+
               BarraPesquisa(
                 controller:
                 _pesquisaController,
@@ -598,38 +639,39 @@ class _AcervoResultadosPageState
                 _limparPesquisa,
               ),
 
+              // ==================================================
               // FILTRO
+              // ==================================================
+
               Container(
                 color: Colors.white,
+
                 padding:
                 const EdgeInsets.only(
                   right: 24,
                   bottom: 10,
                 ),
+
                 alignment:
                 Alignment.centerRight,
+
                 child:
                 _buildFiltroCategoria(),
               ),
 
-              // DETALHES
+              // ==================================================
+              // ÁREA CENTRAL VAZIA
+              // ==================================================
               //
-              // IMPORTANTE:
-              // Enquanto nenhuma publicação for clicada,
-              // NÃO aparece o detalhe da obra.
-              Expanded(
-                child: _obraSelecionada == null
-                    ? _buildSemSelecao()
-                    : SingleChildScrollView(
-                  padding:
-                  const EdgeInsets.all(
-                    30,
-                  ),
-                  child:
-                  _buildDetalhesObra(
-                    _obraSelecionada!,
-                  ),
-                ),
+              // NÃO existe nenhum detalhe de obra aqui.
+              //
+              // O detalhe só aparece quando o utilizador
+              // clica numa publicação e o diálogo reutilizável
+              // é aberto.
+              // ==================================================
+
+              const Expanded(
+                child: SizedBox.shrink(),
               ),
             ],
           ),
@@ -638,10 +680,15 @@ class _AcervoResultadosPageState
     );
   }
 
+  // ==========================================================
+  // FILTRO
+  // ==========================================================
+
   Widget _buildFiltroCategoria() {
     return PopupMenuButton<String>(
       tooltip:
       'Filtrar por categoria',
+
       onSelected:
       _filtrarCategoria,
 
@@ -661,6 +708,7 @@ class _AcervoResultadosPageState
                 children: [
                   SizedBox(
                     width: 22,
+
                     child: selecionada
                         ? const Icon(
                       Icons.check,
@@ -682,13 +730,16 @@ class _AcervoResultadosPageState
       child: Container(
         height: 42,
         width: 48,
+
         decoration: BoxDecoration(
           borderRadius:
           BorderRadius.circular(6),
+
           border: Border.all(
             color:
             const Color(0xffd8dadd),
           ),
+
           color: Colors.white,
         ),
 
@@ -701,188 +752,17 @@ class _AcervoResultadosPageState
     );
   }
 
-  Widget _buildDetalhesObra(
-      Obra obra,
-      ) {
-    return Center(
-      child: ConstrainedBox(
-        constraints:
-        const BoxConstraints(
-          maxWidth: 900,
-        ),
-
-        child: Container(
-          width: double.infinity,
-          padding:
-          const EdgeInsets.all(30),
-
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-            BorderRadius.circular(6),
-            border: Border.all(
-              color:
-              const Color(0xffe0e2e5),
-            ),
-          ),
-
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Text(
-                obra.titulo,
-                style: const TextStyle(
-                  fontSize: 25,
-                  fontWeight:
-                  FontWeight.w700,
-                  height: 1.25,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Text(
-                obra.autor,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _InfoChip(
-                    icon:
-                    Icons.category_outlined,
-                    texto:
-                    obra.categoria,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              const Divider(
-                color:
-                Color(0xffeeeeee),
-              ),
-
-              const SizedBox(height: 24),
-
-              if (obra.descricao != null &&
-                  obra.descricao!
-                      .trim()
-                      .isNotEmpty) ...[
-                const Text(
-                  'Descrição',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                Text(
-                  obra.descricao!,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    height: 1.6,
-                    color:
-                    Colors.black87,
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-              ],
-
-              SizedBox(
-                height: 46,
-
-                child:
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      _abrirDocumento(
-                        obra,
-                      ),
-
-                  icon: const Icon(
-                    Icons.open_in_new,
-                    size: 18,
-                  ),
-
-                  label: const Text(
-                    'Abrir documento',
-                  ),
-
-                  style:
-                  ElevatedButton.styleFrom(
-                    elevation: 0,
-
-                    padding:
-                    const EdgeInsets
-                        .symmetric(
-                      horizontal: 20,
-                    ),
-
-                    shape:
-                    RoundedRectangleBorder(
-                      borderRadius:
-                      BorderRadius.circular(
-                        6,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ======================================================
-  // ESTADO SEM PUBLICAÇÃO SELECIONADA
-  // ======================================================
-  Widget _buildSemSelecao() {
-    return const Center(
-      child: Column(
-        mainAxisSize:
-        MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.menu_book_outlined,
-            size: 42,
-            color: Colors.black26,
-          ),
-
-          SizedBox(height: 12),
-
-          Text(
-            'Selecione uma publicação',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black54,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ======================================================
+  // ==========================================================
   // MOBILE
-  // ======================================================
+  // ==========================================================
+
   Widget _buildMobile() {
     return Column(
       children: [
+        // ======================================================
+        // PESQUISA
+        // ======================================================
+
         BarraPesquisa(
           controller:
           _pesquisaController,
@@ -896,8 +776,13 @@ class _AcervoResultadosPageState
           _limparPesquisa,
         ),
 
+        // ======================================================
+        // FILTRO
+        // ======================================================
+
         Container(
           color: Colors.white,
+
           padding:
           const EdgeInsets.fromLTRB(
             16,
@@ -905,11 +790,17 @@ class _AcervoResultadosPageState
             16,
             10,
           ),
+
           alignment:
           Alignment.centerRight,
+
           child:
           _buildFiltroCategoria(),
         ),
+
+        // ======================================================
+        // LISTA
+        // ======================================================
 
         if (_obras.isEmpty)
           const Expanded(
@@ -917,8 +808,7 @@ class _AcervoResultadosPageState
               child: Text(
                 'Nenhuma publicação encontrada.',
                 style: TextStyle(
-                  color:
-                  Colors.black54,
+                  color: Colors.black54,
                 ),
               ),
             ),
@@ -928,6 +818,7 @@ class _AcervoResultadosPageState
             child: ListView.builder(
               padding:
               const EdgeInsets.all(16),
+
               itemCount:
               _obras.length,
 
@@ -936,48 +827,16 @@ class _AcervoResultadosPageState
                 final obra =
                 _obras[index];
 
-                return
-                  _PublicacaoListaItem(
-                    obra: obra,
+                return _PublicacaoListaItem(
+                  obra: obra,
 
-                    selecionada:
-                    _obraSelecionada
-                        ?.id ==
-                        obra.id,
+                  mobile: true,
 
-                    mobile: true,
-
-                    // No mobile, os detalhes
-                    // também só aparecem após o clique.
-                    onTap: () {
-                      _selecionarObra(
+                  onTap: () =>
+                      _abrirDetalhes(
                         obra,
-                      );
-
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled:
-                        true,
-                        backgroundColor:
-                        Colors.white,
-
-                        builder: (_) {
-                          return SafeArea(
-                            child:
-                            SingleChildScrollView(
-                              padding:
-                              const EdgeInsets
-                                  .all(24),
-                              child:
-                              _buildDetalhesObra(
-                                obra,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  );
+                      ),
+                );
               },
             ),
           ),
@@ -989,16 +848,15 @@ class _AcervoResultadosPageState
 // ==========================================================
 // ITEM DA LISTA DE PUBLICAÇÕES
 // ==========================================================
+
 class _PublicacaoListaItem
     extends StatelessWidget {
   final Obra obra;
-  final bool selecionada;
   final bool mobile;
   final VoidCallback onTap;
 
   const _PublicacaoListaItem({
     required this.obra,
-    required this.selecionada,
     required this.onTap,
     this.mobile = false,
   });
@@ -1008,9 +866,8 @@ class _PublicacaoListaItem
       BuildContext context,
       ) {
     return Material(
-      color: selecionada
-          ? const Color(0xffe5e7eb)
-          : const Color(0xfff0f2f5),
+      color:
+      const Color(0xfff0f2f5),
 
       child: InkWell(
         onTap: onTap,
@@ -1023,43 +880,37 @@ class _PublicacaoListaItem
           ),
 
           decoration:
-          BoxDecoration(
+          const BoxDecoration(
             border: Border(
-              bottom:
-              const BorderSide(
+              bottom: BorderSide(
                 color:
                 Color(0xffdfe2e6),
               ),
-
-              left: selecionada
-                  ? const BorderSide(
-                color:
-                Color(0xff1565C0),
-                width: 3,
-              )
-                  : BorderSide.none,
             ),
           ),
 
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
+
             children: [
+              // ==================================================
+              // TÍTULO
+              // ==================================================
+
               Text(
                 obra.titulo,
+
                 maxLines: 2,
+
                 overflow:
                 TextOverflow.ellipsis,
 
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   height: 1.3,
-
                   fontWeight:
-                  selecionada
-                      ? FontWeight.w600
-                      : FontWeight.w500,
-
+                  FontWeight.w500,
                   color:
                   Colors.black87,
                 ),
@@ -1067,9 +918,15 @@ class _PublicacaoListaItem
 
               const SizedBox(height: 5),
 
+              // ==================================================
+              // AUTOR
+              // ==================================================
+
               Text(
                 obra.autor,
+
                 maxLines: 1,
+
                 overflow:
                 TextOverflow.ellipsis,
 
@@ -1086,68 +943,3 @@ class _PublicacaoListaItem
     );
   }
 }
-
-// ==========================================================
-// CHIP DE INFORMAÇÃO
-// ==========================================================
-class _InfoChip
-    extends StatelessWidget {
-  final IconData icon;
-  final String texto;
-
-  const _InfoChip({
-    required this.icon,
-    required this.texto,
-  });
-
-  @override
-  Widget build(
-      BuildContext context,
-      ) {
-    return Container(
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 7,
-      ),
-
-      decoration:
-      BoxDecoration(
-        color:
-        const Color(0xfff3f4f6),
-        borderRadius:
-        BorderRadius.circular(5),
-        border: Border.all(
-          color:
-          const Color(0xffe1e3e6),
-        ),
-      ),
-
-      child: Row(
-        mainAxisSize:
-        MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color:
-            Colors.black54,
-          ),
-
-          const SizedBox(width: 6),
-
-          Text(
-            texto,
-            style:
-            const TextStyle(
-              fontSize: 13,
-              color:
-              Colors.black54,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
