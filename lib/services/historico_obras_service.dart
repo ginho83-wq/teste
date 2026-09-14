@@ -10,11 +10,19 @@ class HistoricoObrasService {
   final SupabaseClient _supabase =
       Supabase.instance.client;
 
-  /// ID do utilizador atualmente autenticado.
+  static const int limiteHistorico = 10;
+
+  // ============================================================
+  // UTILIZADOR ATUAL
+  // ============================================================
+
   String? get userId =>
       _supabase.auth.currentUser?.id;
 
-  /// Obtém o histórico completo.
+  // ============================================================
+  // OBTER HISTÓRICO
+  // ============================================================
+
   Future<List<HistoricoObra>> obterHistorico() async {
     final utilizadorId = userId;
 
@@ -29,9 +37,10 @@ class HistoricoObrasService {
     );
   }
 
-  /// Obtém apenas as últimas consultas.
-  ///
-  /// Por padrão, devolve as 5 últimas.
+  // ============================================================
+  // OBRAS RECENTES
+  // ============================================================
+
   Future<List<HistoricoObra>> obterConsultasRecentes({
     int limite = 5,
   }) async {
@@ -41,13 +50,20 @@ class HistoricoObrasService {
       return [];
     }
 
+    final quantidade = limite > limiteHistorico
+        ? limiteHistorico
+        : limite;
+
     return await _repository.obterConsultasRecentes(
       userId: utilizadorId,
-      limite: limite,
+      limite: quantidade,
     );
   }
 
-  /// Regista uma obra como consultada.
+  // ============================================================
+  // REGISTRAR CONSULTA
+  // ============================================================
+
   Future<void> registrarConsulta({
     required String obraId,
   }) async {
@@ -65,7 +81,10 @@ class HistoricoObrasService {
     );
   }
 
-  /// Remove uma consulta específica.
+  // ============================================================
+  // REMOVER UMA CONSULTA
+  // ============================================================
+
   Future<void> removerConsulta({
     required String id,
   }) async {
@@ -82,7 +101,10 @@ class HistoricoObrasService {
     );
   }
 
-  /// Limpa todo o histórico.
+  // ============================================================
+  // LIMPAR HISTÓRICO
+  // ============================================================
+
   Future<void> limparHistorico() async {
     final utilizadorId = userId;
 
