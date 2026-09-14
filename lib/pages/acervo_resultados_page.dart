@@ -36,6 +36,8 @@ class _AcervoResultadosPageState
 
   List<Obra> _obras = [];
 
+  // IMPORTANTE:
+  // Só recebe uma obra depois de o utilizador clicar nela.
   Obra? _obraSelecionada;
 
   bool _carregando = true;
@@ -83,6 +85,7 @@ class _AcervoResultadosPageState
     if (mounted) {
       setState(() {
         _carregando = true;
+        _obraSelecionada = null;
       });
     }
 
@@ -117,20 +120,11 @@ class _AcervoResultadosPageState
         _obras = resultado;
         _carregando = false;
 
-        if (_obras.isNotEmpty) {
-          _obraSelecionada = _obras.first;
-
-          if (_obraId.isNotEmpty) {
-            try {
-              _obraSelecionada =
-                  _obras.firstWhere(
-                        (obra) => obra.id == _obraId,
-                  );
-            } catch (_) {}
-          }
-        } else {
-          _obraSelecionada = null;
-        }
+        // Nunca selecionar automaticamente.
+        //
+        // Mesmo que a página seja aberta com obraId,
+        // os detalhes só aparecem depois do clique.
+        _obraSelecionada = null;
       });
     } catch (e) {
       debugPrint(
@@ -154,6 +148,7 @@ class _AcervoResultadosPageState
     if (texto.isEmpty) {
       setState(() {
         _textoPesquisaAtual = '';
+        _obraSelecionada = null;
       });
 
       await _carregar();
@@ -164,6 +159,7 @@ class _AcervoResultadosPageState
       setState(() {
         _pesquisando = true;
         _textoPesquisaAtual = texto;
+        _obraSelecionada = null;
       });
     }
 
@@ -175,12 +171,7 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = resultado;
-
-        _obraSelecionada =
-        resultado.isNotEmpty
-            ? resultado.first
-            : null;
-
+        _obraSelecionada = null;
         _pesquisando = false;
       });
     } catch (e) {
@@ -204,6 +195,7 @@ class _AcervoResultadosPageState
     if (mounted) {
       setState(() {
         _textoPesquisaAtual = '';
+        _obraSelecionada = null;
       });
     }
 
@@ -218,6 +210,7 @@ class _AcervoResultadosPageState
         setState(() {
           _filtroCategoria = '';
           _carregando = true;
+          _obraSelecionada = null;
         });
       }
 
@@ -232,10 +225,7 @@ class _AcervoResultadosPageState
 
         setState(() {
           _obras = resultado;
-          _obraSelecionada =
-          resultado.isNotEmpty
-              ? resultado.first
-              : null;
+          _obraSelecionada = null;
           _carregando = false;
         });
       } catch (e) {
@@ -259,6 +249,7 @@ class _AcervoResultadosPageState
       setState(() {
         _filtroCategoria = categoria;
         _carregando = true;
+        _obraSelecionada = null;
       });
     }
 
@@ -272,12 +263,7 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = resultado;
-
-        _obraSelecionada =
-        resultado.isNotEmpty
-            ? resultado.first
-            : null;
-
+        _obraSelecionada = null;
         _carregando = false;
       });
     } catch (e) {
@@ -295,6 +281,8 @@ class _AcervoResultadosPageState
     }
   }
 
+  // Este método é chamado SOMENTE quando o utilizador
+  // clica numa publicação.
   void _selecionarObra(Obra obra) {
     setState(() {
       _obraSelecionada = obra;
@@ -304,13 +292,13 @@ class _AcervoResultadosPageState
   Future<void> _abrirDocumento(
       Obra obra,
       ) async {
-    final url = obra.urlDocumento.trim();
+    final url =
+    obra.urlDocumento.trim();
 
     if (url.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Esta obra não possui documento disponível.',
@@ -328,8 +316,7 @@ class _AcervoResultadosPageState
             uri.scheme != 'https')) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'O endereço do documento é inválido.',
@@ -353,8 +340,7 @@ class _AcervoResultadosPageState
       if (!abriu) {
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'Não foi possível abrir o documento.',
@@ -371,8 +357,7 @@ class _AcervoResultadosPageState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Não foi possível abrir o documento.',
@@ -399,11 +384,6 @@ class _AcervoResultadosPageState
   }
 
   String get _titulo {
-    if (_obraId.isNotEmpty &&
-        _obras.length == 1) {
-      return 'Obra';
-    }
-
     if (_textoPesquisaAtual.isNotEmpty) {
       return 'Resultados para "$_textoPesquisaAtual"';
     }
@@ -424,12 +404,11 @@ class _AcervoResultadosPageState
   }
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor:
-      const Color(0xfff7f7f7),
+      const Color(0xfff5f6f8),
+
       appBar: AppBar(
         title: Text(
           _titulo,
@@ -441,6 +420,7 @@ class _AcervoResultadosPageState
         foregroundColor: Colors.black87,
         elevation: 0,
       ),
+
       body: _carregando
           ? const Center(
         child:
@@ -466,56 +446,82 @@ class _AcervoResultadosPageState
       crossAxisAlignment:
       CrossAxisAlignment.stretch,
       children: [
+        // ==================================================
+        // PAINEL ESQUERDO - PUBLICAÇÕES
+        // ==================================================
         Container(
           width: 340,
-          decoration:
-          const BoxDecoration(
-            color: Colors.white,
+          decoration: const BoxDecoration(
+            color: Color(0xfff0f2f5),
             border: Border(
               right: BorderSide(
-                color: Color(0xffe4e4e4),
+                color: Color(0xffdfe2e6),
               ),
             ),
           ),
+
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
-              Padding(
+              // CABEÇALHO PUBLICAÇÕES
+              Container(
+                width: double.infinity,
                 padding:
-                const EdgeInsets.fromLTRB(
-                  18,
-                  20,
-                  18,
-                  14,
+                const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
                 ),
+                decoration:
+                const BoxDecoration(
+                  color: Color(0xff1565C0),
+                ),
+
                 child: Row(
                   children: [
                     const Expanded(
                       child: Text(
                         'Publicações',
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight:
                           FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                    Text(
-                      '${_obras.length}',
-                      style:
-                      const TextStyle(
-                        fontSize: 13,
-                        color: Colors.black45,
+
+                    Container(
+                      padding:
+                      const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration:
+                      BoxDecoration(
+                        color: Colors.white
+                            .withOpacity(0.15),
+                        borderRadius:
+                        BorderRadius.circular(
+                          12,
+                        ),
+                      ),
+                      child: Text(
+                        '${_obras.length}',
+                        style:
+                        const TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                          FontWeight.w500,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Divider(
-                height: 1,
-                color: Color(0xffeeeeee),
-              ),
+
+              // LISTA
               Expanded(
                 child: _obras.isEmpty
                     ? const Center(
@@ -535,9 +541,9 @@ class _AcervoResultadosPageState
                 )
                     : ListView.builder(
                   padding:
-                  const EdgeInsets
-                      .symmetric(
-                    vertical: 8,
+                  const EdgeInsets.only(
+                    top: 8,
+                    bottom: 8,
                   ),
                   itemCount:
                   _obras.length,
@@ -551,25 +557,34 @@ class _AcervoResultadosPageState
                             ?.id ==
                             obra.id;
 
-                    return _PublicacaoListaItem(
-                      obra: obra,
-                      selecionada:
-                      selecionada,
-                      onTap: () {
-                        _selecionarObra(
-                          obra,
-                        );
-                      },
-                    );
+                    return
+                      _PublicacaoListaItem(
+                        obra: obra,
+                        selecionada:
+                        selecionada,
+
+                        // O detalhe só aparece
+                        // depois deste clique.
+                        onTap: () {
+                          _selecionarObra(
+                            obra,
+                          );
+                        },
+                      );
                   },
                 ),
               ),
             ],
           ),
         ),
+
+        // ==================================================
+        // ÁREA DIREITA
+        // ==================================================
         Expanded(
           child: Column(
             children: [
+              // PESQUISA
               BarraPesquisa(
                 controller:
                 _pesquisaController,
@@ -582,6 +597,8 @@ class _AcervoResultadosPageState
                 onLimpar:
                 _limparPesquisa,
               ),
+
+              // FILTRO
               Container(
                 color: Colors.white,
                 padding:
@@ -591,69 +608,15 @@ class _AcervoResultadosPageState
                 ),
                 alignment:
                 Alignment.centerRight,
-                child: PopupMenuButton<String>(
-                  tooltip: 'Filtrar',
-                  onSelected:
-                  _filtrarCategoria,
-                  itemBuilder: (context) {
-                    return _categorias
-                        .map(
-                          (categoria) =>
-                          PopupMenuItem<
-                              String>(
-                            value: categoria,
-                            child: Row(
-                              children: [
-                                if ((_filtroCategoria
-                                    .isEmpty &&
-                                    categoria ==
-                                        'Todas') ||
-                                    _filtroCategoria ==
-                                        categoria)
-                                  const Icon(
-                                    Icons.check,
-                                    size: 18,
-                                  ),
-                                if ((_filtroCategoria
-                                    .isEmpty &&
-                                    categoria ==
-                                        'Todas') ||
-                                    _filtroCategoria ==
-                                        categoria)
-                                  const SizedBox(
-                                    width: 8,
-                                  ),
-                                Text(categoria),
-                              ],
-                            ),
-                          ),
-                    )
-                        .toList();
-                  },
-                  child: Container(
-                    height: 42,
-                    width: 48,
-                    decoration:
-                    BoxDecoration(
-                      borderRadius:
-                      BorderRadius.circular(
-                        6,
-                      ),
-                      border: Border.all(
-                        color:
-                        const Color(
-                          0xffdddddd,
-                        ),
-                      ),
-                      color: Colors.white,
-                    ),
-                    child: const Icon(
-                      Icons.filter_list,
-                      size: 21,
-                    ),
-                  ),
-                ),
+                child:
+                _buildFiltroCategoria(),
               ),
+
+              // DETALHES
+              //
+              // IMPORTANTE:
+              // Enquanto nenhuma publicação for clicada,
+              // NÃO aparece o detalhe da obra.
               Expanded(
                 child: _obraSelecionada == null
                     ? _buildSemSelecao()
@@ -675,6 +638,69 @@ class _AcervoResultadosPageState
     );
   }
 
+  Widget _buildFiltroCategoria() {
+    return PopupMenuButton<String>(
+      tooltip:
+      'Filtrar por categoria',
+      onSelected:
+      _filtrarCategoria,
+
+      itemBuilder: (context) {
+        return _categorias.map(
+              (categoria) {
+            final selecionada =
+                (_filtroCategoria.isEmpty &&
+                    categoria == 'Todas') ||
+                    _filtroCategoria ==
+                        categoria;
+
+            return PopupMenuItem<String>(
+              value: categoria,
+
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    child: selecionada
+                        ? const Icon(
+                      Icons.check,
+                      size: 18,
+                    )
+                        : null,
+                  ),
+
+                  const SizedBox(width: 4),
+
+                  Text(categoria),
+                ],
+              ),
+            );
+          },
+        ).toList();
+      },
+
+      child: Container(
+        height: 42,
+        width: 48,
+        decoration: BoxDecoration(
+          borderRadius:
+          BorderRadius.circular(6),
+          border: Border.all(
+            color:
+            const Color(0xffd8dadd),
+          ),
+          color: Colors.white,
+        ),
+
+        child: const Icon(
+          Icons.filter_list,
+          size: 21,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetalhesObra(
       Obra obra,
       ) {
@@ -684,19 +710,22 @@ class _AcervoResultadosPageState
         const BoxConstraints(
           maxWidth: 900,
         ),
+
         child: Container(
           width: double.infinity,
           padding:
           const EdgeInsets.all(30),
+
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius:
             BorderRadius.circular(6),
             border: Border.all(
               color:
-              const Color(0xffe2e2e2),
+              const Color(0xffe0e2e5),
             ),
           ),
+
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -710,7 +739,9 @@ class _AcervoResultadosPageState
                   height: 1.25,
                 ),
               ),
+
               const SizedBox(height: 12),
+
               Text(
                 obra.autor,
                 style: const TextStyle(
@@ -718,7 +749,9 @@ class _AcervoResultadosPageState
                   color: Colors.black54,
                 ),
               ),
+
               const SizedBox(height: 18),
+
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -726,16 +759,21 @@ class _AcervoResultadosPageState
                   _InfoChip(
                     icon:
                     Icons.category_outlined,
-                    texto: obra.categoria,
+                    texto:
+                    obra.categoria,
                   ),
                 ],
               ),
+
               const SizedBox(height: 28),
+
               const Divider(
                 color:
                 Color(0xffeeeeee),
               ),
+
               const SizedBox(height: 24),
+
               if (obra.descricao != null &&
                   obra.descricao!
                       .trim()
@@ -748,40 +786,51 @@ class _AcervoResultadosPageState
                     FontWeight.w600,
                   ),
                 ),
+
                 const SizedBox(height: 10),
+
                 Text(
                   obra.descricao!,
                   style: const TextStyle(
                     fontSize: 15,
                     height: 1.6,
-                    color: Colors.black87,
+                    color:
+                    Colors.black87,
                   ),
                 ),
+
                 const SizedBox(height: 30),
               ],
+
               SizedBox(
                 height: 46,
+
                 child:
                 ElevatedButton.icon(
                   onPressed: () =>
                       _abrirDocumento(
                         obra,
                       ),
+
                   icon: const Icon(
                     Icons.open_in_new,
                     size: 18,
                   ),
+
                   label: const Text(
                     'Abrir documento',
                   ),
-                  style: ElevatedButton
-                      .styleFrom(
+
+                  style:
+                  ElevatedButton.styleFrom(
                     elevation: 0,
+
                     padding:
                     const EdgeInsets
                         .symmetric(
                       horizontal: 20,
                     ),
+
                     shape:
                     RoundedRectangleBorder(
                       borderRadius:
@@ -799,6 +848,9 @@ class _AcervoResultadosPageState
     );
   }
 
+  // ======================================================
+  // ESTADO SEM PUBLICAÇÃO SELECIONADA
+  // ======================================================
   Widget _buildSemSelecao() {
     return const Center(
       child: Column(
@@ -810,7 +862,9 @@ class _AcervoResultadosPageState
             size: 42,
             color: Colors.black26,
           ),
+
           SizedBox(height: 12),
+
           Text(
             'Selecione uma publicação',
             style: TextStyle(
@@ -823,6 +877,9 @@ class _AcervoResultadosPageState
     );
   }
 
+  // ======================================================
+  // MOBILE
+  // ======================================================
   Widget _buildMobile() {
     return Column(
       children: [
@@ -838,6 +895,7 @@ class _AcervoResultadosPageState
           onLimpar:
           _limparPesquisa,
         ),
+
         Container(
           color: Colors.white,
           padding:
@@ -849,70 +907,18 @@ class _AcervoResultadosPageState
           ),
           alignment:
           Alignment.centerRight,
-          child: PopupMenuButton<String>(
-            tooltip: 'Filtrar',
-            onSelected:
-            _filtrarCategoria,
-            itemBuilder: (context) {
-              return _categorias
-                  .map(
-                    (categoria) =>
-                    PopupMenuItem<String>(
-                      value: categoria,
-                      child: Row(
-                        children: [
-                          if ((_filtroCategoria
-                              .isEmpty &&
-                              categoria ==
-                                  'Todas') ||
-                              _filtroCategoria ==
-                                  categoria)
-                            const Icon(
-                              Icons.check,
-                              size: 18,
-                            ),
-                          if ((_filtroCategoria
-                              .isEmpty &&
-                              categoria ==
-                                  'Todas') ||
-                              _filtroCategoria ==
-                                  categoria)
-                            const SizedBox(
-                              width: 8,
-                            ),
-                          Text(categoria),
-                        ],
-                      ),
-                    ),
-              )
-                  .toList();
-            },
-            child: Container(
-              height: 42,
-              width: 48,
-              decoration: BoxDecoration(
-                borderRadius:
-                BorderRadius.circular(6),
-                border: Border.all(
-                  color:
-                  const Color(0xffdddddd),
-                ),
-                color: Colors.white,
-              ),
-              child: const Icon(
-                Icons.filter_list,
-                size: 21,
-              ),
-            ),
-          ),
+          child:
+          _buildFiltroCategoria(),
         ),
+
         if (_obras.isEmpty)
           const Expanded(
             child: Center(
               child: Text(
                 'Nenhuma publicação encontrada.',
                 style: TextStyle(
-                  color: Colors.black54,
+                  color:
+                  Colors.black54,
                 ),
               ),
             ),
@@ -922,46 +928,56 @@ class _AcervoResultadosPageState
             child: ListView.builder(
               padding:
               const EdgeInsets.all(16),
-              itemCount: _obras.length,
+              itemCount:
+              _obras.length,
+
               itemBuilder:
                   (context, index) {
                 final obra =
                 _obras[index];
 
-                return _PublicacaoListaItem(
-                  obra: obra,
-                  selecionada:
-                  _obraSelecionada?.id ==
-                      obra.id,
-                  mobile: true,
-                  onTap: () {
-                    _selecionarObra(
-                      obra,
-                    );
+                return
+                  _PublicacaoListaItem(
+                    obra: obra,
 
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled:
-                      true,
-                      backgroundColor:
-                      Colors.white,
-                      builder: (_) {
-                        return SafeArea(
-                          child:
-                          SingleChildScrollView(
-                            padding:
-                            const EdgeInsets
-                                .all(24),
+                    selecionada:
+                    _obraSelecionada
+                        ?.id ==
+                        obra.id,
+
+                    mobile: true,
+
+                    // No mobile, os detalhes
+                    // também só aparecem após o clique.
+                    onTap: () {
+                      _selecionarObra(
+                        obra,
+                      );
+
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled:
+                        true,
+                        backgroundColor:
+                        Colors.white,
+
+                        builder: (_) {
+                          return SafeArea(
                             child:
-                            _buildDetalhesObra(
-                              obra,
+                            SingleChildScrollView(
+                              padding:
+                              const EdgeInsets
+                                  .all(24),
+                              child:
+                              _buildDetalhesObra(
+                                obra,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
+                          );
+                        },
+                      );
+                    },
+                  );
               },
             ),
           ),
@@ -970,6 +986,9 @@ class _AcervoResultadosPageState
   }
 }
 
+// ==========================================================
+// ITEM DA LISTA DE PUBLICAÇÕES
+// ==========================================================
 class _PublicacaoListaItem
     extends StatelessWidget {
   final Obra obra;
@@ -990,29 +1009,38 @@ class _PublicacaoListaItem
       ) {
     return Material(
       color: selecionada
-          ? const Color(0xfff1f1f1)
-          : Colors.white,
+          ? const Color(0xffe5e7eb)
+          : const Color(0xfff0f2f5),
+
       child: InkWell(
         onTap: onTap,
+
         child: Container(
           padding:
           const EdgeInsets.symmetric(
             horizontal: 18,
-            vertical: 13,
+            vertical: 14,
           ),
-          decoration: BoxDecoration(
+
+          decoration:
+          BoxDecoration(
             border: Border(
-              bottom: const BorderSide(
-                color: Color(0xffeeeeee),
+              bottom:
+              const BorderSide(
+                color:
+                Color(0xffdfe2e6),
               ),
+
               left: selecionada
                   ? const BorderSide(
-                color: Colors.black87,
+                color:
+                Color(0xff1565C0),
                 width: 3,
               )
                   : BorderSide.none,
             ),
           ),
+
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -1022,24 +1050,33 @@ class _PublicacaoListaItem
                 maxLines: 2,
                 overflow:
                 TextOverflow.ellipsis,
+
                 style: TextStyle(
                   fontSize: 14,
                   height: 1.3,
-                  fontWeight: selecionada
+
+                  fontWeight:
+                  selecionada
                       ? FontWeight.w600
                       : FontWeight.w500,
-                  color: Colors.black87,
+
+                  color:
+                  Colors.black87,
                 ),
               ),
+
               const SizedBox(height: 5),
+
               Text(
                 obra.autor,
                 maxLines: 1,
                 overflow:
                 TextOverflow.ellipsis,
+
                 style: const TextStyle(
                   fontSize: 12.5,
-                  color: Colors.black54,
+                  color:
+                  Colors.black54,
                 ),
               ),
             ],
@@ -1050,6 +1087,9 @@ class _PublicacaoListaItem
   }
 }
 
+// ==========================================================
+// CHIP DE INFORMAÇÃO
+// ==========================================================
 class _InfoChip
     extends StatelessWidget {
   final IconData icon;
@@ -1070,12 +1110,19 @@ class _InfoChip
         horizontal: 10,
         vertical: 7,
       ),
-      decoration: BoxDecoration(
+
+      decoration:
+      BoxDecoration(
         color:
-        const Color(0xfff3f3f3),
+        const Color(0xfff3f4f6),
         borderRadius:
         BorderRadius.circular(5),
+        border: Border.all(
+          color:
+          const Color(0xffe1e3e6),
+        ),
       ),
+
       child: Row(
         mainAxisSize:
         MainAxisSize.min,
@@ -1083,14 +1130,19 @@ class _InfoChip
           Icon(
             icon,
             size: 16,
-            color: Colors.black54,
+            color:
+            Colors.black54,
           ),
+
           const SizedBox(width: 6),
+
           Text(
             texto,
-            style: const TextStyle(
+            style:
+            const TextStyle(
               fontSize: 13,
-              color: Colors.black54,
+              color:
+              Colors.black54,
             ),
           ),
         ],

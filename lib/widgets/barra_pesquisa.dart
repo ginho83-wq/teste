@@ -35,81 +35,47 @@ class BarraPesquisa extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: ValueListenableBuilder<TextEditingValue>(
-              valueListenable: controller,
-              builder: (context, value, _) {
-                return TextField(
-                  controller: controller,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => onPesquisar(),
-                  onChanged: onChanged,
-                  decoration: InputDecoration(
-                    hintText: hintText,
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      size: 21,
-                    ),
-                    suffixIcon: value.text.isNotEmpty
-                        ? IconButton(
-                      tooltip: 'Limpar pesquisa',
-                      icon: const Icon(
-                        Icons.close,
-                        size: 19,
-                      ),
-                      onPressed:
-                      onLimpar ?? controller.clear,
-                    )
-                        : null,
-                    filled: true,
-                    fillColor: const Color(0xfff3f3f3),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding:
-                    const EdgeInsets.symmetric(
-                      vertical: 13,
-                      horizontal: 12,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 10),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton(
-              onPressed:
-              pesquisando ? null : onPesquisar,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 18,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(6),
-                ),
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, _) {
+          return TextField(
+            controller: controller,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => onPesquisar(),
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hintText,
+              prefixIcon: const Icon(
+                Icons.search,
+                size: 21,
               ),
-              child: pesquisando
-                  ? const SizedBox(
-                width: 18,
-                height: 18,
-                child:
-                CircularProgressIndicator(
-                  strokeWidth: 2,
+              suffixIcon: value.text.isNotEmpty
+                  ? IconButton(
+                tooltip: 'Limpar pesquisa',
+                icon: const Icon(
+                  Icons.close,
+                  size: 19,
                 ),
+                onPressed:
+                onLimpar ?? controller.clear,
               )
-                  : const Text('Pesquisar'),
+                  : null,
+              filled: true,
+              fillColor: const Color(0xfff3f3f3),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+              const EdgeInsets.symmetric(
+                vertical: 13,
+                horizontal: 12,
+              ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
+
