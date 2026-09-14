@@ -319,12 +319,42 @@ class _AcervoResultadosPageState
   }
 
   // ==========================================================
+  // REGISTRAR CONSULTA
+  // ==========================================================
+
+  Future<void> _registrarConsulta(
+      Obra obra,
+      ) async {
+    try {
+      await _historicoService.registrarConsulta(
+        obraId: obra.id,
+      );
+
+      debugPrint(
+        'ACERVO: consulta registrada: ${obra.id}',
+      );
+
+      await _carregarHistorico();
+    } catch (e) {
+      debugPrint(
+        'ACERVO: erro ao registrar histórico: $e',
+      );
+    }
+  }
+
+  // ==========================================================
   // ABRIR DETALHES
   // ==========================================================
 
   Future<void> _abrirDetalhes(
       Obra obra,
       ) async {
+    // Regista a consulta assim que a obra é
+    // selecionada no Acervo.
+    await _registrarConsulta(obra);
+
+    if (!mounted) return;
+
     await mostrarDetalhesObraDialog(
       context,
       obra: obra,
@@ -416,26 +446,9 @@ class _AcervoResultadosPageState
       return;
     }
 
-    // ========================================================
-    // REGISTRAR CONSULTA
-    // ========================================================
-
-    try {
-      await _historicoService.registrarConsulta(
-        obraId: obra.id,
-      );
-
-      debugPrint(
-        'ACERVO: consulta registrada: ${obra.id}',
-      );
-
-      // Atualiza imediatamente o histórico central.
-      await _carregarHistorico();
-    } catch (e) {
-      debugPrint(
-        'ACERVO: erro ao registrar histórico: $e',
-      );
-    }
+    // IMPORTANTE:
+    // O histórico já foi registado em _abrirDetalhes().
+    // Não registamos novamente aqui para evitar duplicação.
   }
 
   // ==========================================================
@@ -518,7 +531,6 @@ class _AcervoResultadosPageState
     return Scaffold(
       backgroundColor:
       const Color(0xfff5f6f8),
-
       appBar: AppBar(
         title: Text(
           _titulo,
@@ -530,14 +542,12 @@ class _AcervoResultadosPageState
         foregroundColor: Colors.black87,
         elevation: 0,
       ),
-
       body: _carregando
           ? const Center(
         child: CircularProgressIndicator(),
       )
           : LayoutBuilder(
-        builder:
-            (context, constraints) {
+        builder: (context, constraints) {
           if (constraints.maxWidth < 800) {
             return _buildMobile();
           }
@@ -605,14 +615,11 @@ class _AcervoResultadosPageState
                         horizontal: 9,
                         vertical: 4,
                       ),
-                      decoration:
-                      BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.white
                             .withOpacity(0.15),
                         borderRadius:
-                        BorderRadius.circular(
-                          12,
-                        ),
+                        BorderRadius.circular(12),
                       ),
                       child: Text(
                         '${_obras.length}',
@@ -628,7 +635,6 @@ class _AcervoResultadosPageState
                   ],
                 ),
               ),
-
               Expanded(
                 child: _obras.isEmpty
                     ? const Center(
@@ -692,7 +698,6 @@ class _AcervoResultadosPageState
                 onLimpar:
                 _limparPesquisa,
               ),
-
               Container(
                 color: Colors.white,
                 padding:
@@ -705,7 +710,6 @@ class _AcervoResultadosPageState
                 child:
                 _buildFiltroCategoria(),
               ),
-
               Expanded(
                 child:
                 _buildHistoricoCentral(),
@@ -737,11 +741,10 @@ class _AcervoResultadosPageState
             mainAxisSize:
             MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.history,
                 size: 52,
-                color:
-                Colors.black26,
+                color: Colors.black26,
               ),
               const SizedBox(height: 14),
               const Text(
@@ -750,8 +753,7 @@ class _AcervoResultadosPageState
                   fontSize: 19,
                   fontWeight:
                   FontWeight.w600,
-                  color:
-                  Colors.black87,
+                  color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
@@ -760,8 +762,7 @@ class _AcervoResultadosPageState
                 textAlign:
                 TextAlign.center,
                 style: TextStyle(
-                  color:
-                  Colors.black54,
+                  color: Colors.black54,
                 ),
               ),
             ],
@@ -813,9 +814,7 @@ class _AcervoResultadosPageState
                   ),
                 ],
               ),
-
               const SizedBox(height: 6),
-
               const Text(
                 'As suas últimas consultas aparecem aqui.',
                 style: TextStyle(
@@ -823,9 +822,7 @@ class _AcervoResultadosPageState
                   color: Colors.black54,
                 ),
               ),
-
               const SizedBox(height: 18),
-
               ..._historico.map(
                     (obra) => Padding(
                   padding:
@@ -860,8 +857,7 @@ class _AcervoResultadosPageState
   Future<void> _abrirHistoricoDocumento(
       HistoricoObra obra,
       ) async {
-    final url =
-        obra.urlDocumento;
+    final url = obra.urlDocumento;
 
     if (url == null ||
         url.trim().isEmpty) {
@@ -916,7 +912,9 @@ class _AcervoResultadosPageState
         return;
       }
 
-      // Atualiza a posição da obra no histórico.
+      // Mantém o comportamento actual:
+      // ao abrir novamente uma obra pelo histórico,
+      // actualiza a sua posição no histórico.
       if (abriu) {
         await _historicoService.registrarConsulta(
           obraId: obra.obraId,
@@ -984,8 +982,7 @@ class _AcervoResultadosPageState
       child: Container(
         height: 42,
         width: 48,
-        decoration:
-        BoxDecoration(
+        decoration: BoxDecoration(
           borderRadius:
           BorderRadius.circular(6),
           border: Border.all(
@@ -1022,7 +1019,6 @@ class _AcervoResultadosPageState
           onLimpar:
           _limparPesquisa,
         ),
-
         Container(
           color: Colors.white,
           padding:
@@ -1037,9 +1033,9 @@ class _AcervoResultadosPageState
           child:
           _buildFiltroCategoria(),
         ),
-
         Expanded(
-          child: _buildMobileConteudo(),
+          child:
+          _buildMobileConteudo(),
         ),
       ],
     );
@@ -1054,7 +1050,6 @@ class _AcervoResultadosPageState
 
         if (_obras.isNotEmpty) ...[
           const SizedBox(height: 24),
-
           const Text(
             'Publicações',
             style: TextStyle(
@@ -1063,9 +1058,7 @@ class _AcervoResultadosPageState
               FontWeight.w600,
             ),
           ),
-
           const SizedBox(height: 10),
-
           ..._obras.map(
                 (obra) =>
                 _PublicacaoListaItem(
@@ -1133,8 +1126,7 @@ class _AcervoResultadosPageState
             const Icon(
               Icons.history,
               size: 42,
-              color:
-              Colors.black26,
+              color: Colors.black26,
             ),
             const SizedBox(height: 10),
             const Text(
@@ -1153,8 +1145,7 @@ class _AcervoResultadosPageState
               textAlign:
               TextAlign.center,
               style: TextStyle(
-                color:
-                Colors.black54,
+                color: Colors.black54,
               ),
             ),
           ],
@@ -1194,15 +1185,12 @@ class _AcervoResultadosPageState
               TextButton(
                 onPressed:
                 _abrirHistoricoCompleto,
-                child: const Text(
-                  'Ver tudo',
-                ),
+                child:
+                const Text('Ver tudo'),
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           ..._historico.map(
                 (obra) => Padding(
               padding:
@@ -1373,9 +1361,7 @@ class _HistoricoCentralItem
                   Color(0xff1565C0),
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -1395,7 +1381,6 @@ class _HistoricoCentralItem
                         Colors.black87,
                       ),
                     ),
-
                     if (obra.autor != null &&
                         obra.autor!
                             .trim()
@@ -1414,7 +1399,6 @@ class _HistoricoCentralItem
                         ),
                       ),
                     ],
-
                     if (obra.categoria != null &&
                         obra.categoria!
                             .trim()
@@ -1436,9 +1420,7 @@ class _HistoricoCentralItem
                   ],
                 ),
               ),
-
               const SizedBox(width: 6),
-
               IconButton(
                 tooltip:
                 'Remover do histórico',
