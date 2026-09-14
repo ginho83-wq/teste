@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,8 +9,13 @@ import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
 import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
+
 import '../widgets/avatar_utilizador.dart';
+import '../widgets/barra_pesquisa.dart';
 import '../widgets/detalhes_obra_dialog.dart';
+import '../widgets/foot_widget.dart';
+import '../widgets/historico_lista_item.dart';
+import '../widgets/obra_lista_item.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,8 +25,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
-  final AuthService _authService = AuthService.instancia;
+  final ObrasRepository _obrasRepository =
+      ObrasRepository.instancia;
+
+  final AuthService _authService =
+      AuthService.instancia;
+
   final HistoricoObrasService _historicoService =
   HistoricoObrasService();
 
@@ -175,7 +185,8 @@ class _HomePageState extends State<HomePage> {
   // ============================================================
 
   void _executarPesquisa() {
-    final pesquisa = _pesquisaController.text.trim();
+    final pesquisa =
+    _pesquisaController.text.trim();
 
     if (pesquisa.isEmpty) return;
 
@@ -199,7 +210,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> _abrirObra(Obra obra) async {
     if (!mounted) return;
 
-    // Registra a consulta.
     try {
       await _historicoService.registrarConsulta(
         obraId: obra.id,
@@ -217,9 +227,6 @@ class _HomePageState extends State<HomePage> {
 
     if (!mounted) return;
 
-    // ==========================================================
-    // USA O MESMO DIÁLOGO DO ACERVO
-    // ==========================================================
     await mostrarDetalhesObraDialog(
       context,
       obra: obra,
@@ -233,7 +240,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _abrirDocumento(Obra obra) async {
-    final url = (obra.urlDocumento ?? '').trim();
+    final url =
+    (obra.urlDocumento ?? '').trim();
 
     if (url.isEmpty) {
       _mostrarMensagem(
@@ -282,7 +290,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _abrirConsultaRecente(
       HistoricoObra consulta,
       ) async {
-    final url = (consulta.urlDocumento ?? '').trim();
+    final url =
+    (consulta.urlDocumento ?? '').trim();
 
     if (url.isEmpty) {
       _mostrarMensagem(
@@ -362,6 +371,8 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.white,
       appBar: _buildAppBar(),
       body: RefreshIndicator(
+        color: const Color(0xFF444444),
+        backgroundColor: Colors.white,
         onRefresh: () async {
           await Future.wait([
             _carregarObrasRecentes(),
@@ -378,7 +389,7 @@ class _HomePageState extends State<HomePage> {
               _buildCategorias(),
               _buildObrasRecentes(),
               _buildConsultasRecentes(),
-              _buildFooter(),
+              const FooterWidget(),
             ],
           ),
         ),
@@ -401,7 +412,7 @@ class _HomePageState extends State<HomePage> {
         'Obra Livre',
         style: TextStyle(
           color: Color(0xFF222222),
-          fontSize: 20,
+          fontSize: 21,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -414,6 +425,7 @@ class _HomePageState extends State<HomePage> {
             'Acervo',
             style: TextStyle(
               color: Color(0xFF444444),
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -428,6 +440,7 @@ class _HomePageState extends State<HomePage> {
               'Administração',
               style: TextStyle(
                 color: Color(0xFF444444),
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -441,6 +454,7 @@ class _HomePageState extends State<HomePage> {
             'Publicar',
             style: TextStyle(
               color: Color(0xFF444444),
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -449,8 +463,9 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 8),
 
         Padding(
-          padding:
-          const EdgeInsets.only(right: 18),
+          padding: const EdgeInsets.only(
+            right: 18,
+          ),
           child: PopupMenuButton<String>(
             tooltip: 'Conta',
             offset: const Offset(0, 48),
@@ -487,10 +502,16 @@ class _HomePageState extends State<HomePage> {
                       size: 19,
                     ),
                     SizedBox(width: 10),
-                    Text('Minha conta'),
+                    Text(
+                      'Minha conta',
+                      style: TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
+
               const PopupMenuItem<String>(
                 value: 'configuracoes',
                 child: Row(
@@ -500,11 +521,18 @@ class _HomePageState extends State<HomePage> {
                       size: 19,
                     ),
                     SizedBox(width: 10),
-                    Text('Configurações'),
+                    Text(
+                      'Configurações',
+                      style: TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
+
               const PopupMenuDivider(),
+
               const PopupMenuItem<String>(
                 value: 'sair',
                 child: Row(
@@ -514,7 +542,12 @@ class _HomePageState extends State<HomePage> {
                       size: 19,
                     ),
                     SizedBox(width: 10),
-                    Text('Sair'),
+                    Text(
+                      'Sair',
+                      style: TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -539,9 +572,9 @@ class _HomePageState extends State<HomePage> {
         24,
         55,
         24,
-        55,
+        20,
       ),
-      color: const Color(0xFFF5F5F5),
+      color: Colors.white,
       child: Center(
         child: ConstrainedBox(
           constraints:
@@ -549,123 +582,42 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             children: [
               const Text(
-                'Encontre conhecimento. Encontre obras.',
+                'Encontre conhecimento. '
+                    'Encontre obras.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 34,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF222222),
                   height: 1.2,
                 ),
               ),
-              const SizedBox(height: 14),
+
+              const SizedBox(height: 16),
+
               const Text(
-                'Pesquise e consulte trabalhos académicos, '
-                    'científicos e literários.',
+                'Pesquise e consulte trabalhos '
+                    'académicos, científicos e literários.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 16,
                   color: Color(0xFF666666),
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 28),
-              _buildBarraPesquisaHome(),
+
+              const SizedBox(height: 30),
+
+              BarraPesquisa(
+                controller: _pesquisaController,
+                hintText:
+                'Pesquisar obras académicas',
+                onPesquisar: _executarPesquisa,
+                onLimpar: _limparPesquisa,
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildBarraPesquisaHome() {
-    return Container(
-      constraints:
-      const BoxConstraints(maxWidth: 720),
-      height: 52,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(
-          color: const Color(0xFFD5D5D5),
-        ),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 16),
-          const Icon(
-            Icons.search,
-            color: Color(0xFF777777),
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-
-          Expanded(
-            child: TextField(
-              controller: _pesquisaController,
-              textInputAction:
-              TextInputAction.search,
-              onSubmitted: (_) {
-                _executarPesquisa();
-              },
-              onChanged: (_) {
-                setState(() {});
-              },
-              decoration:
-              const InputDecoration(
-                hintText:
-                'Pesquisar obras académicas',
-                border: InputBorder.none,
-                isDense: true,
-              ),
-            ),
-          ),
-
-          if (_pesquisaController.text
-              .trim()
-              .isNotEmpty)
-            IconButton(
-              tooltip: 'Limpar pesquisa',
-              onPressed: _limparPesquisa,
-              icon: const Icon(
-                Icons.close,
-                size: 20,
-                color: Color(0xFF777777),
-              ),
-            ),
-
-          const SizedBox(width: 4),
-
-          SizedBox(
-            height: 42,
-            child: Padding(
-              padding:
-              const EdgeInsets.only(right: 5),
-              child: ElevatedButton(
-                onPressed: _executarPesquisa,
-                style:
-                ElevatedButton.styleFrom(
-                  elevation: 0,
-                  backgroundColor:
-                  const Color(0xFF222222),
-                  foregroundColor: Colors.white,
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 20,
-                  ),
-                  shape:
-                  RoundedRectangleBorder(
-                    borderRadius:
-                    BorderRadius.circular(5),
-                  ),
-                ),
-                child: const Text(
-                  'Pesquisar',
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -702,127 +654,87 @@ class _HomePageState extends State<HomePage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(
         horizontal: 24,
-        vertical: 42,
+        vertical: 30,
       ),
+      color: Colors.white,
       child: Center(
         child: ConstrainedBox(
           constraints:
           const BoxConstraints(maxWidth: 1100),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Categorias',
-                style: TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Explore obras por categoria.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF777777),
-                ),
-              ),
-              const SizedBox(height: 22),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final largura = constraints.maxWidth;
 
-              LayoutBuilder(
-                builder:
-                    (context, constraints) {
-                  final largura =
-                      constraints.maxWidth;
+              final colunas = largura >= 900
+                  ? 5
+                  : largura >= 650
+                  ? 3
+                  : 2;
 
-                  final colunas =
-                  largura >= 900
-                      ? 5
-                      : largura >= 650
-                      ? 3
-                      : 2;
+              const espacamento = 24.0;
 
-                  const espacamento = 12.0;
+              final itemLargura =
+                  (largura -
+                      ((colunas - 1) *
+                          espacamento)) /
+                      colunas;
 
-                  final itemLargura =
-                      (largura -
-                          ((colunas - 1) *
-                              espacamento)) /
-                          colunas;
-
-                  return Wrap(
-                    spacing: espacamento,
-                    runSpacing: espacamento,
-                    children: categorias
-                        .map(
-                          (categoria) =>
-                          SizedBox(
-                            width: itemLargura,
-                            child:
-                            _buildCategoriaCard(
-                              categoria.nome,
-                              categoria.icone,
-                            ),
-                          ),
-                    )
-                        .toList(),
-                  );
-                },
-              ),
-            ],
+              return Wrap(
+                alignment: WrapAlignment.center,
+                spacing: espacamento,
+                runSpacing: 20,
+                children: categorias
+                    .map(
+                      (categoria) => SizedBox(
+                    width: itemLargura,
+                    child: _buildCategoriaItem(
+                      categoria.nome,
+                      categoria.icone,
+                    ),
+                  ),
+                )
+                    .toList(),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCategoriaCard(
+  Widget _buildCategoriaItem(
       String nome,
       IconData icone,
       ) {
     return InkWell(
-      borderRadius: BorderRadius.circular(6),
       onTap: () {
         context.go(
           '/categoria/${Uri.encodeComponent(nome)}',
         );
       },
-      child: Container(
-        height: 100,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(
-            color: const Color(0xFFE0E0E0),
-          ),
-          borderRadius:
-          BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: 8,
+          horizontal: 6,
         ),
         child: Row(
+          mainAxisAlignment:
+          MainAxisAlignment.center,
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F1F1),
-                borderRadius:
-                BorderRadius.circular(6),
-              ),
-              child: Icon(
-                icone,
-                color: const Color(0xFF444444),
-                size: 22,
-              ),
+            Icon(
+              icone,
+              size: 23,
+              color: const Color(0xFF444444),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            const SizedBox(width: 10),
+            Flexible(
               child: Text(
                 nome,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight:
-                  FontWeight.w600,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w300,
                   color: Color(0xFF333333),
                 ),
               ),
@@ -834,265 +746,69 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ============================================================
-  // OBRAS RECENTES
+  // PUBLICAÇÕES RECENTES
   // ============================================================
 
   Widget _buildObrasRecentes() {
     return Container(
       width: double.infinity,
-      color: const Color(0xFFF7F7F7),
+      color: Colors.white,
       padding: const EdgeInsets.symmetric(
         horizontal: 24,
-        vertical: 42,
+        vertical: 44,
       ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(maxWidth: 1100),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Publicações recentes',
-                          style: TextStyle(
-                            fontSize: 21,
-                            fontWeight:
-                            FontWeight.w700,
-                            color:
-                            Color(0xFF222222),
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Confira as obras publicadas recentemente.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color:
-                            Color(0xFF777777),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      context.go('/acervo');
-                    },
-                    child: const Text(
-                      'Ver acervo',
-                    ),
-                  ),
-                ],
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Publicações recentes',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF222222),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'Confira as obras publicadas recentemente.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF777777),
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          if (_carregandoObras)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(30),
+                child: CircularProgressIndicator(),
               ),
-
-              const SizedBox(height: 22),
-
-              if (_carregandoObras)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(30),
-                    child:
-                    CircularProgressIndicator(),
-                  ),
-                )
-              else if (_obrasRecentes.isEmpty)
-                _buildEstadoVazio(
-                  'Ainda não existem publicações disponíveis.',
-                )
-              else
-                LayoutBuilder(
-                  builder:
-                      (context, constraints) {
-                    final largura =
-                        constraints.maxWidth;
-
-                    final colunas =
-                    largura >= 900
-                        ? 3
-                        : largura >= 600
-                        ? 2
-                        : 1;
-
-                    const espacamento = 14.0;
-
-                    final itemLargura =
-                    colunas == 1
-                        ? largura
-                        : (largura -
-                        ((colunas - 1) *
-                            espacamento)) /
-                        colunas;
-
-                    return Wrap(
-                      spacing: espacamento,
-                      runSpacing: espacamento,
-                      children:
-                      _obrasRecentes
-                          .map(
-                            (obra) =>
-                            SizedBox(
-                              width:
-                              itemLargura,
-                              child:
-                              _buildObraCard(
-                                obra,
-                              ),
-                            ),
-                      )
-                          .toList(),
-                    );
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildObraCard(Obra obra) {
-    return InkWell(
-      borderRadius:
-      BorderRadius.circular(6),
-      onTap: () {
-        _abrirObra(obra);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(
-            color: const Color(0xFFE0E0E0),
-          ),
-          borderRadius:
-          BorderRadius.circular(6),
-        ),
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-          children: [
-            Row(
+            )
+          else if (_obrasRecentes.isEmpty)
+            _buildEstadoVazio(
+              'Ainda não existem publicações disponíveis.',
+            )
+          else
+            Column(
               crossAxisAlignment:
               CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color:
-                    const Color(0xFFF1F1F1),
-                    borderRadius:
-                    BorderRadius.circular(5),
-                  ),
-                  child: const Icon(
-                    Icons.description_outlined,
-                    size: 21,
-                    color:
-                    Color(0xFF555555),
-                  ),
+              children: _obrasRecentes
+                  .map(
+                    (obra) => ObraListaItem(
+                  obra: obra,
+                  onTap: () =>
+                      _abrirObra(obra),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    obra.titulo,
-                    maxLines: 2,
-                    overflow:
-                    TextOverflow.ellipsis,
-                    style:
-                    const TextStyle(
-                      fontSize: 15,
-                      fontWeight:
-                      FontWeight.w700,
-                      color:
-                      Color(0xFF222222),
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
+              )
+                  .toList(),
             ),
-
-            const SizedBox(height: 14),
-
-            if (obra.autor.trim().isNotEmpty)
-              Text(
-                obra.autor,
-                maxLines: 1,
-                overflow:
-                TextOverflow.ellipsis,
-                style:
-                const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF666666),
-                ),
-              ),
-
-            const SizedBox(height: 8),
-
-            if (obra.categoria
-                .trim()
-                .isNotEmpty)
-              Container(
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 5,
-                ),
-                decoration:
-                BoxDecoration(
-                  color:
-                  const Color(0xFFF3F3F3),
-                  borderRadius:
-                  BorderRadius.circular(4),
-                ),
-                child: Text(
-                  obra.categoria,
-                  style:
-                  const TextStyle(
-                    fontSize: 11,
-                    fontWeight:
-                    FontWeight.w600,
-                    color:
-                    Color(0xFF555555),
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 14),
-
-            const Row(
-              mainAxisAlignment:
-              MainAxisAlignment.end,
-              children: [
-                Text(
-                  'Ver detalhes',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight:
-                    FontWeight.w600,
-                    color:
-                    Color(0xFF444444),
-                  ),
-                ),
-                SizedBox(width: 5),
-                Icon(
-                  Icons.arrow_forward,
-                  size: 15,
-                  color:
-                  Color(0xFF444444),
-                ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1111,9 +827,10 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       width: double.infinity,
+      color: Colors.white,
       padding: const EdgeInsets.symmetric(
         horizontal: 24,
-        vertical: 42,
+        vertical: 44,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -1123,49 +840,34 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
-              Row(
+              const Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Obras consultadas recentemente',
-                          style: TextStyle(
-                            fontSize: 21,
-                            fontWeight:
-                            FontWeight.w700,
-                            color:
-                            Color(0xFF222222),
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Aceda rapidamente às obras que consultou.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color:
-                            Color(0xFF777777),
-                          ),
-                        ),
-                      ],
+                  Text(
+                    'Obras consultadas recentemente',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF222222),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      context.go(
-                        '/historico-obras',
-                      );
-                    },
-                    child: const Text(
-                      'Ver histórico',
+
+                  SizedBox(height: 8),
+
+                  Text(
+                    'Aceda rapidamente às obras '
+                        'que consultou.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF777777),
+                      height: 1.5,
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 24),
 
               if (_carregandoConsultas)
                 const Center(
@@ -1180,144 +882,45 @@ class _HomePageState extends State<HomePage> {
                   'Ainda não consultou nenhuma obra.',
                 )
               else
-                LayoutBuilder(
-                  builder:
-                      (context, constraints) {
-                    final largura =
-                        constraints.maxWidth;
+                Column(
+                  children: List.generate(
+                    _consultasRecentes.length,
+                        (index) {
+                      final consulta =
+                      _consultasRecentes[index];
 
-                    final colunas =
-                    largura >= 900
-                        ? 3
-                        : largura >= 600
-                        ? 2
-                        : 1;
+                      return Column(
+                        children: [
+                          HistoricoListaItem(
+                            obra: consulta,
+                            onAbrir: () =>
+                                _abrirConsultaRecente(
+                                  consulta,
+                                ),
+                            onRemover: () {
+                              // A remoção continua a ser
+                              // tratada posteriormente,
+                              // sem alterar a lógica atual.
+                            },
+                          ),
 
-                    const espacamento = 14.0;
-
-                    final itemLargura =
-                    colunas == 1
-                        ? largura
-                        : (largura -
-                        ((colunas - 1) *
-                            espacamento)) /
-                        colunas;
-
-                    return Wrap(
-                      spacing: espacamento,
-                      runSpacing: espacamento,
-                      children:
-                      _consultasRecentes
-                          .map(
-                            (consulta) =>
-                            SizedBox(
-                              width:
-                              itemLargura,
-                              child:
-                              _buildConsultaCard(
-                                consulta,
-                              ),
+                          if (index <
+                              _consultasRecentes
+                                  .length -
+                                  1)
+                            const Divider(
+                              height: 1,
+                              thickness: 1,
+                              color:
+                              Color(0xFFE5E5E5),
                             ),
-                      )
-                          .toList(),
-                    );
-                  },
+                        ],
+                      );
+                    },
+                  ),
                 ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConsultaCard(
-      HistoricoObra consulta,
-      ) {
-    return InkWell(
-      borderRadius:
-      BorderRadius.circular(6),
-      onTap: () {
-        _abrirConsultaRecente(consulta);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(
-            color: const Color(0xFFE0E0E0),
-          ),
-          borderRadius:
-          BorderRadius.circular(6),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color:
-                const Color(0xFFF1F1F1),
-                borderRadius:
-                BorderRadius.circular(5),
-              ),
-              child: const Icon(
-                Icons.history,
-                size: 20,
-                color: Color(0xFF555555),
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    consulta.titulo,
-                    maxLines: 2,
-                    overflow:
-                    TextOverflow.ellipsis,
-                    style:
-                    const TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                      FontWeight.w600,
-                      color:
-                      Color(0xFF333333),
-                    ),
-                  ),
-
-                  if ((consulta.autor ?? '')
-                      .trim()
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      consulta.autor ?? '',
-                      maxLines: 1,
-                      overflow:
-                      TextOverflow.ellipsis,
-                      style:
-                      const TextStyle(
-                        fontSize: 12,
-                        color:
-                        Color(0xFF777777),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
-            const Icon(
-              Icons.open_in_new,
-              size: 18,
-              color: Color(0xFF666666),
-            ),
-          ],
         ),
       ),
     );
@@ -1330,16 +933,9 @@ class _HomePageState extends State<HomePage> {
   Widget _buildEstadoVazio(
       String mensagem,
       ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(
-          color: const Color(0xFFE0E0E0),
-        ),
-        borderRadius:
-        BorderRadius.circular(6),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 30,
       ),
       child: Center(
         child: Text(
@@ -1348,95 +944,11 @@ class _HomePageState extends State<HomePage> {
           style: const TextStyle(
             fontSize: 14,
             color: Color(0xFF777777),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // FOOTER
-  // ============================================================
-
-  Widget _buildFooter() {
-    return Container(
-      width: double.infinity,
-      color: const Color(0xFF222222),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 35,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(maxWidth: 1100),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment:
-                MainAxisAlignment.center,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      context.go('/sobre');
-                    },
-                    child: const Text(
-                      'Sobre',
-                      style: TextStyle(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      context.go('/contacto');
-                    },
-                    child: const Text(
-                      'Contacto',
-                      style: TextStyle(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      context.go('/termos');
-                    },
-                    child: const Text(
-                      'Termos',
-                      style: TextStyle(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      context.go('/privacidade');
-                    },
-                    child: const Text(
-                      'Privacidade',
-                      style: TextStyle(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-
-              const Text(
-                '© Obra Livre. Todos os direitos reservados.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
-              ),
-            ],
+            height: 1.5,
           ),
         ),
       ),
     );
   }
 }
+

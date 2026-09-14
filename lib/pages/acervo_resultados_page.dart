@@ -7,6 +7,8 @@ import '../repositories/obras_repository.dart';
 import '../services/historico_obras_service.dart';
 import '../widgets/barra_pesquisa.dart';
 import '../widgets/detalhes_obra_dialog.dart';
+import '../widgets/historico_lista_item.dart';
+import '../widgets/obra_lista_item.dart';
 import 'historico_obras_page.dart';
 
 class AcervoResultadosPage extends StatefulWidget {
@@ -447,8 +449,9 @@ class _AcervoResultadosPageState
     }
 
     // IMPORTANTE:
-    // O histórico já foi registado em _abrirDetalhes().
-    // Não registamos novamente aqui para evitar duplicação.
+    // O histórico já foi registado em
+    // _abrirDetalhes().
+    // Não registamos novamente aqui.
   }
 
   // ==========================================================
@@ -544,10 +547,14 @@ class _AcervoResultadosPageState
       ),
       body: _carregando
           ? const Center(
-        child: CircularProgressIndicator(),
+        child:
+        CircularProgressIndicator(),
       )
           : LayoutBuilder(
-        builder: (context, constraints) {
+        builder: (
+            context,
+            constraints,
+            ) {
           if (constraints.maxWidth < 800) {
             return _buildMobile();
           }
@@ -567,9 +574,9 @@ class _AcervoResultadosPageState
       crossAxisAlignment:
       CrossAxisAlignment.stretch,
       children: [
-        // ======================================================
+        // ====================================================
         // PAINEL ESQUERDO
-        // ======================================================
+        // ====================================================
 
         Container(
           width: 340,
@@ -665,7 +672,7 @@ class _AcervoResultadosPageState
                     final obra =
                     _obras[index];
 
-                    return _PublicacaoListaItem(
+                    return ObraListaItem(
                       obra: obra,
                       onTap: () =>
                           _abrirDetalhes(
@@ -679,9 +686,9 @@ class _AcervoResultadosPageState
           ),
         ),
 
-        // ======================================================
+        // ====================================================
         // ÁREA CENTRAL
-        // ======================================================
+        // ====================================================
 
         Expanded(
           child: Column(
@@ -728,7 +735,8 @@ class _AcervoResultadosPageState
   Widget _buildHistoricoCentral() {
     if (_carregandoHistorico) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child:
+        CircularProgressIndicator(),
       );
     }
 
@@ -773,7 +781,8 @@ class _AcervoResultadosPageState
 
     return Container(
       width: double.infinity,
-      color: const Color(0xfff8f9fb),
+      color:
+      const Color(0xfff8f9fb),
       child: SingleChildScrollView(
         padding:
         const EdgeInsets.fromLTRB(
@@ -829,8 +838,7 @@ class _AcervoResultadosPageState
                   const EdgeInsets.only(
                     bottom: 10,
                   ),
-                  child:
-                  _HistoricoCentralItem(
+                  child: HistoricoListaItem(
                     obra: obra,
                     onAbrir: () =>
                         _abrirHistoricoDocumento(
@@ -874,9 +882,8 @@ class _AcervoResultadosPageState
       return;
     }
 
-    final uri = Uri.tryParse(
-      url.trim(),
-    );
+    final uri =
+    Uri.tryParse(url.trim());
 
     if (uri == null ||
         (uri.scheme != 'http' &&
@@ -916,7 +923,8 @@ class _AcervoResultadosPageState
       // ao abrir novamente uma obra pelo histórico,
       // actualiza a sua posição no histórico.
       if (abriu) {
-        await _historicoService.registrarConsulta(
+        await _historicoService
+            .registrarConsulta(
           obraId: obra.obraId,
         );
 
@@ -1060,13 +1068,12 @@ class _AcervoResultadosPageState
           ),
           const SizedBox(height: 10),
           ..._obras.map(
-                (obra) =>
-                _PublicacaoListaItem(
-                  obra: obra,
-                  mobile: true,
-                  onTap: () =>
-                      _abrirDetalhes(obra),
-                ),
+                (obra) => ObraListaItem(
+              obra: obra,
+              mobile: true,
+              onTap: () =>
+                  _abrirDetalhes(obra),
+            ),
           ),
         ],
 
@@ -1074,9 +1081,7 @@ class _AcervoResultadosPageState
             _historico.isEmpty)
           const Padding(
             padding:
-            EdgeInsets.only(
-              top: 60,
-            ),
+            EdgeInsets.only(top: 60),
             child: Center(
               child: Text(
                 'Nenhuma publicação encontrada.',
@@ -1197,8 +1202,7 @@ class _AcervoResultadosPageState
               const EdgeInsets.only(
                 bottom: 8,
               ),
-              child:
-              _HistoricoCentralItem(
+              child: HistoricoListaItem(
                 obra: obra,
                 onAbrir: () =>
                     _abrirHistoricoDocumento(
@@ -1212,230 +1216,6 @@ class _AcervoResultadosPageState
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ==========================================================
-// ITEM DA LISTA DE PUBLICAÇÕES
-// ==========================================================
-
-class _PublicacaoListaItem
-    extends StatelessWidget {
-  final Obra obra;
-  final bool mobile;
-  final VoidCallback onTap;
-
-  const _PublicacaoListaItem({
-    required this.obra,
-    required this.onTap,
-    this.mobile = false,
-  });
-
-  @override
-  Widget build(
-      BuildContext context,
-      ) {
-    return Material(
-      color:
-      const Color(0xfff0f2f5),
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 14,
-          ),
-          decoration:
-          const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color:
-                Color(0xffdfe2e6),
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Text(
-                obra.titulo,
-                maxLines: 2,
-                overflow:
-                TextOverflow.ellipsis,
-                style:
-                const TextStyle(
-                  fontSize: 14,
-                  height: 1.3,
-                  fontWeight:
-                  FontWeight.w500,
-                  color:
-                  Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                obra.autor,
-                maxLines: 1,
-                overflow:
-                TextOverflow.ellipsis,
-                style:
-                const TextStyle(
-                  fontSize: 12.5,
-                  color:
-                  Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ==========================================================
-// ITEM DO HISTÓRICO CENTRAL
-// ==========================================================
-
-class _HistoricoCentralItem
-    extends StatelessWidget {
-  final HistoricoObra obra;
-  final VoidCallback onAbrir;
-  final VoidCallback onRemover;
-
-  const _HistoricoCentralItem({
-    required this.obra,
-    required this.onAbrir,
-    required this.onRemover,
-  });
-
-  @override
-  Widget build(
-      BuildContext context,
-      ) {
-    return Material(
-      color: Colors.white,
-      borderRadius:
-      BorderRadius.circular(7),
-      child: InkWell(
-        onTap: onAbrir,
-        borderRadius:
-        BorderRadius.circular(7),
-        child: Container(
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          decoration:
-          BoxDecoration(
-            borderRadius:
-            BorderRadius.circular(7),
-            border: Border.all(
-              color:
-              const Color(0xffe0e3e7),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration:
-                BoxDecoration(
-                  color:
-                  const Color(0xffeef4fb),
-                  borderRadius:
-                  BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.history,
-                  size: 20,
-                  color:
-                  Color(0xff1565C0),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      obra.titulo,
-                      maxLines: 2,
-                      overflow:
-                      TextOverflow.ellipsis,
-                      style:
-                      const TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                        FontWeight.w600,
-                        color:
-                        Colors.black87,
-                      ),
-                    ),
-                    if (obra.autor != null &&
-                        obra.autor!
-                            .trim()
-                            .isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        obra.autor!,
-                        maxLines: 1,
-                        overflow:
-                        TextOverflow.ellipsis,
-                        style:
-                        const TextStyle(
-                          fontSize: 12.5,
-                          color:
-                          Colors.black54,
-                        ),
-                      ),
-                    ],
-                    if (obra.categoria != null &&
-                        obra.categoria!
-                            .trim()
-                            .isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        obra.categoria!,
-                        maxLines: 1,
-                        overflow:
-                        TextOverflow.ellipsis,
-                        style:
-                        const TextStyle(
-                          fontSize: 11.5,
-                          color:
-                          Colors.black45,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              IconButton(
-                tooltip:
-                'Remover do histórico',
-                onPressed:
-                onRemover,
-                icon: const Icon(
-                  Icons.close,
-                  size: 19,
-                  color:
-                  Colors.black45,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
