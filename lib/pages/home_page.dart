@@ -1,5 +1,5 @@
+
 import 'dart:async';
-import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -109,64 +109,6 @@ class _HomePageState extends State<HomePage> {
     if (autenticado) {
       _verificarAdministrador();
       _carregarConsultasRecentes();
-    }
-  }
-
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
-  Future<void> _sair() async {
-    try {
-      await _authService.sair();
-
-      if (!mounted) return;
-
-      /*
-       * pathname pode ser String?, por isso usamos ?? '/'.
-       *
-       * No GitHub Pages o endereço será:
-       * /teste/
-       *
-       * Durante desenvolvimento local será:
-       * /
-       */
-      final String caminhoAtual =
-          html.window.location.pathname ?? '/';
-
-      String caminhoLogin;
-
-      if (caminhoAtual.startsWith('/teste')) {
-        caminhoLogin = '/teste/login';
-      } else {
-        caminhoLogin = '/login';
-      }
-
-      /*
-       * Substitui a entrada atual do histórico do navegador.
-       * Assim evitamos que o botão "Voltar" volte diretamente
-       * para a Home autenticada.
-       */
-      html.window.history.replaceState(
-        null,
-        '',
-        caminhoLogin,
-      );
-
-      /*
-       * Sincroniza o GoRouter.
-       */
-      context.go('/login');
-    } catch (e) {
-      debugPrint(
-        'HOME: erro ao sair: $e',
-      );
-
-      if (!mounted) return;
-
-      _mostrarMensagem(
-        'Não foi possível terminar a sessão.',
-      );
     }
   }
 
@@ -470,10 +412,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ============================================================
-  // MENSAGEM
-  // ============================================================
-
   void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
@@ -552,6 +490,24 @@ class _HomePageState extends State<HomePage> {
 
       actions: [
         // ======================================================
+        // PLATAFORMA
+        // ======================================================
+
+        TextButton(
+          onPressed: () {
+            context.go('/plataforma');
+          },
+          child: const Text(
+            'Plataforma',
+            style: TextStyle(
+              color: Color(0xFF444444),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+
+        // ======================================================
         // ACERVO
         // ======================================================
 
@@ -574,7 +530,6 @@ class _HomePageState extends State<HomePage> {
         // ======================================================
 
         if (estaAutenticado) ...[
-          // ADMINISTRAÇÃO
           if (!_carregandoPerfil && _ehAdmin)
             TextButton(
               onPressed: () {
@@ -590,7 +545,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-          // PUBLICAR
           TextButton(
             onPressed: () {
               context.go('/publicar');
@@ -607,7 +561,6 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(width: 8),
 
-          // MENU DA CONTA
           Padding(
             padding: const EdgeInsets.only(
               right: 18,
@@ -620,18 +573,41 @@ class _HomePageState extends State<HomePage> {
                 switch (value) {
                   case 'conta':
                     if (mounted) {
-                      context.go('/minha-conta');
+                      context.go(
+                        '/minha-conta',
+                      );
                     }
                     break;
 
                   case 'configuracoes':
                     if (mounted) {
-                      context.go('/configuracoes');
+                      context.go(
+                        '/configuracoes',
+                      );
                     }
                     break;
 
                   case 'sair':
-                    await _sair();
+                    try {
+                      await _authService.sair();
+
+                      if (!mounted) return;
+
+                      // IMPORTANTE:
+                      // depois do logout, não voltar para "/".
+                      // "/login" é o destino correto.
+                      context.go('/login');
+                    } catch (e) {
+                      debugPrint(
+                        'HOME: erro ao sair: $e',
+                      );
+
+                      if (!mounted) return;
+
+                      _mostrarMensagem(
+                        'Não foi possível terminar a sessão.',
+                      );
+                    }
                     break;
                 }
               },
@@ -800,8 +776,10 @@ class _HomePageState extends State<HomePage> {
                 controller: _pesquisaController,
                 hintText:
                 'Pesquisar obras académicas',
-                onPesquisar: _executarPesquisa,
-                onLimpar: _limparPesquisa,
+                onPesquisar:
+                _executarPesquisa,
+                onLimpar:
+                _limparPesquisa,
               ),
             ],
           ),
@@ -876,14 +854,15 @@ class _HomePageState extends State<HomePage> {
                 runSpacing: 20,
                 children: categorias
                     .map(
-                      (categoria) => SizedBox(
-                    width: itemLargura,
-                    child:
-                    _buildCategoriaItem(
-                      categoria.nome,
-                      categoria.icone,
-                    ),
-                  ),
+                      (categoria) =>
+                      SizedBox(
+                        width: itemLargura,
+                        child:
+                        _buildCategoriaItem(
+                          categoria.nome,
+                          categoria.icone,
+                        ),
+                      ),
                 )
                     .toList(),
               );
@@ -920,17 +899,21 @@ class _HomePageState extends State<HomePage> {
             Icon(
               icone,
               size: 23,
-              color: const Color(0xFF444444),
+              color:
+              const Color(0xFF444444),
             ),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
                 nome,
-                textAlign: TextAlign.center,
+                textAlign:
+                TextAlign.center,
                 style: const TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w300,
-                  color: Color(0xFF333333),
+                  fontWeight:
+                  FontWeight.w300,
+                  color:
+                  Color(0xFF333333),
                 ),
               ),
             ),
@@ -977,8 +960,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 8),
 
               const Text(
-                'Confira as obras publicadas '
-                    'recentemente.',
+                'Confira as obras publicadas recentemente.',
                 style: TextStyle(
                   fontSize: 14,
                   color:
@@ -1001,13 +983,13 @@ class _HomePageState extends State<HomePage> {
               else if (_obrasRecentes
                   .isEmpty)
                 _buildEstadoVazio(
-                  'Ainda não existem '
-                      'publicações disponíveis.',
+                  'Ainda não existem publicações disponíveis.',
                 )
               else
                 Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
                   children:
                   _obrasRecentes
                       .map(
@@ -1064,8 +1046,7 @@ class _HomePageState extends State<HomePage> {
                 CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Obras consultadas '
-                        'recentemente',
+                    'Obras consultadas recentemente',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight:
@@ -1074,9 +1055,7 @@ class _HomePageState extends State<HomePage> {
                       Color(0xFF222222),
                     ),
                   ),
-
                   SizedBox(height: 8),
-
                   Text(
                     'Aceda rapidamente às obras '
                         'que consultou.',
@@ -1104,12 +1083,12 @@ class _HomePageState extends State<HomePage> {
               else if (_consultasRecentes
                   .isEmpty)
                 _buildEstadoVazio(
-                  'Ainda não consultou '
-                      'nenhuma obra.',
+                  'Ainda não consultou nenhuma obra.',
                 )
               else
                 Column(
-                  children: List.generate(
+                  children:
+                  List.generate(
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
@@ -1125,10 +1104,7 @@ class _HomePageState extends State<HomePage> {
                                   consulta,
                                 ),
                             onRemover: () {
-                              /*
-                               * Mantida a lógica atual
-                               * do componente.
-                               */
+                              // Mantida a lógica atual.
                             },
                           ),
 
@@ -1169,10 +1145,12 @@ class _HomePageState extends State<HomePage> {
       child: Center(
         child: Text(
           mensagem,
-          textAlign: TextAlign.center,
+          textAlign:
+          TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF777777),
+            color:
+            Color(0xFF777777),
             height: 1.5,
           ),
         ),
@@ -1180,4 +1158,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-

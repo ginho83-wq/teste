@@ -136,15 +136,7 @@ class AuthService {
   // ============================================================
 
   Future<void> sair() async {
-    /*
-     * IMPORTANTE:
-     *
-     * Este método apenas encerra a sessão no Supabase.
-     * A navegação é tratada pela HomePage.
-     *
-     * Assim evitamos que o AuthService tente controlar
-     * simultaneamente o Supabase e o histórico do navegador.
-     */
     await _supabase.auth.signOut();
   }
 }
+
