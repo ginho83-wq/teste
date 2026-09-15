@@ -32,10 +32,10 @@ import '../pages/ajuda_page.dart';
 
 final AuthService _authService = AuthService.instancia;
 
-/// Verifica se uma rota pode ser acessada sem autenticação.
-///
-/// As páginas de conteúdo público podem ser visitadas por qualquer pessoa.
-/// As áreas pessoais e administrativas continuam protegidas.
+// ============================================================
+// ROTAS PÚBLICAS
+// ============================================================
+
 bool _ehRotaPublica(String caminho) {
   return caminho == '/' ||
       caminho == '/plataforma' ||
@@ -50,10 +50,14 @@ bool _ehRotaPublica(String caminho) {
       caminho == '/contacto' ||
       caminho == '/ajuda' ||
       caminho.startsWith('/categoria/') ||
-      caminho.startsWith('/acervo/pesquisa/');
+      caminho.startsWith('/acervo/pesquisa/') ||
+      caminho.startsWith('/search/');
 }
 
-/// Router principal da aplicação.
+// ============================================================
+// ROUTER PRINCIPAL
+// ============================================================
+
 final GoRouter router = GoRouter(
   initialLocation: '/',
 
@@ -73,17 +77,17 @@ final GoRouter router = GoRouter(
     final bool rotaPublica =
     _ehRotaPublica(caminho);
 
-    // ============================================================
+    // ========================================================
     // VISITANTE NÃO AUTENTICADO
-    // ============================================================
+    // ========================================================
 
     if (!estaAutenticado && !rotaPublica) {
       return '/login';
     }
 
-    // ============================================================
+    // ========================================================
     // UTILIZADOR AUTENTICADO
-    // ============================================================
+    // ========================================================
 
     if (estaAutenticado &&
         (caminho == '/login' ||
@@ -95,9 +99,9 @@ final GoRouter router = GoRouter(
   },
 
   routes: <RouteBase>[
-    // ============================================================
+    // ==========================================================
     // AUTENTICAÇÃO
-    // ============================================================
+    // ==========================================================
 
     GoRoute(
       path: '/login',
@@ -117,9 +121,9 @@ final GoRouter router = GoRouter(
       const AuthCallbackPage(),
     ),
 
-    // ============================================================
+    // ==========================================================
     // ÁREA PÚBLICA
-    // ============================================================
+    // ==========================================================
 
     GoRoute(
       path: '/',
@@ -175,9 +179,9 @@ final GoRouter router = GoRouter(
       },
     ),
 
-    // ============================================================
+    // ==========================================================
     // PESQUISA GERAL
-    // ============================================================
+    // ==========================================================
 
     GoRoute(
       path: '/search/:query',
@@ -191,9 +195,9 @@ final GoRouter router = GoRouter(
       },
     ),
 
-    // ============================================================
+    // ==========================================================
     // ÁREA DO UTILIZADOR AUTENTICADO
-    // ============================================================
+    // ==========================================================
 
     GoRoute(
       path: '/minha-conta',
@@ -219,9 +223,9 @@ final GoRouter router = GoRouter(
       const HistoricoObrasPage(),
     ),
 
-    // ============================================================
+    // ==========================================================
     // ADMINISTRAÇÃO
-    // ============================================================
+    // ==========================================================
 
     GoRoute(
       path: '/admin-obras',
@@ -235,9 +239,9 @@ final GoRouter router = GoRouter(
       const AdminSolicitacoesRemocaoPage(),
     ),
 
-    // ============================================================
+    // ==========================================================
     // PÁGINAS INFORMATIVAS / LEGAIS
-    // ============================================================
+    // ==========================================================
 
     GoRoute(
       path: '/termos',
@@ -271,19 +275,20 @@ final GoRouter router = GoRouter(
   ],
 );
 
-/// Converte o stream de autenticação do Supabase
-/// em Listenable para que o GoRouter reaja
-/// automaticamente às alterações de sessão.
+// ============================================================
+// REFRESH DO GOROUTER
+// ============================================================
+
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription =
-        stream.asBroadcastStream().listen(
-              (_) => notifyListeners(),
-        );
+    _subscription = stream.asBroadcastStream().listen(
+          (_) {
+        notifyListeners();
+      },
+    );
   }
 
-  late final StreamSubscription<dynamic>
-  _subscription;
+  late final StreamSubscription<dynamic> _subscription;
 
   @override
   void dispose() {
@@ -291,3 +296,4 @@ class GoRouterRefreshStream extends ChangeNotifier {
     super.dispose();
   }
 }
+

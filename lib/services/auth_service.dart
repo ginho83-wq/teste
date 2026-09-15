@@ -3,11 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthService {
   AuthService._();
 
-  static final AuthService instancia =
-  AuthService._();
+  static final AuthService instancia = AuthService._();
 
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // ============================================================
   // USUÁRIO ATUAL
@@ -141,3 +139,4 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 }
+

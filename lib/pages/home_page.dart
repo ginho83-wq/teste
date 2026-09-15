@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -45,9 +47,16 @@ class _HomePageState extends State<HomePage> {
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
+  StreamSubscription<AuthState>? _authSubscription;
+
   @override
   void initState() {
     super.initState();
+
+    _authSubscription =
+        _authService.eventosAuth.listen(
+          _tratarAlteracaoAutenticacao,
+        );
 
     _carregarObrasRecentes();
     _carregarConsultasRecentes();
@@ -61,14 +70,45 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _carregarConsultasRecentes();
+        _verificarAdministrador();
       }
     });
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _pesquisaController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // AUTENTICAÇÃO
+  // ============================================================
+
+  void _tratarAlteracaoAutenticacao(
+      AuthState estado,
+      ) {
+    if (!mounted) return;
+
+    final bool autenticado =
+        estado.session != null;
+
+    setState(() {
+      if (!autenticado) {
+        _ehAdmin = false;
+        _carregandoPerfil = false;
+        _consultasRecentes = [];
+        _carregandoConsultas = false;
+      } else {
+        _carregandoPerfil = true;
+      }
+    });
+
+    if (autenticado) {
+      _verificarAdministrador();
+      _carregarConsultasRecentes();
+    }
   }
 
   // ============================================================
@@ -547,11 +587,26 @@ class _HomePageState extends State<HomePage> {
                     break;
 
                   case 'sair':
-                    await _authService.sair();
+                    try {
+                      await _authService.sair();
 
-                    if (!mounted) return;
+                      if (!mounted) return;
 
-                    context.go('/');
+                      // IMPORTANTE:
+                      // depois do logout, não voltar para "/".
+                      // "/login" é o destino correto.
+                      context.go('/login');
+                    } catch (e) {
+                      debugPrint(
+                        'HOME: erro ao sair: $e',
+                      );
+
+                      if (!mounted) return;
+
+                      _mostrarMensagem(
+                        'Não foi possível terminar a sessão.',
+                      );
+                    }
                     break;
                 }
               },
@@ -717,8 +772,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 30),
 
               BarraPesquisa(
-                controller:
-                _pesquisaController,
+                controller: _pesquisaController,
                 hintText:
                 'Pesquisar obras académicas',
                 onPesquisar:
@@ -844,18 +898,21 @@ class _HomePageState extends State<HomePage> {
             Icon(
               icone,
               size: 23,
-              color: const Color(0xFF444444),
+              color:
+              const Color(0xFF444444),
             ),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
                 nome,
-                textAlign: TextAlign.center,
+                textAlign:
+                TextAlign.center,
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight:
                   FontWeight.w300,
-                  color: Color(0xFF333333),
+                  color:
+                  Color(0xFF333333),
                 ),
               ),
             ),
@@ -873,13 +930,15 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 44,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
+          constraints:
+          const BoxConstraints(
             maxWidth: 1100,
           ),
           child: Column(
@@ -890,8 +949,10 @@ class _HomePageState extends State<HomePage> {
                 'Publicações recentes',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
+                  fontWeight:
+                  FontWeight.w700,
+                  color:
+                  Color(0xFF222222),
                 ),
               ),
 
@@ -901,7 +962,8 @@ class _HomePageState extends State<HomePage> {
                 'Confira as obras publicadas recentemente.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF777777),
+                  color:
+                  Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
@@ -911,26 +973,32 @@ class _HomePageState extends State<HomePage> {
               if (_carregandoObras)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(30),
+                    padding:
+                    EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
                 )
-              else if (_obrasRecentes.isEmpty)
+              else if (_obrasRecentes
+                  .isEmpty)
                 _buildEstadoVazio(
                   'Ainda não existem publicações disponíveis.',
                 )
               else
                 Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: _obrasRecentes
+                  CrossAxisAlignment
+                      .start,
+                  children:
+                  _obrasRecentes
                       .map(
                         (obra) =>
                         ObraListaItem(
                           obra: obra,
                           onTap: () =>
-                              _abrirObra(obra),
+                              _abrirObra(
+                                obra,
+                              ),
                         ),
                   )
                       .toList(),
@@ -957,13 +1025,15 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 44,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
+          constraints:
+          const BoxConstraints(
             maxWidth: 1100,
           ),
           child: Column(
@@ -1003,7 +1073,8 @@ class _HomePageState extends State<HomePage> {
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(30),
+                    padding:
+                    EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -1073,10 +1144,12 @@ class _HomePageState extends State<HomePage> {
       child: Center(
         child: Text(
           mensagem,
-          textAlign: TextAlign.center,
+          textAlign:
+          TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF777777),
+            color:
+            Color(0xFF777777),
             height: 1.5,
           ),
         ),
@@ -1084,3 +1157,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
