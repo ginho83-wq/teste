@@ -3,6 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
+import '../widgets/obra_lista_item.dart';
+import '../widgets/detalhes_obra_dialog.dart';
+import '../widgets/paginacao.dart';
 
 class CategoriaResultadosPage extends StatefulWidget {
   final String categoria;
@@ -22,9 +25,14 @@ class _CategoriaResultadosPageState
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
 
+  static const int _itensPorPagina = 10;
+
   List<Obra> _obras = [];
+
   bool _carregando = true;
   String? _erro;
+
+  int _paginaAtual = 1;
 
   @override
   void initState() {
@@ -32,10 +40,15 @@ class _CategoriaResultadosPageState
     _carregarObras();
   }
 
+  // ===========================================================================
+  // CARREGAR OBRAS
+  // ===========================================================================
+
   Future<void> _carregarObras() async {
     setState(() {
       _carregando = true;
       _erro = null;
+      _paginaAtual = 1;
     });
 
     try {
@@ -60,7 +73,67 @@ class _CategoriaResultadosPageState
     }
   }
 
-  Future<void> _abrirObra(Obra obra) async {
+  // ===========================================================================
+  // PAGINAÇÃO
+  // ===========================================================================
+
+  int get _totalPaginas {
+    if (_obras.isEmpty) return 0;
+
+    return (_obras.length / _itensPorPagina).ceil();
+  }
+
+  List<Obra> get _obrasPaginaAtual {
+    if (_obras.isEmpty) {
+      return [];
+    }
+
+    final inicio =
+        (_paginaAtual - 1) * _itensPorPagina;
+
+    if (inicio >= _obras.length) {
+      return [];
+    }
+
+    final fim =
+    (inicio + _itensPorPagina > _obras.length)
+        ? _obras.length
+        : inicio + _itensPorPagina;
+
+    return _obras.sublist(inicio, fim);
+  }
+
+  void _alterarPagina(int pagina) {
+    if (pagina < 1 || pagina > _totalPaginas) {
+      return;
+    }
+
+    setState(() {
+      _paginaAtual = pagina;
+    });
+
+    // Volta para o início da lista.
+    // Não interfere no funcionamento do restante da página.
+  }
+
+  // ===========================================================================
+  // ABRIR DETALHES DA OBRA
+  // ===========================================================================
+
+  Future<void> _mostrarDetalhes(Obra obra) async {
+    await mostrarDetalhesObraDialog(
+      context,
+      obra: obra,
+      mostrarAbrir: true,
+      onAbrir: () => _abrirDocumento(obra),
+    );
+  }
+
+  // ===========================================================================
+  // ABRIR DOCUMENTO
+  // ===========================================================================
+
+  Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento;
 
     if (url == null || url.trim().isEmpty) {
@@ -84,27 +157,45 @@ class _CategoriaResultadosPageState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('O endereço do documento é inválido.'),
+          content: Text(
+            'O endereço do documento é inválido.',
+          ),
         ),
       );
 
       return;
     }
 
-    await launchUrl(
+    final abriu = await launchUrl(
       uri,
       mode: LaunchMode.externalApplication,
     );
+
+    if (!abriu && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível abrir o documento.',
+          ),
+        ),
+      );
+    }
   }
+
+  // ===========================================================================
+  // BUILD
+  // ===========================================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black87,
+
         title: Text(
           widget.categoria,
           style: const TextStyle(
@@ -112,6 +203,7 @@ class _CategoriaResultadosPageState
             fontWeight: FontWeight.w600,
           ),
         ),
+
         actions: [
           TextButton(
             onPressed: () {
@@ -119,9 +211,11 @@ class _CategoriaResultadosPageState
             },
             child: const Text('Voltar'),
           ),
+
           const SizedBox(width: 12),
         ],
       ),
+
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
@@ -132,6 +226,10 @@ class _CategoriaResultadosPageState
       ),
     );
   }
+
+  // ===========================================================================
+  // CONTEÚDO
+  // ===========================================================================
 
   Widget _buildConteudo() {
     if (_carregando) {
@@ -155,7 +253,9 @@ class _CategoriaResultadosPageState
                   color: Colors.black87,
                 ),
               ),
+
               const SizedBox(height: 16),
+
               OutlinedButton(
                 onPressed: _carregarObras,
                 child: const Text('Tentar novamente'),
@@ -168,8 +268,10 @@ class _CategoriaResultadosPageState
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Text(
             widget.categoria,
@@ -178,7 +280,9 @@ class _CategoriaResultadosPageState
               fontWeight: FontWeight.w700,
             ),
           ),
+
           const SizedBox(height: 6),
+
           Text(
             'Obras disponíveis nesta categoria.',
             style: TextStyle(
@@ -186,7 +290,9 @@ class _CategoriaResultadosPageState
               color: Colors.grey.shade700,
             ),
           ),
+
           const SizedBox(height: 24),
+
           if (_obras.isEmpty)
             _buildSemResultados()
           else
@@ -196,10 +302,16 @@ class _CategoriaResultadosPageState
     );
   }
 
+  // ===========================================================================
+  // SEM RESULTADOS
+  // ===========================================================================
+
   Widget _buildSemResultados() {
     return Container(
       width: double.infinity,
+
       padding: const EdgeInsets.all(32),
+
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
@@ -207,6 +319,7 @@ class _CategoriaResultadosPageState
           color: Colors.grey.shade300,
         ),
       ),
+
       child: const Column(
         children: [
           Icon(
@@ -214,7 +327,9 @@ class _CategoriaResultadosPageState
             size: 42,
             color: Colors.grey,
           ),
+
           SizedBox(height: 12),
+
           Text(
             'Nenhuma obra encontrada',
             style: TextStyle(
@@ -222,7 +337,9 @@ class _CategoriaResultadosPageState
               fontWeight: FontWeight.w600,
             ),
           ),
+
           SizedBox(height: 6),
+
           Text(
             'Ainda não existem obras publicadas nesta categoria.',
             textAlign: TextAlign.center,
@@ -236,82 +353,46 @@ class _CategoriaResultadosPageState
     );
   }
 
-  Widget _buildListaObras() {
-    return Column(
-      children: _obras.map(_buildObra).toList(),
-    );
-  }
+  // ===========================================================================
+  // LISTA DE OBRAS + PAGINAÇÃO
+  // ===========================================================================
 
-  Widget _buildObra(Obra obra) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(6),
-        onTap: () => _abrirObra(obra),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.description_outlined,
-                size: 30,
-                color: Colors.black54,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      obra.titulo,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (obra.autor != null &&
-                        obra.autor!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Autor: ${obra.autor}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                    if (obra.anoObra != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Ano: ${obra.anoObra}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 15,
-                color: Colors.grey,
-              ),
-            ],
+  Widget _buildListaObras() {
+    final obrasPagina = _obrasPaginaAtual;
+
+    return Column(
+      children: [
+        // ---------------------------------------------------------------------
+        // OBRAS DA PÁGINA ATUAL
+        // ---------------------------------------------------------------------
+
+        ...obrasPagina.map((obra) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 1),
+
+            child: ObraListaItem(
+              obra: obra,
+
+              onTap: () => _mostrarDetalhes(obra),
+
+              mobile:
+              MediaQuery.of(context).size.width < 700,
+            ),
+          );
+        }),
+
+        // ---------------------------------------------------------------------
+        // PAGINAÇÃO
+        // ---------------------------------------------------------------------
+
+        if (_totalPaginas > 1)
+          Paginacao(
+            paginaAtual: _paginaAtual,
+            totalPaginas: _totalPaginas,
+            onPaginaChanged: _alterarPagina,
           ),
-        ),
-      ),
+      ],
     );
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
@@ -34,7 +35,7 @@ class _AcervoResultadosPageState
       ObrasRepository.instancia;
 
   final HistoricoObrasService _historicoService =
-  HistoricoObrasService();
+      HistoricoObrasService.instancia;
 
   final TextEditingController _pesquisaController =
   TextEditingController();
@@ -44,16 +45,17 @@ class _AcervoResultadosPageState
   List<HistoricoObra> _historico = [];
 
   bool _carregando = true;
+
   bool _carregandoHistorico = true;
-  bool _pesquisando = false;
 
   String _filtroCategoria = '';
+
   String _textoPesquisaAtual = '';
 
   final List<String> _categorias = const [
     'Todas',
     'Tese Doutoramento',
-    'Tese Mestrado',
+    'Dissertação de Mestrado',
     'Monografia',
     'Artigos Científicos',
     'Literatura',
@@ -73,22 +75,26 @@ class _AcervoResultadosPageState
     super.initState();
 
     _pesquisaController.text = _query;
+
     _textoPesquisaAtual = _query;
+
     _filtroCategoria = _categoria;
 
     _carregar();
+
     _carregarHistorico();
   }
 
   @override
   void dispose() {
     _pesquisaController.dispose();
+
     super.dispose();
   }
 
-  // ==========================================================
+  // =========================================================
   // CARREGAR OBRAS
-  // ==========================================================
+  // =========================================================
 
   Future<void> _carregar() async {
     if (mounted) {
@@ -102,7 +108,9 @@ class _AcervoResultadosPageState
 
       if (_obraId.isNotEmpty) {
         final obra =
-        await _repository.carregarPorId(_obraId);
+        await _repository.carregarPorId(
+          _obraId,
+        );
 
         resultado =
         obra != null ? [obra] : [];
@@ -113,7 +121,9 @@ class _AcervoResultadosPageState
         );
       } else if (_query.isNotEmpty) {
         resultado =
-        await _repository.pesquisar(_query);
+        await _repository.pesquisar(
+          _query,
+        );
       } else {
         resultado =
         await _repository.carregarObras(
@@ -126,6 +136,7 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = resultado;
+
         _carregando = false;
       });
     } catch (e) {
@@ -137,14 +148,15 @@ class _AcervoResultadosPageState
 
       setState(() {
         _obras = [];
+
         _carregando = false;
       });
     }
   }
 
-  // ==========================================================
+  // =========================================================
   // CARREGAR HISTÓRICO
-  // ==========================================================
+  // =========================================================
 
   Future<void> _carregarHistorico() async {
     if (mounted) {
@@ -155,7 +167,8 @@ class _AcervoResultadosPageState
 
     try {
       final historico =
-      await _historicoService.obterConsultasRecentes(
+      await _historicoService
+          .obterConsultasRecentes(
         limite: 5,
       );
 
@@ -163,6 +176,7 @@ class _AcervoResultadosPageState
 
       setState(() {
         _historico = historico;
+
         _carregandoHistorico = false;
       });
     } catch (e) {
@@ -174,62 +188,28 @@ class _AcervoResultadosPageState
 
       setState(() {
         _historico = [];
+
         _carregandoHistorico = false;
       });
     }
   }
 
-  // ==========================================================
+  // =========================================================
   // PESQUISA
-  // ==========================================================
+  // =========================================================
 
   Future<void> _pesquisar() async {
     final texto =
     _pesquisaController.text.trim();
 
     if (texto.isEmpty) {
-      setState(() {
-        _textoPesquisaAtual = '';
-      });
-
-      await _carregar();
       return;
     }
 
-    if (mounted) {
-      setState(() {
-        _pesquisando = true;
-        _textoPesquisaAtual = texto;
-      });
-    }
-
-    try {
-      final resultado =
-      await _repository.pesquisar(texto);
-
-      if (!mounted) return;
-
-      setState(() {
-        _obras = resultado;
-        _pesquisando = false;
-      });
-    } catch (e) {
-      debugPrint(
-        'ACERVO: erro ao pesquisar: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _obras = [];
-        _pesquisando = false;
-      });
-    }
+    context.go(
+      '/acervo/pesquisa/${Uri.encodeComponent(texto)}',
+    );
   }
-
-  // ==========================================================
-  // LIMPAR PESQUISA
-  // ==========================================================
 
   Future<void> _limparPesquisa() async {
     _pesquisaController.clear();
@@ -240,89 +220,30 @@ class _AcervoResultadosPageState
       });
     }
 
-    await _carregar();
+    context.go('/acervo');
   }
 
-  // ==========================================================
-  // FILTRO POR CATEGORIA
-  // ==========================================================
+  // =========================================================
+  // FILTRO DE CATEGORIA
+  // =========================================================
 
-  Future<void> _filtrarCategoria(
+  void _filtrarCategoria(
       String categoria,
-      ) async {
+      ) {
     if (categoria == 'Todas') {
-      if (mounted) {
-        setState(() {
-          _filtroCategoria = '';
-          _carregando = true;
-        });
-      }
-
-      try {
-        final resultado =
-        await _repository.carregarObras(
-          pagina: 1,
-          limite: 50,
-        );
-
-        if (!mounted) return;
-
-        setState(() {
-          _obras = resultado;
-          _carregando = false;
-        });
-      } catch (e) {
-        debugPrint(
-          'ACERVO: erro ao carregar todas as obras: $e',
-        );
-
-        if (!mounted) return;
-
-        setState(() {
-          _obras = [];
-          _carregando = false;
-        });
-      }
+      context.go('/acervo');
 
       return;
     }
 
-    if (mounted) {
-      setState(() {
-        _filtroCategoria = categoria;
-        _carregando = true;
-      });
-    }
-
-    try {
-      final resultado =
-      await _repository.carregarPorCategoria(
-        categoria,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _obras = resultado;
-        _carregando = false;
-      });
-    } catch (e) {
-      debugPrint(
-        'ACERVO: erro ao filtrar categoria: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _obras = [];
-        _carregando = false;
-      });
-    }
+    context.go(
+      '/categoria/${Uri.encodeComponent(categoria)}',
+    );
   }
 
-  // ==========================================================
+  // =========================================================
   // REGISTRAR CONSULTA
-  // ==========================================================
+  // =========================================================
 
   Future<void> _registrarConsulta(
       Obra obra,
@@ -344,15 +265,13 @@ class _AcervoResultadosPageState
     }
   }
 
-  // ==========================================================
+  // =========================================================
   // ABRIR DETALHES
-  // ==========================================================
+  // =========================================================
 
   Future<void> _abrirDetalhes(
       Obra obra,
       ) async {
-    // Regista a consulta assim que a obra é
-    // selecionada no Acervo.
     await _registrarConsulta(obra);
 
     if (!mounted) return;
@@ -361,24 +280,26 @@ class _AcervoResultadosPageState
       context,
       obra: obra,
       mostrarAbrir: true,
-      onAbrir: () => _abrirDocumento(obra),
+      onAbrir: () =>
+          _abrirDocumento(obra),
     );
   }
 
-  // ==========================================================
+  // =========================================================
   // ABRIR DOCUMENTO
-  // ==========================================================
+  // =========================================================
 
   Future<void> _abrirDocumento(
       Obra obra,
       ) async {
     final url =
-    obra.urlDocumento.trim();
+        obra.urlDocumento?.trim() ?? '';
 
     if (url.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Esta obra não possui documento disponível.',
@@ -396,7 +317,8 @@ class _AcervoResultadosPageState
             uri.scheme != 'https')) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'O endereço do documento é inválido.',
@@ -420,15 +342,14 @@ class _AcervoResultadosPageState
       if (!abriu) {
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
           const SnackBar(
             content: Text(
               'Não foi possível abrir o documento.',
             ),
           ),
         );
-
-        return;
       }
     } catch (e) {
       debugPrint(
@@ -437,26 +358,20 @@ class _AcervoResultadosPageState
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Não foi possível abrir o documento.',
           ),
         ),
       );
-
-      return;
     }
-
-    // IMPORTANTE:
-    // O histórico já foi registado em
-    // _abrirDetalhes().
-    // Não registamos novamente aqui.
   }
 
-  // ==========================================================
+  // =========================================================
   // ABRIR HISTÓRICO COMPLETO
-  // ==========================================================
+  // =========================================================
 
   Future<void> _abrirHistoricoCompleto() async {
     await Navigator.of(context).push(
@@ -469,9 +384,9 @@ class _AcervoResultadosPageState
     await _carregarHistorico();
   }
 
-  // ==========================================================
-  // REMOVER ITEM DO HISTÓRICO
-  // ==========================================================
+  // =========================================================
+  // REMOVER DO HISTÓRICO
+  // =========================================================
 
   Future<void> _removerHistorico(
       HistoricoObra obra,
@@ -491,7 +406,8 @@ class _AcervoResultadosPageState
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Não foi possível remover a consulta.',
@@ -501,9 +417,9 @@ class _AcervoResultadosPageState
     }
   }
 
-  // ==========================================================
+  // =========================================================
   // TÍTULO
-  // ==========================================================
+  // =========================================================
 
   String get _titulo {
     if (_textoPesquisaAtual.isNotEmpty) {
@@ -525,9 +441,9 @@ class _AcervoResultadosPageState
     return 'Acervo';
   }
 
-  // ==========================================================
+  // =========================================================
   // BUILD
-  // ==========================================================
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -551,11 +467,10 @@ class _AcervoResultadosPageState
         CircularProgressIndicator(),
       )
           : LayoutBuilder(
-        builder: (
-            context,
-            constraints,
-            ) {
-          if (constraints.maxWidth < 800) {
+        builder:
+            (context, constraints) {
+          if (constraints.maxWidth <
+              800) {
             return _buildMobile();
           }
 
@@ -565,22 +480,19 @@ class _AcervoResultadosPageState
     );
   }
 
-  // ==========================================================
+  // =========================================================
   // DESKTOP
-  // ==========================================================
+  // =========================================================
 
   Widget _buildDesktop() {
     return Row(
       crossAxisAlignment:
       CrossAxisAlignment.stretch,
       children: [
-        // ====================================================
-        // PAINEL ESQUERDO
-        // ====================================================
-
         Container(
           width: 340,
-          decoration: const BoxDecoration(
+          decoration:
+          const BoxDecoration(
             color: Color(0xfff0f2f5),
             border: Border(
               right: BorderSide(
@@ -622,11 +534,14 @@ class _AcervoResultadosPageState
                         horizontal: 9,
                         vertical: 4,
                       ),
-                      decoration: BoxDecoration(
+                      decoration:
+                      BoxDecoration(
                         color: Colors.white
                             .withOpacity(0.15),
                         borderRadius:
-                        BorderRadius.circular(12),
+                        BorderRadius.circular(
+                          12,
+                        ),
                       ),
                       child: Text(
                         '${_obras.length}',
@@ -686,9 +601,9 @@ class _AcervoResultadosPageState
           ),
         ),
 
-        // ====================================================
+        // ===================================================
         // ÁREA CENTRAL
-        // ====================================================
+        // ===================================================
 
         Expanded(
           child: Column(
@@ -698,13 +613,11 @@ class _AcervoResultadosPageState
                 _pesquisaController,
                 hintText:
                 'Pesquisar no acervo...',
-                pesquisando:
-                _pesquisando,
-                onPesquisar:
-                _pesquisar,
+                onPesquisar: _pesquisar,
                 onLimpar:
                 _limparPesquisa,
               ),
+
               Container(
                 color: Colors.white,
                 padding:
@@ -717,6 +630,7 @@ class _AcervoResultadosPageState
                 child:
                 _buildFiltroCategoria(),
               ),
+
               Expanded(
                 child:
                 _buildHistoricoCentral(),
@@ -728,9 +642,9 @@ class _AcervoResultadosPageState
     );
   }
 
-  // ==========================================================
+  // =========================================================
   // HISTÓRICO CENTRAL
-  // ==========================================================
+  // =========================================================
 
   Widget _buildHistoricoCentral() {
     if (_carregandoHistorico) {
@@ -740,141 +654,100 @@ class _AcervoResultadosPageState
       );
     }
 
-    if (_historico.isEmpty) {
-      return Center(
-        child: Padding(
-          padding:
-          const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize:
-            MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.history,
-                size: 52,
-                color: Colors.black26,
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Histórico de obras consultadas',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight:
-                  FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'As obras que consultar aparecerão aqui.',
-                textAlign:
-                TextAlign.center,
-                style: TextStyle(
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Container(
       width: double.infinity,
-      color:
-      const Color(0xfff8f9fb),
-      child: SingleChildScrollView(
-        padding:
-        const EdgeInsets.fromLTRB(
-          28,
-          28,
-          28,
-          40,
-        ),
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 760,
-          ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+      color: Colors.white,
+      padding:
+      const EdgeInsets.fromLTRB(
+        24,
+        18,
+        24,
+        24,
+      ),
+      child: Column(
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Histórico de obras consultadas',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight:
-                        FontWeight.w600,
-                        color:
-                        Colors.black87,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed:
-                    _abrirHistoricoCompleto,
-                    child: const Text(
-                      'Ver histórico completo',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'As suas últimas consultas aparecem aqui.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.black54,
-                ),
-              ),
-              const SizedBox(height: 18),
-              ..._historico.map(
-                    (obra) => Padding(
-                  padding:
-                  const EdgeInsets.only(
-                    bottom: 10,
-                  ),
-                  child: HistoricoListaItem(
-                    obra: obra,
-                    onAbrir: () =>
-                        _abrirHistoricoDocumento(
-                          obra,
-                        ),
-                    onRemover: () =>
-                        _removerHistorico(
-                          obra,
-                        ),
+              const Expanded(
+                child: Text(
+                  'Consultados recentemente',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight:
+                    FontWeight.w600,
                   ),
                 ),
               ),
+              if (_historico.isNotEmpty)
+                TextButton(
+                  onPressed:
+                  _abrirHistoricoCompleto,
+                  child:
+                  const Text('Ver tudo'),
+                ),
             ],
           ),
-        ),
+
+          const SizedBox(height: 12),
+
+          Expanded(
+            child: _historico.isEmpty
+                ? const Center(
+              child: Text(
+                'Ainda não existem obras consultadas.',
+                style: TextStyle(
+                  color:
+                  Colors.black54,
+                ),
+              ),
+            )
+                : ListView.builder(
+              itemCount:
+              _historico.length,
+              itemBuilder:
+                  (context, index) {
+                final obra =
+                _historico[index];
+
+                return HistoricoListaItem(
+                  obra: obra,
+                  onAbrir: () =>
+                      _abrirHistoricoDocumento(
+                        obra,
+                      ),
+                  onRemover: () =>
+                      _removerHistorico(
+                        obra,
+                      ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // ==========================================================
+  // =========================================================
   // ABRIR DOCUMENTO DO HISTÓRICO
-  // ==========================================================
+  // =========================================================
 
   Future<void> _abrirHistoricoDocumento(
       HistoricoObra obra,
       ) async {
-    final url = obra.urlDocumento;
+    final url =
+        obra.urlDocumento?.trim() ?? '';
 
-    if (url == null ||
-        url.trim().isEmpty) {
+    if (url.isEmpty) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
-            'Documento não disponível.',
+            'Esta obra não possui documento disponível.',
           ),
         ),
       );
@@ -882,18 +755,18 @@ class _AcervoResultadosPageState
       return;
     }
 
-    final uri =
-    Uri.tryParse(url.trim());
+    final uri = Uri.tryParse(url);
 
     if (uri == null ||
         (uri.scheme != 'http' &&
             uri.scheme != 'https')) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
-            'Endereço do documento inválido.',
+            'O endereço do documento é inválido.',
           ),
         ),
       );
@@ -908,36 +781,24 @@ class _AcervoResultadosPageState
       );
 
       if (!abriu && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
           const SnackBar(
             content: Text(
               'Não foi possível abrir o documento.',
             ),
           ),
         );
-
-        return;
-      }
-
-      // Mantém o comportamento actual:
-      // ao abrir novamente uma obra pelo histórico,
-      // actualiza a sua posição no histórico.
-      if (abriu) {
-        await _historicoService
-            .registrarConsulta(
-          obraId: obra.obraId,
-        );
-
-        await _carregarHistorico();
       }
     } catch (e) {
       debugPrint(
-        'ACERVO: erro ao abrir histórico: $e',
+        'ACERVO: erro ao abrir documento do histórico: $e',
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Não foi possível abrir o documento.',
@@ -947,16 +808,14 @@ class _AcervoResultadosPageState
     }
   }
 
-  // ==========================================================
-  // FILTRO
-  // ==========================================================
+  // =========================================================
+  // FILTRO DE CATEGORIA
+  // =========================================================
 
   Widget _buildFiltroCategoria() {
     return PopupMenuButton<String>(
-      tooltip:
-      'Filtrar por categoria',
-      onSelected:
-      _filtrarCategoria,
+      tooltip: 'Filtrar por categoria',
+      onSelected: _filtrarCategoria,
       itemBuilder: (context) {
         return _categorias.map(
               (categoria) {
@@ -994,8 +853,7 @@ class _AcervoResultadosPageState
           borderRadius:
           BorderRadius.circular(6),
           border: Border.all(
-            color:
-            const Color(0xffd8dadd),
+            color: const Color(0xffd8dadd),
           ),
           color: Colors.white,
         ),
@@ -1008,9 +866,9 @@ class _AcervoResultadosPageState
     );
   }
 
-  // ==========================================================
+  // =========================================================
   // MOBILE
-  // ==========================================================
+  // =========================================================
 
   Widget _buildMobile() {
     return Column(
@@ -1020,157 +878,136 @@ class _AcervoResultadosPageState
           _pesquisaController,
           hintText:
           'Pesquisar no acervo...',
-          pesquisando:
-          _pesquisando,
-          onPesquisar:
-          _pesquisar,
+          onPesquisar: _pesquisar,
           onLimpar:
           _limparPesquisa,
         ),
+
         Container(
+          width: double.infinity,
           color: Colors.white,
           padding:
-          const EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            10,
+          const EdgeInsets.only(
+            right: 16,
+            bottom: 10,
           ),
           alignment:
           Alignment.centerRight,
           child:
           _buildFiltroCategoria(),
         ),
+
         Expanded(
-          child:
-          _buildMobileConteudo(),
+          child: _buildMobileConteudo(),
         ),
       ],
     );
   }
 
   Widget _buildMobileConteudo() {
-    return ListView(
-      padding:
-      const EdgeInsets.all(16),
-      children: [
-        _buildHistoricoMobile(),
-
-        if (_obras.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const Text(
-            'Publicações',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight:
-              FontWeight.w600,
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding:
+            const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            decoration:
+            const BoxDecoration(
+              color: Color(0xff1565C0),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Publicações',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight:
+                      FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${_obras.length}',
+                  style:
+                  const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          ..._obras.map(
-                (obra) => ObraListaItem(
-              obra: obra,
-              mobile: true,
-              onTap: () =>
-                  _abrirDetalhes(obra),
+
+          Expanded(
+            child: _obras.isEmpty
+                ? const Center(
+              child: Padding(
+                padding:
+                EdgeInsets.all(20),
+                child: Text(
+                  'Nenhuma publicação encontrada.',
+                  textAlign:
+                  TextAlign.center,
+                  style: TextStyle(
+                    color:
+                    Colors.black54,
+                  ),
+                ),
+              ),
+            )
+                : ListView.builder(
+              padding:
+              const EdgeInsets.only(
+                top: 8,
+                bottom: 8,
+              ),
+              itemCount:
+              _obras.length,
+              itemBuilder:
+                  (context, index) {
+                final obra =
+                _obras[index];
+
+                return ObraListaItem(
+                  obra: obra,
+                  mobile: true,
+                  onTap: () =>
+                      _abrirDetalhes(
+                        obra,
+                      ),
+                );
+              },
             ),
           ),
         ],
-
-        if (_obras.isEmpty &&
-            _historico.isEmpty)
-          const Padding(
-            padding:
-            EdgeInsets.only(top: 60),
-            child: Center(
-              child: Text(
-                'Nenhuma publicação encontrada.',
-                style: TextStyle(
-                  color:
-                  Colors.black54,
-                ),
-              ),
-            ),
-          ),
-      ],
+      ),
     );
   }
 
-  // ==========================================================
+  // =========================================================
   // HISTÓRICO MOBILE
-  // ==========================================================
+  // =========================================================
 
   Widget _buildHistoricoMobile() {
     if (_carregandoHistorico) {
-      return const Padding(
-        padding:
-        EdgeInsets.all(30),
-        child: Center(
-          child:
-          CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (_historico.isEmpty) {
-      return Container(
-        padding:
-        const EdgeInsets.all(24),
-        decoration:
-        BoxDecoration(
-          color: Colors.white,
-          borderRadius:
-          BorderRadius.circular(8),
-          border: Border.all(
-            color:
-            const Color(0xffe1e4e8),
-          ),
-        ),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.history,
-              size: 42,
-              color: Colors.black26,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Histórico de obras consultadas',
-              textAlign:
-              TextAlign.center,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight:
-                FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'As obras que consultar aparecerão aqui.',
-              textAlign:
-              TextAlign.center,
-              style: TextStyle(
-                color: Colors.black54,
-              ),
-            ),
-          ],
-        ),
+      return const Center(
+        child:
+        CircularProgressIndicator(),
       );
     }
 
     return Container(
+      width: double.infinity,
+      color: Colors.white,
       padding:
-      const EdgeInsets.all(18),
-      decoration:
-      BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-        BorderRadius.circular(8),
-        border: Border.all(
-          color:
-          const Color(0xffe1e4e8),
-        ),
-      ),
+      const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
@@ -1179,7 +1016,7 @@ class _AcervoResultadosPageState
             children: [
               const Expanded(
                 child: Text(
-                  'Histórico de obras consultadas',
+                  'Consultados recentemente',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight:
@@ -1187,32 +1024,51 @@ class _AcervoResultadosPageState
                   ),
                 ),
               ),
-              TextButton(
-                onPressed:
-                _abrirHistoricoCompleto,
-                child:
-                const Text('Ver tudo'),
-              ),
+              if (_historico.isNotEmpty)
+                TextButton(
+                  onPressed:
+                  _abrirHistoricoCompleto,
+                  child:
+                  const Text('Ver tudo'),
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-          ..._historico.map(
-                (obra) => Padding(
-              padding:
-              const EdgeInsets.only(
-                bottom: 8,
+
+          const SizedBox(height: 8),
+
+          Expanded(
+            child: _historico.isEmpty
+                ? const Center(
+              child: Text(
+                'Ainda não existem obras consultadas.',
+                textAlign:
+                TextAlign.center,
+                style: TextStyle(
+                  color:
+                  Colors.black54,
+                ),
               ),
-              child: HistoricoListaItem(
-                obra: obra,
-                onAbrir: () =>
-                    _abrirHistoricoDocumento(
-                      obra,
-                    ),
-                onRemover: () =>
-                    _removerHistorico(
-                      obra,
-                    ),
-              ),
+            )
+                : ListView.builder(
+              itemCount:
+              _historico.length,
+              itemBuilder:
+                  (context, index) {
+                final obra =
+                _historico[index];
+
+                return HistoricoListaItem(
+                  obra: obra,
+                  onAbrir: () =>
+                      _abrirHistoricoDocumento(
+                        obra,
+                      ),
+                  onRemover: () =>
+                      _removerHistorico(
+                        obra,
+                      ),
+                );
+              },
             ),
           ),
         ],

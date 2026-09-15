@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,7 +14,11 @@ import '../pages/minha_conta_page.dart';
 import '../pages/configuracoes_page.dart';
 import '../pages/publicar_obra_page.dart';
 import '../pages/historico_obras_page.dart';
+
 import '../pages/acervo_resultados_page.dart';
+import '../pages/acervo_pesquisa_resultados_page.dart';
+import '../pages/pesquisa_resultados_page.dart';
+
 import '../pages/categorias_page.dart';
 import '../pages/categoria_resultados_page.dart';
 
@@ -26,20 +31,30 @@ import '../pages/cookies_page.dart';
 import '../pages/contacto_page.dart';
 import '../pages/ajuda_page.dart';
 
-final AuthService _authService = AuthService.instancia;
+final AuthService _authService =
+    AuthService.instancia;
 
 final GoRouter router = GoRouter(
   initialLocation: '/login',
 
-  refreshListenable: GoRouterRefreshStream(
-    Supabase.instance.client.auth.onAuthStateChange,
+  refreshListenable:
+  GoRouterRefreshStream(
+    Supabase
+        .instance
+        .client
+        .auth
+        .onAuthStateChange,
   ),
 
   redirect: (context, state) {
-    final estaAutenticado = _authService.estaAutenticado;
-    final caminho = state.uri.path;
+    final estaAutenticado =
+        _authService.estaAutenticado;
 
-    final rotasPublicas = <String>{
+    final caminho =
+        state.uri.path;
+
+    final rotasPublicas =
+    <String>{
       '/login',
       '/cadastro',
       '/auth/callback',
@@ -50,14 +65,19 @@ final GoRouter router = GoRouter(
       '/ajuda',
     };
 
-    final ehRotaPublica = rotasPublicas.contains(caminho);
+    final ehRotaPublica =
+    rotasPublicas.contains(
+      caminho,
+    );
 
-    if (!estaAutenticado && !ehRotaPublica) {
+    if (!estaAutenticado &&
+        !ehRotaPublica) {
       return '/login';
     }
 
     if (estaAutenticado &&
-        (caminho == '/login' || caminho == '/cadastro')) {
+        (caminho == '/login' ||
+            caminho == '/cadastro')) {
       return '/';
     }
 
@@ -66,22 +86,33 @@ final GoRouter router = GoRouter(
 
   routes: [
     // ============================================================
-    // AUTENTICAÇÃO
+    // LOGIN
     // ============================================================
 
     GoRoute(
       path: '/login',
-      builder: (context, state) => const LoginPage(),
+      builder: (context, state) =>
+      const LoginPage(),
     ),
+
+    // ============================================================
+    // CADASTRO
+    // ============================================================
 
     GoRoute(
       path: '/cadastro',
-      builder: (context, state) => const CadastroPage(),
+      builder: (context, state) =>
+      const CadastroPage(),
     ),
+
+    // ============================================================
+    // CALLBACK AUTENTICAÇÃO
+    // ============================================================
 
     GoRoute(
       path: '/auth/callback',
-      builder: (context, state) => const AuthCallbackPage(),
+      builder: (context, state) =>
+      const AuthCallbackPage(),
     ),
 
     // ============================================================
@@ -90,7 +121,8 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/',
-      builder: (context, state) => const HomePage(),
+      builder: (context, state) =>
+      const HomePage(),
     ),
 
     // ============================================================
@@ -99,7 +131,8 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/categorias',
-      builder: (context, state) => const CategoriasPage(),
+      builder: (context, state) =>
+      const CategoriasPage(),
     ),
 
     // ============================================================
@@ -110,7 +143,9 @@ final GoRouter router = GoRouter(
       path: '/categoria/:tipo',
       builder: (context, state) {
         final categoria =
-            state.pathParameters['tipo'] ?? '';
+            state.pathParameters[
+            'tipo'] ??
+                '';
 
         return CategoriaResultadosPage(
           categoria: categoria,
@@ -126,7 +161,8 @@ final GoRouter router = GoRouter(
       path: '/acervo',
       builder: (context, state) {
         final obraId =
-        state.uri.queryParameters['obra'];
+        state.uri.queryParameters[
+        'obra'];
 
         return AcervoResultadosPage(
           obraId: obraId,
@@ -135,23 +171,44 @@ final GoRouter router = GoRouter(
     ),
 
     // ============================================================
-    // PESQUISA
+    // PESQUISA DENTRO DO ACERVO
     // ============================================================
 
     GoRoute(
-      path: '/search/:query',
+      path:
+      '/acervo/pesquisa/:query',
       builder: (context, state) {
         final query =
-        state.pathParameters['query'];
+            state.pathParameters[
+            'query'] ??
+                '';
 
-        return AcervoResultadosPage(
+        return AcervoPesquisaResultadosPage(
           query: query,
         );
       },
     ),
 
     // ============================================================
-    // CONTA DO UTILIZADOR
+    // PESQUISA GERAL
+    // ============================================================
+
+    GoRoute(
+      path: '/search/:query',
+      builder: (context, state) {
+        final query =
+            state.pathParameters[
+            'query'] ??
+                '';
+
+        return PesquisaResultadosPage(
+          query: query,
+        );
+      },
+    ),
+
+    // ============================================================
+    // MINHA CONTA
     // ============================================================
 
     GoRoute(
@@ -160,6 +217,10 @@ final GoRouter router = GoRouter(
       const MinhaContaPage(),
     ),
 
+    // ============================================================
+    // CONFIGURAÇÕES
+    // ============================================================
+
     GoRoute(
       path: '/configuracoes',
       builder: (context, state) =>
@@ -167,7 +228,7 @@ final GoRouter router = GoRouter(
     ),
 
     // ============================================================
-    // PUBLICAÇÃO
+    // PUBLICAR OBRA
     // ============================================================
 
     GoRoute(
@@ -175,6 +236,10 @@ final GoRouter router = GoRouter(
       builder: (context, state) =>
       const PublicarObraPage(),
     ),
+
+    // ============================================================
+    // HISTÓRICO
+    // ============================================================
 
     GoRoute(
       path: '/historico-obras',
@@ -193,7 +258,8 @@ final GoRouter router = GoRouter(
     ),
 
     GoRoute(
-      path: '/admin-solicitacoes-remocao',
+      path:
+      '/admin-solicitacoes-remocao',
       builder: (context, state) =>
       const AdminSolicitacoesRemocaoPage(),
     ),
@@ -209,7 +275,8 @@ final GoRouter router = GoRouter(
     ),
 
     GoRoute(
-      path: '/politica-privacidade',
+      path:
+      '/politica-privacidade',
       builder: (context, state) =>
       const PoliticaPrivacidadePage(),
     ),
@@ -234,23 +301,29 @@ final GoRouter router = GoRouter(
   ],
 );
 
+// ================================================================
+// REFRESH DO GO_ROUTER COM O ESTADO DE AUTENTICAÇÃO
+// ================================================================
 
-// ============================================================
-// REFRESH DO GO_ROUTER A PARTIR DO SUPABASE AUTH
-// ============================================================
-
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen(
+class GoRouterRefreshStream
+    extends ChangeNotifier {
+  GoRouterRefreshStream(
+      Stream<dynamic> stream,
+      ) {
+    _subscription = stream
+        .asBroadcastStream()
+        .listen(
           (_) => notifyListeners(),
     );
   }
 
-  late final StreamSubscription<dynamic> _subscription;
+  late final StreamSubscription<dynamic>
+  _subscription;
 
   @override
   void dispose() {
     _subscription.cancel();
+
     super.dispose();
   }
 }

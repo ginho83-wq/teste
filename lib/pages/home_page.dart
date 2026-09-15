@@ -32,7 +32,7 @@ class _HomePageState extends State<HomePage> {
       AuthService.instancia;
 
   final HistoricoObrasService _historicoService =
-  HistoricoObrasService();
+  HistoricoObrasService.instancia;
 
   final TextEditingController _pesquisaController =
   TextEditingController();

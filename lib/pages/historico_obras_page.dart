@@ -13,7 +13,7 @@ class HistoricoObrasPage extends StatefulWidget {
 }
 
 class _HistoricoObrasPageState extends State<HistoricoObrasPage> {
-  final HistoricoObrasService _service = HistoricoObrasService();
+  final HistoricoObrasService _service = HistoricoObrasService.instancia;
 
   List<HistoricoObra> _historico = [];
   bool _carregando = true;

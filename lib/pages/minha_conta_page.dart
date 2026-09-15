@@ -32,7 +32,7 @@ class _MinhaContaPageState
       SolicitacoesRemocaoRepository.instancia;
 
   final HistoricoObrasService _historicoService =
-  HistoricoObrasService();
+  HistoricoObrasService.instancia;
 
   Map<String, dynamic>? _perfil;
 

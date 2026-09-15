@@ -1,9 +1,15 @@
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/historico_obra.dart';
 import '../repositories/historico_obras_repository.dart';
 
 class HistoricoObrasService {
+  HistoricoObrasService._();
+
+  static final HistoricoObrasService instancia =
+  HistoricoObrasService._();
+
   final HistoricoObrasRepository _repository =
   HistoricoObrasRepository();
 
@@ -119,3 +125,4 @@ class HistoricoObrasService {
     );
   }
 }
+
