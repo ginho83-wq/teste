@@ -1,3 +1,6 @@
+
+
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -11,8 +14,8 @@ class CategoriasPage extends StatelessWidget {
       icone: Icons.school_outlined,
     ),
     _Categoria(
-      nome: 'Tese Mestrado',
-      descricao: 'Teses e dissertações de mestrado.',
+      nome: 'Dissertação de Mestrado',
+      descricao: 'Dissertações e trabalhos académico de mestrado.',
       icone: Icons.menu_book_outlined,
     ),
     _Categoria(
@@ -320,3 +323,5 @@ class _Categoria {
     required this.icone,
   });
 }
+
+

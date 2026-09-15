@@ -633,7 +633,7 @@ class _HomePageState extends State<HomePage> {
       icone: Icons.school_outlined,
       ),
       (
-      nome: 'Tese Mestrado',
+      nome: 'Dissertação de Mestrado',
       icone: Icons.menu_book_outlined,
       ),
       (
