@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ginho83-wq.github.io/teste/sitemap.xml
