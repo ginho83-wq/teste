@@ -29,9 +29,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _carregando = false;
   bool _mostrarSenha = false;
 
-  // Controla se os campos de email e palavra-passe aparecem.
-  bool _mostrarFormulario = false;
-
   // ============================================================
   // LOGIN COM EMAIL E PALAVRA-PASSE
   // ============================================================
@@ -58,11 +55,14 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (!mounted) return;
+
       context.go('/');
     } on AuthException catch (e) {
       _mostrarMensagem(e.message);
     } catch (e) {
-      _mostrarMensagem('Erro ao entrar: $e');
+      _mostrarMensagem(
+        'Erro ao entrar: $e',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
       await AuthService.instancia.entrarComGoogle();
 
       // O Google redireciona para /auth/callback.
-      // O GoRouter trata a sessão e encaminha para a página principal.
+      // O GoRouter trata a sessão e encaminha para a Home.
     } on AuthException catch (e) {
       _mostrarMensagem(e.message);
 
@@ -108,107 +108,157 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // ============================================================
-  // ABRIR FORMULÁRIO DE LOGIN
+  // RECUPERAR PALAVRA-PASSE
   // ============================================================
 
-  void _abrirFormularioLogin() {
-    if (_carregando) return;
+  Future<void> _recuperarPalavraPasse() async {
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
 
-    setState(() {
-      _mostrarFormulario = true;
-    });
-  }
+    final email = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        bool enviando = false;
 
-  // ============================================================
-  // MENU PLATAFORMA
-  // ============================================================
+        return StatefulBuilder(
+          builder: (
+              context,
+              setStateDialog,
+              ) {
+            return AlertDialog(
+              title: const Text(
+                'Recuperar palavra-passe',
+              ),
+              content: SizedBox(
+                width: 380,
+                child: TextField(
+                  controller: emailController,
+                  keyboardType:
+                  TextInputType.emailAddress,
+                  autofocus: true,
+                  enabled: !enviando,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText:
+                    'Digite o email da sua conta',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: enviando
+                      ? null
+                      : () {
+                    Navigator.of(
+                      dialogContext,
+                    ).pop();
+                  },
+                  child: const Text(
+                    'Cancelar',
+                  ),
+                ),
+                FilledButton(
+                  onPressed: enviando
+                      ? null
+                      : () async {
+                    final email =
+                    emailController.text.trim();
 
-  Widget _menuPlataforma() {
-    return PopupMenuButton<String>(
-      enabled: !_carregando,
-      tooltip: 'Plataforma',
-      offset: const Offset(0, 45),
-      onSelected: (valor) {
-        switch (valor) {
-          case 'inicio':
-            context.go('/');
-            break;
+                    if (email.isEmpty) {
+                      ScaffoldMessenger.of(
+                        dialogContext,
+                      ).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Informe o seu email.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
 
-          case 'acervo':
-            context.push('/acervo');
-            break;
+                    setStateDialog(() {
+                      enviando = true;
+                    });
 
-          case 'pesquisar':
-            context.push('/acervo');
-            break;
+                    try {
+                      await AuthService
+                          .instancia
+                          .recuperarPalavraPasse(
+                        email: email,
+                      );
 
-          case 'publicar':
-            context.push('/publicar');
-            break;
+                      if (!dialogContext.mounted) {
+                        return;
+                      }
 
-          case 'sobre':
-            context.push('/sobre');
-            break;
+                      Navigator.of(
+                        dialogContext,
+                      ).pop(email);
+                    } on AuthException catch (e) {
+                      setStateDialog(() {
+                        enviando = false;
+                      });
 
-          case 'contacto':
-            context.push('/contacto');
-            break;
+                      ScaffoldMessenger.of(
+                        dialogContext,
+                      ).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            e.message,
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      setStateDialog(() {
+                        enviando = false;
+                      });
 
-          case 'termos':
-            context.push('/termos');
-            break;
-
-          case 'privacidade':
-            context.push('/politica-privacidade');
-            break;
-        }
+                      ScaffoldMessenger.of(
+                        dialogContext,
+                      ).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Erro ao enviar o email: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: enviando
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child:
+                    CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
+                    'Enviar',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem<String>(
-          value: 'inicio',
-          child: Text('Início'),
-        ),
-        PopupMenuItem<String>(
-          value: 'acervo',
-          child: Text('Acervo'),
-        ),
-        PopupMenuItem<String>(
-          value: 'pesquisar',
-          child: Text('Pesquisar obras'),
-        ),
-        PopupMenuItem<String>(
-          value: 'publicar',
-          child: Text('Publicar uma obra'),
-        ),
-        PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'sobre',
-          child: Text('Sobre a plataforma'),
-        ),
-        PopupMenuItem<String>(
-          value: 'contacto',
-          child: Text('Contacto'),
-        ),
-        PopupMenuItem<String>(
-          value: 'termos',
-          child: Text('Termos de Uso'),
-        ),
-        PopupMenuItem<String>(
-          value: 'privacidade',
-          child: Text('Política de Privacidade'),
-        ),
-      ],
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Plataforma'),
-          SizedBox(width: 3),
-          Icon(
-            Icons.keyboard_arrow_down,
-            size: 18,
-          ),
-        ],
-      ),
+    );
+
+    emailController.dispose();
+
+    if (!mounted || email == null) {
+      return;
+    }
+
+    _mostrarMensagem(
+      'Enviámos um link de recuperação para $email. '
+          'Verifique o seu email.',
     );
   }
 
@@ -219,234 +269,28 @@ class _LoginPageState extends State<LoginPage> {
   void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-      ),
-    );
-  }
-
-  // ============================================================
-  // LINKS DO RODAPÉ
-  // ============================================================
-
-  Widget _linkRodape(
-      BuildContext context,
-      String texto,
-      String rota,
-      ) {
-    return TextButton(
-      onPressed: _carregando
-          ? null
-          : () {
-        context.push(rota);
-      },
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 5,
-          vertical: 4,
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
         ),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      child: Text(
-        texto,
-        style: TextStyle(
-          color: Colors.grey.shade600,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _separadorRodape() {
-    return Text(
-      '•',
-      style: TextStyle(
-        color: Colors.grey.shade400,
-        fontSize: 12,
-      ),
-    );
-  }
-
-  // ============================================================
-  // DISPOSE
-  // ============================================================
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _senhaController.dispose();
-    super.dispose();
-  }
-
-  // ============================================================
-  // INTERFACE
-  // ============================================================
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // ==================================================
-            // NOME DO SITE — CANTO SUPERIOR ESQUERDO
-            // ==================================================
-
-            Positioned(
-              top: 16,
-              left: 20,
-              child: Text(
-                'Teste',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-
-            // ==================================================
-            // PLATAFORMA + ENTRAR + CRIAR CONTA
-            // CANTO SUPERIOR DIREITO
-            // ==================================================
-
-            Positioned(
-              top: 10,
-              right: 12,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // PLATAFORMA
-                  _menuPlataforma(),
-
-                  // ENTRAR
-                  TextButton(
-                    onPressed: _carregando
-                        ? null
-                        : _abrirFormularioLogin,
-                    child: const Text('Entrar'),
-                  ),
-
-                  // CRIAR CONTA
-                  TextButton(
-                    onPressed: _carregando
-                        ? null
-                        : () {
-                      context.go('/cadastro');
-                    },
-                    child: const Text('Criar conta'),
-                  ),
-                ],
-              ),
-            ),
-
-            // ==================================================
-            // CONTEÚDO CENTRAL
-            // ==================================================
-
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 420,
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(
-                      milliseconds: 200,
-                    ),
-                    child: _mostrarFormulario
-                        ? _buildFormularioLogin(theme)
-                        : _buildLoginInicial(theme),
-                  ),
-                ),
-              ),
-            ),
-
-            // ==================================================
-            // LINKS INSTITUCIONAIS — CANTO INFERIOR DIREITO
-            // ==================================================
-
-            Positioned(
-              right: 20,
-              bottom: 14,
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment:
-                WrapCrossAlignment.center,
-                children: [
-                  _linkRodape(
-                    context,
-                    'Contacto',
-                    '/contacto',
-                  ),
-                  _separadorRodape(),
-                  _linkRodape(
-                    context,
-                    'Termos',
-                    '/termos',
-                  ),
-                  _separadorRodape(),
-                  _linkRodape(
-                    context,
-                    'Privacidade',
-                    '/politica-privacidade',
-                  ),
-                  _separadorRodape(),
-                  _linkRodape(
-                    context,
-                    'Ajuda',
-                    '/ajuda',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // TELA INICIAL
-  // ============================================================
-
-  Widget _buildLoginInicial(ThemeData theme) {
-    return Column(
-      key: const ValueKey('inicio'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Explore, consulte e publique obras académicas e conteúdos de conhecimento.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-            fontSize: 16,
-            height: 1.5,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ],
-    );
+      );
   }
 
   // ============================================================
   // FORMULÁRIO DE LOGIN
   // ============================================================
 
-  Widget _buildFormularioLogin(ThemeData theme) {
+  Widget _buildFormularioLogin(
+      ThemeData theme,
+      ) {
     return Column(
-      key: const ValueKey('formulario'),
       mainAxisSize: MainAxisSize.min,
       children: [
-        // ==================================================
+        // ======================================================
         // EMAIL
-        // ==================================================
+        // ======================================================
 
         TextField(
           controller: _emailController,
@@ -465,9 +309,9 @@ class _LoginPageState extends State<LoginPage> {
 
         const SizedBox(height: 16),
 
-        // ==================================================
+        // ======================================================
         // PALAVRA-PASSE
-        // ==================================================
+        // ======================================================
 
         TextField(
           controller: _senhaController,
@@ -503,19 +347,47 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
 
-        const SizedBox(height: 20),
+        // ======================================================
+        // ESQUECEU A PALAVRA-PASSE?
+        // ======================================================
 
-        // ==================================================
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _carregando
+                ? null
+                : _recuperarPalavraPasse,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 2,
+                vertical: 6,
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize:
+              MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Esqueceu a palavra-passe?',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // ======================================================
         // BOTÃO ENTRAR
-        // ==================================================
+        // ======================================================
 
         SizedBox(
           width: double.infinity,
           height: 48,
           child: FilledButton(
-            onPressed: _carregando
-                ? null
-                : _entrar,
+            onPressed:
+            _carregando ? null : _entrar,
             child: _carregando
                 ? const SizedBox(
               width: 22,
@@ -525,17 +397,15 @@ class _LoginPageState extends State<LoginPage> {
                 strokeWidth: 2,
               ),
             )
-                : const Text(
-              'Entrar',
-            ),
+                : const Text('Entrar'),
           ),
         ),
 
         const SizedBox(height: 12),
 
-        // ==================================================
-        // BOTÃO CONTINUAR COM GOOGLE
-        // ==================================================
+        // ======================================================
+        // GOOGLE
+        // ======================================================
 
         SizedBox(
           width: double.infinity,
@@ -555,5 +425,110 @@ class _LoginPageState extends State<LoginPage> {
       ],
     );
   }
-}
 
+  // ============================================================
+  // INTERFACE
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // ==================================================
+            // NOME DO SITE — CANTO SUPERIOR ESQUERDO
+            // ==================================================
+
+            Positioned(
+              top: 16,
+              left: 20,
+              child: Text(
+                'Teste',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color:
+                  theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+
+            // ==================================================
+            // CONTEÚDO CENTRAL
+            // ==================================================
+
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 80,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 430,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ==================================================
+                      // TÍTULO
+                      // ==================================================
+
+                      Text(
+                        'Entrar',
+                        style: theme
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                          fontWeight:
+                          FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        'Aceda à sua conta',
+                        style: theme
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                          color:
+                          Colors.grey.shade600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // ==================================================
+                      // FORMULÁRIO
+                      // ==================================================
+
+                      _buildFormularioLogin(theme),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _senhaController.dispose();
+    super.dispose();
+  }
+}
