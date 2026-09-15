@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -27,11 +26,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository =
-      ObrasRepository.instancia;
+  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
 
-  final AuthService _authService =
-      AuthService.instancia;
+  final AuthService _authService = AuthService.instancia;
 
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
@@ -304,8 +301,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _abrirDocumento(Obra obra) async {
-    final url =
-    (obra.urlDocumento ?? '').trim();
+    final url = obra.urlDocumento.trim();
 
     if (url.isEmpty) {
       _mostrarMensagem(
@@ -489,10 +485,6 @@ class _HomePageState extends State<HomePage> {
       ),
 
       actions: [
-        // ======================================================
-        // PLATAFORMA
-        // ======================================================
-
         TextButton(
           onPressed: () {
             context.go('/plataforma');
@@ -507,10 +499,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
 
-        // ======================================================
-        // ACERVO
-        // ======================================================
-
         TextButton(
           onPressed: () {
             context.go('/acervo');
@@ -524,10 +512,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-
-        // ======================================================
-        // UTILIZADOR AUTENTICADO
-        // ======================================================
 
         if (estaAutenticado) ...[
           if (!_carregandoPerfil && _ehAdmin)
@@ -573,17 +557,13 @@ class _HomePageState extends State<HomePage> {
                 switch (value) {
                   case 'conta':
                     if (mounted) {
-                      context.go(
-                        '/minha-conta',
-                      );
+                      context.go('/minha-conta');
                     }
                     break;
 
                   case 'configuracoes':
                     if (mounted) {
-                      context.go(
-                        '/configuracoes',
-                      );
+                      context.go('/configuracoes');
                     }
                     break;
 
@@ -593,9 +573,6 @@ class _HomePageState extends State<HomePage> {
 
                       if (!mounted) return;
 
-                      // IMPORTANTE:
-                      // depois do logout, não voltar para "/".
-                      // "/login" é o destino correto.
                       context.go('/login');
                     } catch (e) {
                       debugPrint(
@@ -678,13 +655,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-        ]
-
-        // ======================================================
-        // VISITANTE
-        // ======================================================
-
-        else ...[
+        ] else ...[
           const SizedBox(width: 4),
 
           TextButton(
@@ -774,12 +745,9 @@ class _HomePageState extends State<HomePage> {
 
               BarraPesquisa(
                 controller: _pesquisaController,
-                hintText:
-                'Pesquisar obras académicas',
-                onPesquisar:
-                _executarPesquisa,
-                onLimpar:
-                _limparPesquisa,
+                hintText: 'Pesquisar obras académicas',
+                onPesquisar: _executarPesquisa,
+                onLimpar: _limparPesquisa,
               ),
             ],
           ),
@@ -830,8 +798,7 @@ class _HomePageState extends State<HomePage> {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final largura =
-                  constraints.maxWidth;
+              final largura = constraints.maxWidth;
 
               final colunas = largura >= 900
                   ? 5
@@ -848,21 +815,18 @@ class _HomePageState extends State<HomePage> {
                       colunas;
 
               return Wrap(
-                alignment:
-                WrapAlignment.center,
+                alignment: WrapAlignment.center,
                 spacing: espacamento,
                 runSpacing: 20,
                 children: categorias
                     .map(
-                      (categoria) =>
-                      SizedBox(
-                        width: itemLargura,
-                        child:
-                        _buildCategoriaItem(
-                          categoria.nome,
-                          categoria.icone,
-                        ),
-                      ),
+                      (categoria) => SizedBox(
+                    width: itemLargura,
+                    child: _buildCategoriaItem(
+                      categoria.nome,
+                      categoria.icone,
+                    ),
+                  ),
                 )
                     .toList(),
               );
@@ -884,11 +848,9 @@ class _HomePageState extends State<HomePage> {
               '${Uri.encodeComponent(nome)}',
         );
       },
-      borderRadius:
-      BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(6),
       child: Padding(
-        padding:
-        const EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
           vertical: 8,
           horizontal: 6,
         ),
@@ -899,21 +861,17 @@ class _HomePageState extends State<HomePage> {
             Icon(
               icone,
               size: 23,
-              color:
-              const Color(0xFF444444),
+              color: const Color(0xFF444444),
             ),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
                 nome,
-                textAlign:
-                TextAlign.center,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 15,
-                  fontWeight:
-                  FontWeight.w300,
-                  color:
-                  Color(0xFF333333),
+                  fontWeight: FontWeight.w300,
+                  color: Color(0xFF333333),
                 ),
               ),
             ),
@@ -931,15 +889,13 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding:
-      const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 44,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
+          constraints: const BoxConstraints(
             maxWidth: 1100,
           ),
           child: Column(
@@ -950,10 +906,8 @@ class _HomePageState extends State<HomePage> {
                 'Publicações recentes',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight:
-                  FontWeight.w700,
-                  color:
-                  Color(0xFF222222),
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
                 ),
               ),
 
@@ -963,8 +917,7 @@ class _HomePageState extends State<HomePage> {
                 'Confira as obras publicadas recentemente.',
                 style: TextStyle(
                   fontSize: 14,
-                  color:
-                  Color(0xFF777777),
+                  color: Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
@@ -974,33 +927,24 @@ class _HomePageState extends State<HomePage> {
               if (_carregandoObras)
                 const Center(
                   child: Padding(
-                    padding:
-                    EdgeInsets.all(30),
-                    child:
-                    CircularProgressIndicator(),
+                    padding: EdgeInsets.all(30),
+                    child: CircularProgressIndicator(),
                   ),
                 )
-              else if (_obrasRecentes
-                  .isEmpty)
+              else if (_obrasRecentes.isEmpty)
                 _buildEstadoVazio(
                   'Ainda não existem publicações disponíveis.',
                 )
               else
                 Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
-                  children:
-                  _obrasRecentes
+                  CrossAxisAlignment.start,
+                  children: _obrasRecentes
                       .map(
-                        (obra) =>
-                        ObraListaItem(
-                          obra: obra,
-                          onTap: () =>
-                              _abrirObra(
-                                obra,
-                              ),
-                        ),
+                        (obra) => ObraListaItem(
+                      obra: obra,
+                      onTap: () => _abrirObra(obra),
+                    ),
                   )
                       .toList(),
                 ),
@@ -1026,15 +970,13 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding:
-      const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 44,
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
+          constraints: const BoxConstraints(
             maxWidth: 1100,
           ),
           child: Column(
@@ -1049,10 +991,8 @@ class _HomePageState extends State<HomePage> {
                     'Obras consultadas recentemente',
                     style: TextStyle(
                       fontSize: 24,
-                      fontWeight:
-                      FontWeight.w700,
-                      color:
-                      Color(0xFF222222),
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF222222),
                     ),
                   ),
                   SizedBox(height: 8),
@@ -1061,8 +1001,7 @@ class _HomePageState extends State<HomePage> {
                         'que consultou.',
                     style: TextStyle(
                       fontSize: 14,
-                      color:
-                      Color(0xFF777777),
+                      color: Color(0xFF777777),
                       height: 1.5,
                     ),
                   ),
@@ -1074,26 +1013,21 @@ class _HomePageState extends State<HomePage> {
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
-                    padding:
-                    EdgeInsets.all(30),
-                    child:
-                    CircularProgressIndicator(),
+                    padding: EdgeInsets.all(30),
+                    child: CircularProgressIndicator(),
                   ),
                 )
-              else if (_consultasRecentes
-                  .isEmpty)
+              else if (_consultasRecentes.isEmpty)
                 _buildEstadoVazio(
                   'Ainda não consultou nenhuma obra.',
                 )
               else
                 Column(
-                  children:
-                  List.generate(
+                  children: List.generate(
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
-                      _consultasRecentes[
-                      index];
+                      _consultasRecentes[index];
 
                       return Column(
                         children: [
@@ -1109,14 +1043,12 @@ class _HomePageState extends State<HomePage> {
                           ),
 
                           if (index <
-                              _consultasRecentes
-                                  .length -
+                              _consultasRecentes.length -
                                   1)
                             const Divider(
                               height: 1,
                               thickness: 1,
-                              color:
-                              Color(0xFFE5E5E5),
+                              color: Color(0xFFE5E5E5),
                             ),
                         ],
                       );
@@ -1138,19 +1070,16 @@ class _HomePageState extends State<HomePage> {
       String mensagem,
       ) {
     return Padding(
-      padding:
-      const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 30,
       ),
       child: Center(
         child: Text(
           mensagem,
-          textAlign:
-          TextAlign.center,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color:
-            Color(0xFF777777),
+            color: Color(0xFF777777),
             height: 1.5,
           ),
         ),

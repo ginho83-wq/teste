@@ -67,7 +67,8 @@ class _CategoriaResultadosPageState
       if (!mounted) return;
 
       setState(() {
-        _erro = 'Não foi possível carregar as obras.';
+        _erro =
+        'Não foi possível carregar as obras.';
         _carregando = false;
       });
     }
@@ -136,7 +137,7 @@ class _CategoriaResultadosPageState
   Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento;
 
-    if (url == null || url.trim().isEmpty) {
+    if (url.trim().isEmpty) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +259,9 @@ class _CategoriaResultadosPageState
 
               OutlinedButton(
                 onPressed: _carregarObras,
-                child: const Text('Tentar novamente'),
+                child: const Text(
+                  'Tentar novamente',
+                ),
               ),
             ],
           ),
@@ -270,7 +273,8 @@ class _CategoriaResultadosPageState
       padding: const EdgeInsets.all(24),
 
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
 
         children: [
           Text(
@@ -395,4 +399,3 @@ class _CategoriaResultadosPageState
     );
   }
 }
-

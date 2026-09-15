@@ -37,7 +37,11 @@ class ObrasRepository {
         .range(inicio, fim);
 
     return (resposta as List)
-        .map((item) => Obra.fromMap(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
         .toList();
   }
 
@@ -83,7 +87,11 @@ class ObrasRepository {
         .limit(limite);
 
     return (resposta as List)
-        .map((item) => Obra.fromMap(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
         .toList();
   }
 
@@ -99,7 +107,11 @@ class ObrasRepository {
         .limit(limite);
 
     return (resposta as List)
-        .map((item) => Obra.fromMap(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
         .toList();
   }
 
@@ -115,7 +127,11 @@ class ObrasRepository {
         .limit(limite);
 
     return (resposta as List)
-        .map((item) => Obra.fromMap(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
         .toList();
   }
 
@@ -131,7 +147,11 @@ class ObrasRepository {
         .limit(limite);
 
     return (resposta as List)
-        .map((item) => Obra.fromMap(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
         .toList();
   }
 
@@ -151,7 +171,11 @@ class ObrasRepository {
         .range(inicio, fim);
 
     return (resposta as List)
-        .map((item) => Obra.fromMap(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
         .toList();
   }
 
@@ -174,8 +198,10 @@ class ObrasRepository {
   }
 
   Future<Obra> atualizar(Obra obra) async {
-    if (obra.id == null || obra.id!.isEmpty) {
-      throw Exception('O ID da obra é obrigatório para atualização.');
+    if (obra.id.isEmpty) {
+      throw Exception(
+        'O ID da obra é obrigatório para atualização.',
+      );
     }
 
     final dados = obra.toMap();
@@ -187,7 +213,7 @@ class ObrasRepository {
     final resposta = await _supabase
         .from('obras')
         .update(dados)
-        .eq('id', obra.id!)
+        .eq('id', obra.id)
         .select(_campos)
         .single();
 

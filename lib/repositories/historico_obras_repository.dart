@@ -4,7 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/historico_obra.dart';
 
 class HistoricoObrasRepository {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
   static const int limiteHistorico = 10;
 
@@ -17,7 +18,8 @@ class HistoricoObrasRepository {
     required String userId,
   }) async {
     try {
-      final agora = DateTime.now().toUtc().toIso8601String();
+      final agora =
+      DateTime.now().toUtc().toIso8601String();
 
       // --------------------------------------------------------
       // Verificar se a obra já existe no histórico
@@ -28,10 +30,14 @@ class HistoricoObrasRepository {
           .select('id, data_consulta')
           .eq('obra_id', obraId)
           .eq('user_id', userId)
-          .order('data_consulta', ascending: false);
+          .order(
+        'data_consulta',
+        ascending: false,
+      );
 
-      if (existentes is List && existentes.isNotEmpty) {
-        // Mantém o registo mais recente e atualiza a data.
+      if (existentes.isNotEmpty) {
+        // Mantém o registo mais recente e
+        // atualiza a data.
         final id = existentes.first['id'];
 
         await _supabase
@@ -42,11 +48,15 @@ class HistoricoObrasRepository {
             .eq('id', id)
             .eq('user_id', userId);
 
-        // Se existirem duplicados antigos da mesma obra,
+        // Se existirem duplicados antigos da
+        // mesma obra,
         // removemos os restantes.
         if (existentes.length > 1) {
-          for (var i = 1; i < existentes.length; i++) {
-            final idDuplicado = existentes[i]['id'];
+          for (var i = 1;
+          i < existentes.length;
+          i++) {
+            final idDuplicado =
+            existentes[i]['id'];
 
             await _supabase
                 .from('historico_obras_consultadas')
@@ -95,7 +105,8 @@ class HistoricoObrasRepository {
   // LIMITAR HISTÓRICO A 10 REGISTOS
   // ============================================================
 
-  Future<void> _limitarHistorico(String userId) async {
+  Future<void> _limitarHistorico(
+      String userId) async {
     final response = await _supabase
         .from('historico_obras_consultadas')
         .select('id')
@@ -111,8 +122,10 @@ class HistoricoObrasRepository {
       return;
     }
 
-    // Tudo depois do décimo item é considerado antigo.
-    final antigos = lista.skip(limiteHistorico);
+    // Tudo depois do décimo item é
+    // considerado antigo.
+    final antigos =
+    lista.skip(limiteHistorico);
 
     for (final item in antigos) {
       final id = item['id'];
@@ -134,7 +147,8 @@ class HistoricoObrasRepository {
   // HISTÓRICO COMPLETO
   // ============================================================
 
-  Future<List<HistoricoObra>> obterHistorico({
+  Future<List<HistoricoObra>>
+  obterHistorico({
     required String userId,
   }) async {
     try {
@@ -163,9 +177,12 @@ class HistoricoObrasRepository {
 
       return (response as List)
           .map(
-            (item) => HistoricoObra.fromMap(
-          Map<String, dynamic>.from(item),
-        ),
+            (item) =>
+            HistoricoObra.fromMap(
+              Map<String, dynamic>.from(
+                item,
+              ),
+            ),
       )
           .toList();
     } catch (e) {
@@ -181,12 +198,14 @@ class HistoricoObrasRepository {
   // CONSULTAS RECENTES
   // ============================================================
 
-  Future<List<HistoricoObra>> obterConsultasRecentes({
+  Future<List<HistoricoObra>>
+  obterConsultasRecentes({
     required String userId,
     int limite = 5,
   }) async {
     try {
-      final quantidade = limite > limiteHistorico
+      final quantidade = limite >
+          limiteHistorico
           ? limiteHistorico
           : limite;
 
@@ -215,9 +234,12 @@ class HistoricoObrasRepository {
 
       final lista = (response as List)
           .map(
-            (item) => HistoricoObra.fromMap(
-          Map<String, dynamic>.from(item),
-        ),
+            (item) =>
+            HistoricoObra.fromMap(
+              Map<String, dynamic>.from(
+                item,
+              ),
+            ),
       )
           .toList();
 
@@ -243,7 +265,8 @@ class HistoricoObrasRepository {
     required String id,
   }) async {
     try {
-      final userId = _supabase.auth.currentUser?.id;
+      final userId =
+          _supabase.auth.currentUser?.id;
 
       if (userId == null) {
         throw Exception(

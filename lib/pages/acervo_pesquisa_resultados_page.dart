@@ -252,8 +252,7 @@ class _AcervoPesquisaResultadosPageState
   Future<void> _abrirDocumento(
       Obra obra,
       ) async {
-    final url =
-        obra.urlDocumento?.trim() ?? '';
+    final url = obra.urlDocumento.trim();
 
     if (url.isEmpty) {
       if (!mounted) return;

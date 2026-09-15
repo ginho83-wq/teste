@@ -22,9 +22,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'Obra Livre',
+
+      // Nome da aplicação
+      title: 'Teste — Obras Académicas',
+
       theme: ThemeData(
         useMaterial3: true,
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
         ),
@@ -130,3 +134,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
