@@ -2,13 +2,40 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=/teste/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obra Livre</title>
+
+    <script>
+        (function () {
+          var base = "/teste";
+          var path = window.location.pathname;
+          var search = window.location.search;
+          var hash = window.location.hash;
+
+          // Remove o /teste inicial para obter apenas a rota Flutter.
+          var route = path;
+
+          if (route.indexOf(base) === 0) {
+            route = route.substring(base.length);
+          }
+
+          if (route === "" || route === "/") {
+            window.location.replace(base + "/" + search + hash);
+            return;
+          }
+
+          // Envia a rota para o index.html sem repetir /teste.
+          window.location.replace(
+            base + "/?route=" +
+            encodeURIComponent(route) +
+            search +
+            hash
+          );
+        })();
+    </script>
 </head>
+
 <body>
-<script>
-    // ✅ Redireciona para index.html preservando rota
-    var redirectTo = window.location.pathname + window.location.search + window.location.hash;
-    window.location.replace("/teste" + redirectTo);
-</script>
+<p>A carregar Obra Livre...</p>
 </body>
 </html>
