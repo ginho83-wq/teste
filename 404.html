@@ -1,31 +1,15 @@
-﻿<!DOCTYPE html>
-<html lang="pt">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Obra Livre</title>
-
-  <script>
-    const base = '/teste/';
-    const path = window.location.pathname;
-    const search = window.location.search;
-    const hash = window.location.hash;
-
-    const route = path.startsWith(base)
-        ? path.substring(base.length)
-        : path.replace(/^\/+/, '');
-
-    sessionStorage.setItem(
-      'flutter_redirect',
-      '/' + route + search + hash
-    );
-
-    window.location.replace(base);
-  </script>
+    <meta charset="UTF-8">
+    <script>
+        // Redireciona qualquer rota inválida para index.html
+        window.location.replace(
+          '/teste/index.html' +
+          window.location.search +
+          window.location.hash
+        );
+    </script>
 </head>
-
-<body>
-  <p>A carregar Obra Livre…</p>
-</body>
+<body></body>
 </html>
