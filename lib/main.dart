@@ -130,7 +130,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      routerConfig: router,
+      routerConfig: AppRouter.router,
     );
   }
 }
