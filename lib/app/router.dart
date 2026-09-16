@@ -24,7 +24,6 @@ import '../pages/categorias_page.dart';
 import '../pages/categoria_resultados_page.dart';
 import '../pages/admin_obras_page.dart';
 import '../pages/admin_solicitacoes_remocao_page.dart';
-
 import '../pages/termos_page.dart';
 import '../pages/politica_privacidade_page.dart';
 import '../pages/cookies_page.dart';
@@ -37,57 +36,11 @@ final AuthService _authService = AuthService.instancia;
 // SEO
 // ============================================================
 
-const String _tituloBase = 'Teste — Obras Académicas';
+const String _tituloBase = 'Obra Livre — Obras Académicas';
 
 const String _descricaoSeo =
     'Plataforma de consulta e publicação de obras académicas, '
     'teses, monografias e artigos científicos.';
-
-const String _descricaoHome =
-    'Plataforma de consulta e publicação de obras académicas, '
-    'teses, monografias e artigos científicos.';
-
-const String _descricaoPlataforma =
-    'Conheça a plataforma Teste para consulta e publicação '
-    'de obras académicas, teses, monografias e artigos científicos.';
-
-const String _descricaoCategorias =
-    'Explore categorias de obras académicas, incluindo teses, '
-    'monografias, artigos científicos e literatura.';
-
-const String _descricaoAcervo =
-    'Consulte teses, monografias, artigos científicos e outras '
-    'obras académicas disponíveis no acervo.';
-
-const String _descricaoTeseDoutoramento =
-    'Consulte teses de doutoramento e outras obras académicas '
-    'disponíveis no acervo.';
-
-const String _descricaoTeseMestrado =
-    'Consulte teses de mestrado e outras obras académicas '
-    'disponíveis no acervo.';
-
-const String _descricaoMonografia =
-    'Consulte monografias académicas disponíveis no acervo.';
-
-const String _descricaoArtigos =
-    'Consulte artigos científicos e outras publicações '
-    'académicas disponíveis no acervo.';
-
-const String _descricaoLiteratura =
-    'Explore obras de literatura disponíveis no acervo.';
-
-const String _descricaoPesquisaAcervo =
-    'Pesquise teses, monografias, artigos científicos e outras '
-    'obras académicas no acervo.';
-
-const String _descricaoPesquisaGeral =
-    'Pesquise obras académicas, teses, monografias e artigos '
-    'científicos na plataforma Teste.';
-
-// ============================================================
-// ATUALIZAÇÃO DA DESCRIÇÃO SEO
-// ============================================================
 
 void _definirDescricaoSeo(String descricao) {
   final web.Element? elemento =
@@ -99,18 +52,13 @@ void _definirDescricaoSeo(String descricao) {
   }
 
   final web.HTMLMetaElement novaMeta =
-  web.document.createElement('meta')
-  as web.HTMLMetaElement;
+  web.document.createElement('meta') as web.HTMLMetaElement;
 
   novaMeta.name = 'description';
   novaMeta.content = descricao;
 
   web.document.head?.appendChild(novaMeta);
 }
-
-// ============================================================
-// TÍTULO + DESCRIÇÃO SEO
-// ============================================================
 
 Widget _paginaComSeo({
   required String titulo,
@@ -126,10 +74,6 @@ Widget _paginaComSeo({
   );
 }
 
-// ============================================================
-// COMPATIBILIDADE COM PÁGINAS SEM DESCRIÇÃO ESPECÍFICA
-// ============================================================
-
 Widget _paginaComTitulo({
   required String titulo,
   required Widget child,
@@ -139,57 +83,6 @@ Widget _paginaComTitulo({
     descricao: _descricaoSeo,
     child: child,
   );
-}
-
-// ============================================================
-// TÍTULOS DAS CATEGORIAS
-// ============================================================
-
-String _tituloCategoria(String tipo) {
-  final String categoria =
-  tipo.replaceAll('-', ' ').trim();
-
-  if (categoria.isEmpty) {
-    return 'Categorias — $_tituloBase';
-  }
-
-  final String categoriaFormatada = categoria
-      .split(' ')
-      .map(
-        (String palavra) => palavra.isEmpty
-        ? palavra
-        : '${palavra[0].toUpperCase()}'
-        '${palavra.substring(1)}',
-  )
-      .join(' ');
-
-  return '$categoriaFormatada — $_tituloBase';
-}
-
-// ============================================================
-// DESCRIÇÃO SEO DAS CATEGORIAS
-// ============================================================
-
-String _descricaoCategoria(String tipo) {
-  switch (tipo.toLowerCase()) {
-    case 'tese-doutoramento':
-      return _descricaoTeseDoutoramento;
-
-    case 'tese-mestrado':
-      return _descricaoTeseMestrado;
-
-    case 'monografia':
-      return _descricaoMonografia;
-
-    case 'artigos-cientificos':
-      return _descricaoArtigos;
-
-    case 'literatura':
-      return _descricaoLiteratura;
-
-    default:
-      return _descricaoCategorias;
-  }
 }
 
 // ============================================================
@@ -225,33 +118,17 @@ final GoRouter router = GoRouter(
     Supabase.instance.client.auth.onAuthStateChange,
   ),
 
-  redirect: (
-      BuildContext context,
-      GoRouterState state,
-      ) {
-    final bool estaAutenticado =
-        _authService.estaAutenticado;
-
+  redirect: (BuildContext context, GoRouterState state) {
+    final bool estaAutenticado = _authService.estaAutenticado;
     final String caminho = state.uri.path;
-
-    final bool rotaPublica =
-    _ehRotaPublica(caminho);
-
-    // ========================================================
-    // VISITANTE NÃO AUTENTICADO
-    // ========================================================
+    final bool rotaPublica = _ehRotaPublica(caminho);
 
     if (!estaAutenticado && !rotaPublica) {
       return '/login';
     }
 
-    // ========================================================
-    // UTILIZADOR AUTENTICADO
-    // ========================================================
-
     if (estaAutenticado &&
-        (caminho == '/login' ||
-            caminho == '/cadastro')) {
+        (caminho == '/login' || caminho == '/cadastro')) {
       return '/';
     }
 
@@ -259,54 +136,53 @@ final GoRouter router = GoRouter(
   },
 
   routes: <RouteBase>[
-
     // ========================================================
-    // AUTENTICAÇÃO
+    // LOGIN
     // ========================================================
 
     GoRoute(
       path: '/login',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Entrar — $_tituloBase',
-          child: const LoginPage(),
-        );
-      },
-    ),
-
-    GoRoute(
-      path: '/cadastro',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Criar conta — $_tituloBase',
-          child: const CadastroPage(),
-        );
-      },
-    ),
-
-    GoRoute(
-      path: '/auth/callback',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: _tituloBase,
-          child: const AuthCallbackPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Entrar — $_tituloBase',
+        child: const LoginPage(),
+      ),
     ),
 
     // ========================================================
-    // PÁGINA INICIAL
+    // CADASTRO
+    // ========================================================
+
+    GoRoute(
+      path: '/cadastro',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Criar conta — $_tituloBase',
+        child: const CadastroPage(),
+      ),
+    ),
+
+    // ========================================================
+    // CALLBACK SUPABASE
+    // ========================================================
+
+    GoRoute(
+      path: '/auth/callback',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: _tituloBase,
+        child: const AuthCallbackPage(),
+      ),
+    ),
+
+    // ========================================================
+    // HOME
     // ========================================================
 
     GoRoute(
       path: '/',
-      builder: (context, state) {
-        return _paginaComSeo(
-          titulo: _tituloBase,
-          descricao: _descricaoHome,
-          child: const HomePage(),
-        );
-      },
+      builder: (context, state) => _paginaComSeo(
+        titulo: _tituloBase,
+        descricao: _descricaoSeo,
+        child: const HomePage(),
+      ),
     ),
 
     // ========================================================
@@ -315,13 +191,13 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/plataforma',
-      builder: (context, state) {
-        return _paginaComSeo(
-          titulo: 'Plataforma — $_tituloBase',
-          descricao: _descricaoPlataforma,
-          child: const PlataformaPage(),
-        );
-      },
+      builder: (context, state) => _paginaComSeo(
+        titulo: 'Plataforma — $_tituloBase',
+        descricao:
+        'Conheça a plataforma Obra Livre para consulta e publicação '
+            'de obras académicas.',
+        child: const PlataformaPage(),
+      ),
     ),
 
     // ========================================================
@@ -330,13 +206,11 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/categorias',
-      builder: (context, state) {
-        return _paginaComSeo(
-          titulo: 'Categorias — $_tituloBase',
-          descricao: _descricaoCategorias,
-          child: const CategoriasPage(),
-        );
-      },
+      builder: (context, state) => _paginaComSeo(
+        titulo: 'Categorias — $_tituloBase',
+        descricao: 'Explore categorias de obras académicas.',
+        child: const CategoriasPage(),
+      ),
     ),
 
     // ========================================================
@@ -346,12 +220,11 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/categoria/:tipo',
       builder: (context, state) {
-        final String tipo =
-            state.pathParameters['tipo'] ?? '';
+        final String tipo = state.pathParameters['tipo'] ?? '';
 
         return _paginaComSeo(
-          titulo: _tituloCategoria(tipo),
-          descricao: _descricaoCategoria(tipo),
+          titulo: '$tipo — $_tituloBase',
+          descricao: 'Categoria de obras académicas.',
           child: CategoriaResultadosPage(
             categoria: tipo,
           ),
@@ -371,7 +244,8 @@ final GoRouter router = GoRouter(
 
         return _paginaComSeo(
           titulo: 'Acervo — $_tituloBase',
-          descricao: _descricaoAcervo,
+          descricao:
+          'Consulte obras académicas disponíveis no acervo.',
           child: AcervoResultadosPage(
             obraId: obraId,
           ),
@@ -391,7 +265,7 @@ final GoRouter router = GoRouter(
 
         return _paginaComSeo(
           titulo: 'Pesquisa no Acervo — $_tituloBase',
-          descricao: _descricaoPesquisaAcervo,
+          descricao: 'Pesquise obras académicas no acervo.',
           child: AcervoPesquisaResultadosPage(
             query: query,
           ),
@@ -400,7 +274,7 @@ final GoRouter router = GoRouter(
     ),
 
     // ========================================================
-    // PESQUISA GERAL
+    // PESQUISA
     // ========================================================
 
     GoRoute(
@@ -411,7 +285,8 @@ final GoRouter router = GoRouter(
 
         return _paginaComSeo(
           titulo: 'Pesquisa — $_tituloBase',
-          descricao: _descricaoPesquisaGeral,
+          descricao:
+          'Pesquise obras académicas na plataforma.',
           child: PesquisaResultadosPage(
             query: query,
           ),
@@ -420,127 +295,153 @@ final GoRouter router = GoRouter(
     ),
 
     // ========================================================
-    // ÁREA DO UTILIZADOR
+    // MINHA CONTA
     // ========================================================
 
     GoRoute(
       path: '/minha-conta',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Minha conta — $_tituloBase',
-          child: const MinhaContaPage(),
-        );
-      },
-    ),
-
-    GoRoute(
-      path: '/configuracoes',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Configurações — $_tituloBase',
-          child: const ConfiguracoesPage(),
-        );
-      },
-    ),
-
-    GoRoute(
-      path: '/publicar',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Publicar obra — $_tituloBase',
-          child: const PublicarObraPage(),
-        );
-      },
-    ),
-
-    GoRoute(
-      path: '/historico-obras',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Histórico de obras — $_tituloBase',
-          child: const HistoricoObrasPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Minha conta — $_tituloBase',
+        child: const MinhaContaPage(),
+      ),
     ),
 
     // ========================================================
-    // ADMINISTRAÇÃO
+    // CONFIGURAÇÕES
+    // ========================================================
+
+    GoRoute(
+      path: '/configuracoes',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Configurações — $_tituloBase',
+        child: const ConfiguracoesPage(),
+      ),
+    ),
+
+    // ========================================================
+    // PUBLICAR
+    // ========================================================
+
+    GoRoute(
+      path: '/publicar',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Publicar obra — $_tituloBase',
+        child: const PublicarObraPage(),
+      ),
+    ),
+
+    // ========================================================
+    // HISTÓRICO
+    // ========================================================
+
+    GoRoute(
+      path: '/historico-obras',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Histórico de obras — $_tituloBase',
+        child: const HistoricoObrasPage(),
+      ),
+    ),
+
+    // ========================================================
+    // ADMINISTRAÇÃO DE OBRAS
     // ========================================================
 
     GoRoute(
       path: '/admin-obras',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Administração de obras — $_tituloBase',
-          child: const AdminObrasPage(),
-        );
-      },
-    ),
-
-    GoRoute(
-      path: '/admin-solicitacoes-remocao',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Solicitações de remoção — $_tituloBase',
-          child: const AdminSolicitacoesRemocaoPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Administração de obras — $_tituloBase',
+        child: const AdminObrasPage(),
+      ),
     ),
 
     // ========================================================
-    // PÁGINAS INFORMATIVAS / LEGAIS
+    // ADMINISTRAÇÃO DE SOLICITAÇÕES
+    // ========================================================
+
+    GoRoute(
+      path: '/admin-solicitacoes-remocao',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Solicitações de remoção — $_tituloBase',
+        child: const AdminSolicitacoesRemocaoPage(),
+      ),
+    ),
+
+    // ========================================================
+    // TERMOS
     // ========================================================
 
     GoRoute(
       path: '/termos',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Termos de utilização — $_tituloBase',
-          child: const TermosPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Termos de utilização — $_tituloBase',
+        child: const TermosPage(),
+      ),
     ),
+
+    // ========================================================
+    // POLÍTICA DE PRIVACIDADE
+    // ========================================================
 
     GoRoute(
       path: '/politica-privacidade',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Política de privacidade — $_tituloBase',
-          child: const PoliticaPrivacidadePage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Política de privacidade — $_tituloBase',
+        child: const PoliticaPrivacidadePage(),
+      ),
     ),
+
+    // ========================================================
+    // COOKIES
+    // ========================================================
 
     GoRoute(
       path: '/cookies',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Política de cookies — $_tituloBase',
-          child: const CookiesPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Política de cookies — $_tituloBase',
+        child: const CookiesPage(),
+      ),
     ),
+
+    // ========================================================
+    // CONTACTO
+    // ========================================================
 
     GoRoute(
       path: '/contacto',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Contacto — $_tituloBase',
-          child: const ContactoPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Contacto — $_tituloBase',
+        child: const ContactoPage(),
+      ),
     ),
+
+    // ========================================================
+    // AJUDA
+    // ========================================================
 
     GoRoute(
       path: '/ajuda',
-      builder: (context, state) {
-        return _paginaComTitulo(
-          titulo: 'Ajuda — $_tituloBase',
-          child: const AjudaPage(),
-        );
-      },
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Ajuda — $_tituloBase',
+        child: const AjudaPage(),
+      ),
     ),
   ],
+
+  // ==========================================================
+  // ERRO 404
+  // ==========================================================
+
+  errorBuilder: (context, state) => const Scaffold(
+    body: Center(
+      child: Text(
+        'Página não encontrada',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+  ),
 );
 
 // ============================================================
@@ -549,12 +450,9 @@ final GoRouter router = GoRouter(
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription =
-        stream.asBroadcastStream().listen(
-              (_) {
-            notifyListeners();
-          },
-        );
+    _subscription = stream.asBroadcastStream().listen((_) {
+      notifyListeners();
+    });
   }
 
   late final StreamSubscription<dynamic> _subscription;

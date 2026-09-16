@@ -2,30 +2,13 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Obra Livre</title>
-
-    <script>
-        const base = '/teste/';
-        const path = window.location.pathname;
-        const search = window.location.search;
-        const hash = window.location.hash;
-
-        const route = path.startsWith(base)
-            ? path.substring(base.length)
-            : path.replace(/^\/+/, '');
-
-        sessionStorage.setItem(
-          'flutter_redirect',
-          '/' + route + search + hash
-        );
-
-        window.location.replace(base);
-    </script>
+    <meta http-equiv="refresh" content="0; url=/teste/" />
 </head>
-
 <body>
-<p>A carregar Obra Livre…</p>
+<script>
+    // ✅ Redireciona para index.html preservando rota
+    var redirectTo = window.location.pathname + window.location.search + window.location.hash;
+    window.location.replace("/teste" + redirectTo);
+</script>
 </body>
 </html>

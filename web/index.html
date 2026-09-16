@@ -6,51 +6,22 @@
 
   <title>Obra Livre — Obras Académicas</title>
 
-  <meta
-          name="description"
-          content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
-  >
-
+  <meta name="description" content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos.">
   <meta name="robots" content="index, follow">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Obra Livre — Obras Académicas">
-  <meta
-          property="og:description"
-          content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
-  >
+  <meta property="og:description" content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos.">
   <meta property="og:url" content="https://ginho83-wq.github.io/teste/">
   <meta property="og:site_name" content="Obra Livre">
 
-  <base href="$FLUTTER_BASE_HREF">
+  <!-- ✅ Base ajustado para GitHub Pages -->
+  <base href="/teste/">
 
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
 </head>
-
 <body>
-
-<script>
-  const redirect = sessionStorage.getItem('flutter_redirect');
-
-  if (redirect) {
-    sessionStorage.removeItem('flutter_redirect');
-
-    const base = '/teste/';
-    const route = redirect.replace(/^\/+/, '');
-
-    const target = base + route;
-
-    window.history.replaceState(
-      null,
-      '',
-      target
-    );
-  }
-</script>
-
 <script src="flutter_bootstrap.js" async></script>
-
 </body>
 </html>
-
