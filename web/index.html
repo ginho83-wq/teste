@@ -7,8 +7,8 @@
   <title>Obra Livre — Obras Académicas</title>
 
   <meta
-    name="description"
-    content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
+          name="description"
+          content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
   >
 
   <meta name="robots" content="index, follow">
@@ -16,8 +16,8 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="Obra Livre — Obras Académicas">
   <meta
-    property="og:description"
-    content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
+          property="og:description"
+          content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
   >
   <meta property="og:url" content="https://ginho83-wq.github.io/teste/">
   <meta property="og:site_name" content="Obra Livre">
@@ -37,14 +37,14 @@
     sessionStorage.removeItem('flutter_redirect');
 
     const base = '/teste/';
-    const target = redirect.startsWith('/')
-        ? redirect
-        : '/' + redirect;
+    const route = redirect.replace(/^\/+/, '');
+
+    const target = base + route;
 
     window.history.replaceState(
       null,
       '',
-      base.replace(/\/$/, '') + target
+      target
     );
   }
 </script>
@@ -53,3 +53,4 @@
 
 </body>
 </html>
+
