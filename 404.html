@@ -1,25 +1,31 @@
-<!DOCTYPE html><html lang=”pt”>
+﻿<!DOCTYPE html>
+<html lang="pt">
 <head>
-    <meta charset=”UTF-8”>
-    <meta name=”viewport” content=”width=device-width, initial-scale=1.0”>
-    <title>Obra Livre</title>  <script>
-    Const base = ‘/teste/’;
-    Const path = window.location.pathname;
-    Const search = window.location.search;
-    Const hash = window.location.hash;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    Const route = path.startsWith(base)
+  <title>Obra Livre</title>
+
+  <script>
+    const base = '/teste/';
+    const path = window.location.pathname;
+    const search = window.location.search;
+    const hash = window.location.hash;
+
+    const route = path.startsWith(base)
         ? path.substring(base.length)
-        : path.replace(/^\/+/, ‘’);
+        : path.replace(/^\/+/, '');
 
     sessionStorage.setItem(
-      ‘flutter_redirect’,
-      ‘/’ + route + search + hash
+      'flutter_redirect',
+      '/' + route + search + hash
     );
 
-    Window.location.replace(base);
-</script></head><body>
-<p>A carregar Obra Livre…</p>
+    window.location.replace(base);
+  </script>
+</head>
+
+<body>
+  <p>A carregar Obra Livre…</p>
 </body>
 </html>
-
