@@ -1,17 +1,24 @@
-<!DOCTYPE html><html>
+<!DOCTYPE html>
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teste</title>
+    <title>Obra Livre</title>
 </head>
 <body>
 <script>
-    window.location.replace(
-      '/teste/' +
-      'index.html' +
-      window.location.search +
-      window.location.hash
-    );
+    const path = window.location.pathname;
+    const search = window.location.search;
+    const hash = window.location.hash;
+
+    const base = '/teste/';
+
+    const redirectUrl =
+      base +
+      '?redirect=' +
+      encodeURIComponent(path + search + hash);
+
+    window.location.replace(redirectUrl);
 </script>
 </body>
 </html>
