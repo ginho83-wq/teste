@@ -3,24 +3,21 @@
     <meta charset=”UTF-8”>
     <meta name=”viewport” content=”width=device-width, initial-scale=1.0”>
     <title>Obra Livre</title>  <script>
+    Const base = ‘/teste/’;
     Const path = window.location.pathname;
     Const search = window.location.search;
     Const hash = window.location.hash;
-
-    Const base = ‘/teste/’;
 
     Const route = path.startsWith(base)
         ? path.substring(base.length)
         : path.replace(/^\/+/, ‘’);
 
-    Const redirectUrl =
-        Base +
-        ‘?redirect=’ +
-        encodeURIComponent(‘/’ + route) +
-        search +
-        hash;
+    sessionStorage.setItem(
+      ‘flutter_redirect’,
+      ‘/’ + route + search + hash
+    );
 
-    window.location.replace(redirectUrl);
+    Window.location.replace(base);
 </script></head><body>
 <p>A carregar Obra Livre…</p>
 </body>
