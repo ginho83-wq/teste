@@ -1,18 +1,33 @@
-<!DOCTYPE html>
-<html lang="pt">
+<!DOCTYPE html><html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Redirecionar...</title>
-    <script>
-        // Captura a rota original
-        var redirect = window.location.pathname + window.location.search + window.location.hash;
-        // Salva em sessionStorage para o index.html recuperar
-        sessionStorage.setItem('flutter_redirect', redirect);
-        // Redireciona para index.html
+    <title>Obra Livre</title><script>
+    (function () {
+        const pathname = window.location.pathname;
+        const search = window.location.search;
+        const hash = window.location.hash;
+
+        // Callback de autenticação:
+        // preservar a URL completa para o Supabase/Flutter.
+        if (pathname.endsWith('/auth/callback')) {
+            sessionStorage.setItem(
+                'flutter_redirect',
+                pathname + search + hash
+            );
+        } else {
+            // Outras rotas Flutter
+            sessionStorage.setItem(
+                'flutter_redirect',
+                pathname + search + hash
+            );
+        }
+
+        // Voltar ao index do projeto.
         window.location.replace('/teste/');
-    </script>
-</head>
-<body>
+    })();
+</script>
+
+</head><body>
 <p>A carregar Obra Livre...</p>
 </body>
 </html>
