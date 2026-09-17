@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Obra Livre — Obras Académicas</title>
-
   <meta name="description" content="Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos.">
   <meta name="robots" content="index, follow">
 
@@ -15,13 +14,22 @@
   <meta property="og:url" content="https://ginho83-wq.github.io/teste/">
   <meta property="og:site_name" content="Obra Livre">
 
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/teste/">
 
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
+<script>
+  // Recupera rota salva pelo 404.html
+  var redirect = sessionStorage.getItem('flutter_redirect');
+  if (redirect) {
+    sessionStorage.removeItem('flutter_redirect');
+    history.replaceState(null, '', redirect);
+  }
+</script>
+
 <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
