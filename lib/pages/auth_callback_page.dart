@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,8 +16,9 @@ class AuthCallbackPage extends StatefulWidget {
 
 class _AuthCallbackPageState
     extends State<AuthCallbackPage> {
-
   String? _erro;
+
+  StreamSubscription<AuthState>? _subscription;
 
   @override
   void initState() {
@@ -30,55 +33,82 @@ class _AuthCallbackPageState
 
   Future<void> _processarCallback() async {
     try {
-      final uri = Uri.base;
+      final auth = Supabase.instance.client.auth;
 
       // ========================================================
-      // OBTER O CODE DEVOLVIDO PELO GOOGLE/SUPABASE
+      // 1. VERIFICAR SE A SESSÃO JÁ FOI CRIADA
       // ========================================================
 
-      final code = uri.queryParameters['code'];
+      if (auth.currentSession != null) {
+        if (!mounted) return;
 
-      if (code == null || code.isEmpty) {
-        throw Exception(
-          'Código de autenticação não encontrado.',
-        );
+        context.go('/');
+        return;
       }
 
       // ========================================================
-      // TROCAR O CODE POR UMA SESSÃO
+      // 2. AGUARDAR O SUPABASE CONCLUIR A AUTENTICAÇÃO
       // ========================================================
 
-      await Supabase.instance.client.auth
-          .exchangeCodeForSession(code);
+      final completer = Completer<Session?>();
+
+      _subscription = auth.onAuthStateChange.listen((data) {
+        final session = data.session;
+
+        if (session != null && !completer.isCompleted) {
+          completer.complete(session);
+        }
+      });
 
       // ========================================================
-      // VERIFICAR SESSÃO
+      // 3. AGUARDAR A SESSÃO
       // ========================================================
 
-      final session =
-          Supabase.instance.client.auth.currentSession;
+      final session = await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => null,
+      );
+
+      // ========================================================
+      // 4. CANCELAR LISTENER
+      // ========================================================
+
+      await _subscription?.cancel();
+      _subscription = null;
+
+      // ========================================================
+      // 5. CONFIRMAR SESSÃO
+      // ========================================================
 
       if (session == null) {
         throw Exception(
-          'Não foi possível criar a sessão.',
+          'Não foi possível concluir a autenticação.',
         );
       }
 
       // ========================================================
-      // IR PARA HOME
+      // 6. IR PARA HOME
       // ========================================================
 
       if (!mounted) return;
 
       context.go('/');
-
     } catch (e) {
+      await _subscription?.cancel();
+      _subscription = null;
+
       if (!mounted) return;
 
       setState(() {
         _erro = e.toString();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   // ============================================================
@@ -104,9 +134,7 @@ class _AuthCallbackPageState
                   Icons.error_outline,
                   size: 60,
                 ),
-
                 const SizedBox(height: 20),
-
                 const Text(
                   'Não foi possível concluir o login.',
                   textAlign: TextAlign.center,
@@ -115,16 +143,12 @@ class _AuthCallbackPageState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 Text(
                   _erro!,
                   textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: 24),
-
                 FilledButton(
                   onPressed: () {
                     context.go('/login');
@@ -146,9 +170,7 @@ class _AuthCallbackPageState
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator(),
-
             SizedBox(height: 20),
-
             Text(
               'A entrar com Google...',
             ),

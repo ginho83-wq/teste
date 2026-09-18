@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -6,6 +7,24 @@ class AuthService {
   static final AuthService instancia = AuthService._();
 
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  // ============================================================
+  // URL DE CALLBACK
+  // ============================================================
+
+  String get _redirectUrl {
+    if (kIsWeb) {
+      final String host = Uri.base.host;
+
+      // Ambiente local
+      if (host == 'localhost' || host == '127.0.0.1') {
+        return 'http://localhost:3000/auth/callback';
+      }
+    }
+
+    // Ambiente de produção — GitHub Pages
+    return 'https://ginho83-wq.github.io/teste/auth/callback';
+  }
 
   // ============================================================
   // USUÁRIO ATUAL
@@ -54,8 +73,7 @@ class AuthService {
   }) async {
     await _supabase.auth.resetPasswordForEmail(
       email.trim(),
-      redirectTo:
-      'https://ginho83-wq.github.io/teste/auth/callback',
+      redirectTo: _redirectUrl,
     );
   }
 
@@ -70,8 +88,7 @@ class AuthService {
     await _supabase.auth.signUp(
       email: email.trim(),
       password: senha,
-      emailRedirectTo:
-      'https://ginho83-wq.github.io/teste/auth/callback',
+      emailRedirectTo: _redirectUrl,
     );
   }
 
@@ -80,12 +97,9 @@ class AuthService {
   // ============================================================
 
   Future<void> entrarComGoogle() async {
-    const redirectUrl =
-        'https://ginho83-wq.github.io/teste/auth/callback';
-
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: redirectUrl,
+      redirectTo: _redirectUrl,
     );
   }
 
@@ -139,4 +153,3 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 }
-
