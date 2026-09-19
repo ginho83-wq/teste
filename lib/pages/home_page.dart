@@ -514,21 +514,6 @@ class _HomePageState extends State<HomePage> {
         ),
 
         if (estaAutenticado) ...[
-          if (!_carregandoPerfil && _ehAdmin)
-            TextButton(
-              onPressed: () {
-                context.go('/admin-obras');
-              },
-              child: const Text(
-                'Administração',
-                style: TextStyle(
-                  color: Color(0xFF444444),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-
           TextButton(
             onPressed: () {
               context.go('/publicar');
@@ -745,7 +730,8 @@ class _HomePageState extends State<HomePage> {
 
               BarraPesquisa(
                 controller: _pesquisaController,
-                hintText: 'Pesquisar obras académicas',
+                hintText:
+                'Pesquisar obras académicas',
                 onPesquisar: _executarPesquisa,
                 onLimpar: _limparPesquisa,
               ),
@@ -798,7 +784,8 @@ class _HomePageState extends State<HomePage> {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final largura = constraints.maxWidth;
+              final largura =
+                  constraints.maxWidth;
 
               final colunas = largura >= 900
                   ? 5
@@ -914,7 +901,8 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 8),
 
               const Text(
-                'Confira as obras publicadas recentemente.',
+                'Confira as obras publicadas '
+                    'recentemente.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF777777),
@@ -928,12 +916,14 @@ class _HomePageState extends State<HomePage> {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(30),
-                    child: CircularProgressIndicator(),
+                    child:
+                    CircularProgressIndicator(),
                   ),
                 )
               else if (_obrasRecentes.isEmpty)
                 _buildEstadoVazio(
-                  'Ainda não existem publicações disponíveis.',
+                  'Ainda não existem '
+                      'publicações disponíveis.',
                 )
               else
                 Column(
@@ -943,7 +933,8 @@ class _HomePageState extends State<HomePage> {
                       .map(
                         (obra) => ObraListaItem(
                       obra: obra,
-                      onTap: () => _abrirObra(obra),
+                      onTap: () =>
+                          _abrirObra(obra),
                     ),
                   )
                       .toList(),
@@ -988,7 +979,8 @@ class _HomePageState extends State<HomePage> {
                 CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Obras consultadas recentemente',
+                    'Obras consultadas '
+                        'recentemente',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
@@ -1014,7 +1006,8 @@ class _HomePageState extends State<HomePage> {
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(30),
-                    child: CircularProgressIndicator(),
+                    child:
+                    CircularProgressIndicator(),
                   ),
                 )
               else if (_consultasRecentes.isEmpty)
@@ -1087,3 +1080,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+

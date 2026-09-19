@@ -5,9 +5,7 @@ import '../services/admin_service.dart';
 import 'admin_solicitacoes_remocao_page.dart';
 
 class AdminObrasPage extends StatefulWidget {
-  const AdminObrasPage({
-    super.key,
-  });
+  const AdminObrasPage({super.key});
 
   @override
   State<AdminObrasPage> createState() => _AdminObrasPageState();
@@ -17,7 +15,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
   final AdminService _admin = AdminService.instancia;
 
   List<ObraPendente> _obras = [];
-
   bool _carregando = true;
   String? _erro;
   String? _processandoId;
@@ -27,10 +24,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     super.initState();
     _carregar();
   }
-
-  // ============================================================
-  // CARREGAR
-  // ============================================================
 
   Future<void> _carregar() async {
     if (!mounted) return;
@@ -59,10 +52,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     }
   }
 
-  // ============================================================
-  // ABRIR SOLICITAÇÕES DE REMOÇÃO
-  // ============================================================
-
   Future<void> _abrirSolicitacoesRemocao() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -70,10 +59,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
       ),
     );
   }
-
-  // ============================================================
-  // APROVAR
-  // ============================================================
 
   Future<void> _aprovar(ObraPendente obra) async {
     final id = obra.id;
@@ -130,10 +115,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     }
   }
 
-  // ============================================================
-  // REJEITAR
-  // ============================================================
-
   Future<void> _rejeitar(ObraPendente obra) async {
     final id = obra.id;
 
@@ -170,9 +151,7 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Obra rejeitada com sucesso.',
-          ),
+          content: Text('Obra rejeitada com sucesso.'),
         ),
       );
     } catch (e) {
@@ -188,10 +167,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
       _mostrarErro(mensagem);
     }
   }
-
-  // ============================================================
-  // EXCLUIR
-  // ============================================================
 
   Future<void> _excluir(ObraPendente obra) async {
     final id = obra.id;
@@ -229,9 +204,7 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Publicação excluída com sucesso.',
-          ),
+          content: Text('Publicação excluída com sucesso.'),
         ),
       );
     } catch (e) {
@@ -248,10 +221,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     }
   }
 
-  // ============================================================
-  // CONFIRMAÇÃO
-  // ============================================================
-
   Future<bool> _confirmar({
     required String titulo,
     required String mensagem,
@@ -265,15 +234,11 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
           content: Text(mensagem),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
+              onPressed: () => Navigator.of(context).pop(true),
               child: Text(textoConfirmar),
             ),
           ],
@@ -283,10 +248,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
 
     return resultado ?? false;
   }
-
-  // ============================================================
-  // MENSAGEM DE ERRO
-  // ============================================================
 
   String _mensagemErro(Object erro) {
     final mensagem = erro.toString();
@@ -308,14 +269,8 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     );
   }
 
-  // ============================================================
-  // DATA
-  // ============================================================
-
   String _formatarData(DateTime? data) {
-    if (data == null) {
-      return '—';
-    }
+    if (data == null) return '—';
 
     final local = data.toLocal();
 
@@ -325,10 +280,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
 
     return '$dia/$mes/$ano';
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -346,10 +297,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
       body: _buildBody(),
     );
   }
-
-  // ============================================================
-  // CORPO
-  // ============================================================
 
   Widget _buildBody() {
     if (_carregando) {
@@ -375,34 +322,19 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
             ),
             const SizedBox(height: 16),
           ],
-
-          // ======================================================
-          // SOLICITAÇÕES DE REMOÇÃO
-          // ======================================================
-
           _buildSolicitacoesRemocaoCard(),
-
           const SizedBox(height: 30),
-
-          // ======================================================
-          // PUBLICAÇÕES PENDENTES
-          // ======================================================
-
           Text(
             'Publicações pendentes',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-
           const SizedBox(height: 8),
-
           Text(
             _obras.isEmpty
                 ? 'Não existem publicações aguardando análise.'
                 : '${_obras.length} publicação(ões) aguardando análise.',
           ),
-
           const SizedBox(height: 24),
-
           if (_obras.isEmpty)
             _buildSemPublicacoes()
           else
@@ -411,10 +343,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
       ),
     );
   }
-
-  // ============================================================
-  // CARD DE SOLICITAÇÕES DE REMOÇÃO
-  // ============================================================
 
   Widget _buildSolicitacoesRemocaoCard() {
     return Card(
@@ -445,9 +373,7 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
                   color: Colors.black87,
                 ),
               ),
-
               const SizedBox(width: 14),
-
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,9 +396,7 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
                   ],
                 ),
               ),
-
               const SizedBox(width: 10),
-
               const Icon(
                 Icons.chevron_right,
                 color: Colors.black45,
@@ -484,15 +408,9 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     );
   }
 
-  // ============================================================
-  // SEM PUBLICAÇÕES
-  // ============================================================
-
   Widget _buildSemPublicacoes() {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 55,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 55),
       child: Column(
         children: [
           const Icon(
@@ -510,10 +428,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
     );
   }
 
-  // ============================================================
-  // CARD DA OBRA
-  // ============================================================
-
   Widget _buildObraCard(ObraPendente obra) {
     final id = obra.id;
     final processando =
@@ -530,21 +444,16 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
               obra.titulo,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-
             const SizedBox(height: 12),
-
             _InfoLinha(
               icone: Icons.person_outline,
               texto: obra.autor,
             ),
-
             const SizedBox(height: 6),
-
             _InfoLinha(
               icone: Icons.category_outlined,
               texto: obra.categoria,
             ),
-
             if (obra.anoObra != null) ...[
               const SizedBox(height: 6),
               _InfoLinha(
@@ -552,15 +461,12 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
                 texto: obra.anoObra.toString(),
               ),
             ],
-
             const SizedBox(height: 6),
-
             _InfoLinha(
               icone: Icons.schedule_outlined,
               texto:
               'Enviada em ${_formatarData(obra.dataPublicacao)}',
             ),
-
             if (obra.descricao != null &&
                 obra.descricao!.trim().isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -570,9 +476,7 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-
             const SizedBox(height: 20),
-
             if (processando)
               const Align(
                 alignment: Alignment.centerRight,
@@ -610,10 +514,6 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
   }
 }
 
-// ============================================================
-// INFO LINHA
-// ============================================================
-
 class _InfoLinha extends StatelessWidget {
   final IconData icone;
   final String texto;
@@ -640,10 +540,6 @@ class _InfoLinha extends StatelessWidget {
   }
 }
 
-// ============================================================
-// MENSAGEM DE ERRO
-// ============================================================
-
 class _MensagemErroWidget extends StatelessWidget {
   final String mensagem;
   final VoidCallback onFechar;
@@ -656,9 +552,7 @@ class _MensagemErroWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Theme.of(context)
-          .colorScheme
-          .errorContainer,
+      color: Theme.of(context).colorScheme.errorContainer,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -673,9 +567,7 @@ class _MensagemErroWidget extends StatelessWidget {
                   .colorScheme
                   .onErrorContainer,
             ),
-
             const SizedBox(width: 12),
-
             Expanded(
               child: Text(
                 mensagem,
@@ -686,7 +578,6 @@ class _MensagemErroWidget extends StatelessWidget {
                 ),
               ),
             ),
-
             IconButton(
               onPressed: onFechar,
               icon: const Icon(Icons.close),
@@ -700,4 +591,3 @@ class _MensagemErroWidget extends StatelessWidget {
     );
   }
 }
-

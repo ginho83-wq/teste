@@ -220,7 +220,8 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/categoria/:tipo',
       builder: (context, state) {
-        final String tipo = state.pathParameters['tipo'] ?? '';
+        final String tipo =
+            state.pathParameters['tipo'] ?? '';
 
         return _paginaComSeo(
           titulo: '$tipo — $_tituloBase',
@@ -265,7 +266,8 @@ final GoRouter router = GoRouter(
 
         return _paginaComSeo(
           titulo: 'Pesquisa no Acervo — $_tituloBase',
-          descricao: 'Pesquise obras académicas no acervo.',
+          descricao:
+          'Pesquise obras académicas no acervo.',
           child: AcervoPesquisaResultadosPage(
             query: query,
           ),
@@ -300,6 +302,22 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/minha-conta',
+
+      redirect: (context, state) async {
+        if (!_authService.estaAutenticado) {
+          return '/login';
+        }
+
+        final bool ehAdministrador =
+        await _authService.ehAdmin();
+
+        if (ehAdministrador) {
+          return '/admin-obras';
+        }
+
+        return null;
+      },
+
       builder: (context, state) => _paginaComTitulo(
         titulo: 'Minha conta — $_tituloBase',
         child: const MinhaContaPage(),
@@ -361,7 +379,8 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/admin-solicitacoes-remocao',
       builder: (context, state) => _paginaComTitulo(
-        titulo: 'Solicitações de remoção — $_tituloBase',
+        titulo:
+        'Solicitações de remoção — $_tituloBase',
         child: const AdminSolicitacoesRemocaoPage(),
       ),
     ),
@@ -385,7 +404,8 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/politica-privacidade',
       builder: (context, state) => _paginaComTitulo(
-        titulo: 'Política de privacidade — $_tituloBase',
+        titulo:
+        'Política de privacidade — $_tituloBase',
         child: const PoliticaPrivacidadePage(),
       ),
     ),
@@ -450,9 +470,10 @@ final GoRouter router = GoRouter(
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen((_) {
-      notifyListeners();
-    });
+    _subscription =
+        stream.asBroadcastStream().listen((_) {
+          notifyListeners();
+        });
   }
 
   late final StreamSubscription<dynamic> _subscription;
@@ -463,4 +484,3 @@ class GoRouterRefreshStream extends ChangeNotifier {
     super.dispose();
   }
 }
-
