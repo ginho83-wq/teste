@@ -39,6 +39,11 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release --base-href /teste/
 
+      - name: Prepare public routes
+        run: |
+          mkdir -p build/web/categorias
+          cp build/web/index.html build/web/categorias/index.html
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
