@@ -41,12 +41,6 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
   String? _erro;
 
-  bool _dadosUtilizadorAberto = false;
-
-  bool _publicacoesAberto = false;
-
-  bool _solicitacoesAberto = false;
-
   @override
   void initState() {
     super.initState();
@@ -290,10 +284,6 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
   Future<void> _abrirHistorico() async {
     await context.push('/historico-obras');
-
-    if (!mounted) return;
-
-    await _carregarHistorico();
   }
 
   Future<void> _carregarHistorico() async {
@@ -341,23 +331,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     return Row(
       children: [
         if (icone != null) ...[
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .primary
-                  .withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icone,
-              size: 22,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          Icon(
+            icone,
+            size: 22,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
         ],
         Expanded(
           child: Text(
@@ -373,137 +351,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
-  Widget _contador(int valor) {
-    if (valor <= 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      constraints: const BoxConstraints(
-        minWidth: 26,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        valor.toString(),
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onPrimary,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-
-  Widget _itemMenu({
-    required IconData icone,
-    required String titulo,
-    required int contador,
-    required bool aberto,
-    required VoidCallback onTap,
-  }) {
-    final tema = Theme.of(context);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: aberto
-            ? tema.colorScheme.primary.withValues(alpha: 0.08)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 3,
-        ),
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: aberto
-                ? tema.colorScheme.primary.withValues(alpha: 0.12)
-                : tema.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icone,
-            size: 21,
-            color: aberto
-                ? tema.colorScheme.primary
-                : tema.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        title: Text(
-          titulo,
-          style: TextStyle(
-            fontWeight: aberto ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _contador(contador),
-            if (contador > 0) const SizedBox(width: 6),
-            Icon(
-              aberto
-                  ? Icons.keyboard_arrow_up_rounded
-                  : Icons.keyboard_arrow_down_rounded,
-              color: tema.colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-
-  Widget _submenuItem({
-    required IconData icone,
-    required String titulo,
-    required VoidCallback onTap,
-  }) {
-    final tema = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 30,
-        right: 4,
-        bottom: 3,
-      ),
-      child: ListTile(
-        dense: true,
-        leading: Icon(
-          icone,
-          size: 19,
-          color: tema.colorScheme.onSurfaceVariant,
-        ),
-        title: Text(
-          titulo,
-          style: const TextStyle(
-            fontSize: 14,
-          ),
-        ),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-  }
-
-  Widget _dadosUtilizador() {
+  Widget _cartaoPerfil() {
     final nome =
     (_perfil?['nome'] ?? _perfil?['name'] ?? 'Utilizador').toString();
 
@@ -511,225 +359,46 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     (_perfil?['email'] ?? _supabase.auth.currentUser?.email ?? '')
         .toString();
 
-    final inicial =
-    nome.trim().isNotEmpty ? nome.trim()[0].toUpperCase() : 'U';
-
-    final tema = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 12,
-        right: 4,
-        bottom: 12,
-      ),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              tema.colorScheme.primary.withValues(alpha: 0.10),
-              tema.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.55),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: tema.colorScheme.primary.withValues(alpha: 0.10),
-          ),
-        ),
-        padding: const EdgeInsets.all(18),
-        child: Column(
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
           children: [
             CircleAvatar(
-              radius: 38,
-              backgroundColor: tema.colorScheme.primary,
+              radius: 30,
               child: Text(
-                inicial,
-                style: TextStyle(
-                  color: tema.colorScheme.onPrimary,
-                  fontSize: 28,
+                nome.isNotEmpty ? nome[0].toUpperCase() : 'U',
+                style: const TextStyle(
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              nome,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (email.isNotEmpty) ...[
-              const SizedBox(height: 5),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.email_outlined,
-                    size: 15,
-                    color: tema.colorScheme.onSurfaceVariant,
+                  Text(
+                    nome,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      email,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: tema.colorScheme.onSurfaceVariant,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _painelLateral({
-    double? largura,
-  }) {
-    final tema = Theme.of(context);
-
-    return Container(
-      width: largura ?? double.infinity,
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.fromLTRB(
-        18,
-        24,
-        14,
-        20,
-      ),
-      decoration: BoxDecoration(
-        color: tema.colorScheme.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: tema.dividerColor.withValues(alpha: 0.7),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: tema.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Icon(
-                    Icons.person_outline_rounded,
-                    color: tema.colorScheme.onPrimary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Minha conta',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Perfil e publicações',
-                        style: TextStyle(
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-          _itemMenu(
-            icone: Icons.person_outline_rounded,
-            titulo: 'Dados do utilizador',
-            contador: 0,
-            aberto: _dadosUtilizadorAberto,
-            onTap: () {
-              setState(() {
-                _dadosUtilizadorAberto = !_dadosUtilizadorAberto;
-
-                if (_dadosUtilizadorAberto) {
-                  _publicacoesAberto = false;
-                  _solicitacoesAberto = false;
-                }
-              });
-            },
-          ),
-          if (_dadosUtilizadorAberto) _dadosUtilizador(),
-          const SizedBox(height: 4),
-          _itemMenu(
-            icone: Icons.library_books_outlined,
-            titulo: 'Minhas publicações',
-            contador: _minhasObras.length,
-            aberto: _publicacoesAberto,
-            onTap: () {
-              setState(() {
-                _publicacoesAberto = !_publicacoesAberto;
-
-                if (_publicacoesAberto) {
-                  _dadosUtilizadorAberto = false;
-                  _solicitacoesAberto = false;
-                }
-              });
-            },
-          ),
-          if (_publicacoesAberto)
-            _submenuItem(
-              icone: Icons.description_outlined,
-              titulo: 'Todas as publicações',
-              onTap: () {},
-            ),
-          const SizedBox(height: 4),
-          _itemMenu(
-            icone: Icons.delete_outline_rounded,
-            titulo: 'Solicitações de remoção',
-            contador: _solicitacoes.length,
-            aberto: _solicitacoesAberto,
-            onTap: () {
-              setState(() {
-                _solicitacoesAberto = !_solicitacoesAberto;
-
-                if (_solicitacoesAberto) {
-                  _dadosUtilizadorAberto = false;
-                  _publicacoesAberto = false;
-                }
-              });
-            },
-          ),
-          if (_solicitacoesAberto)
-            _submenuItem(
-              icone: Icons.pending_actions_outlined,
-              titulo: 'Minhas solicitações',
-              onTap: () {},
-            ),
-        ],
       ),
     );
   }
@@ -744,13 +413,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
     return Column(
       children: _minhasObras.map((dados) {
-        final titulo =
-        (dados['titulo'] ?? 'Sem título').toString();
+        final titulo = (dados['titulo'] ?? 'Sem título').toString();
 
         final autor = (dados['autor'] ?? '').toString();
 
-        final categoria =
-        (dados['categoria'] ?? '').toString();
+        final categoria = (dados['categoria'] ?? '').toString();
 
         final dataPublicacao = dados['data_publicacao'];
 
@@ -809,83 +476,29 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     if (_historico.isEmpty) {
       return _caixaVazia(
         'Ainda não existem obras consultadas recentemente.',
-        Icons.history_rounded,
+        Icons.history,
       );
     }
 
     return Column(
       children: _historico.map((item) {
         return Card(
-          elevation: 0,
           margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(
-              color: Theme.of(context)
-                  .dividerColor
-                  .withValues(alpha: 0.7),
-            ),
-          ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 7,
-            ),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.description_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            leading: const CircleAvatar(
+              child: Icon(Icons.history),
             ),
             title: Text(
               item.titulo,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-              ),
             ),
             subtitle: item.dataConsulta != null
-                ? Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.schedule_outlined,
-                    size: 14,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Consultada em ${_formatarData(item.dataConsulta)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
+                ? Text(
+              'Consultada em ${_formatarData(item.dataConsulta)}',
             )
                 : null,
-            trailing: Icon(
-              Icons.chevron_right_rounded,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant,
-            ),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () async {
               final obraId = item.obraId;
 
@@ -982,43 +595,28 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       String texto,
       IconData icone,
       ) {
-    final tema = Theme.of(context);
-
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 34,
-      ),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: tema.colorScheme.surfaceContainerLowest,
         border: Border.all(
-          color: tema.dividerColor.withValues(alpha: 0.7),
+          color: Colors.grey.shade300,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: tema.colorScheme.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icone,
-              size: 30,
-              color: tema.colorScheme.primary.withValues(alpha: 0.65),
-            ),
+          Icon(
+            icone,
+            size: 40,
+            color: Colors.grey.shade500,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             texto,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: tema.colorScheme.onSurfaceVariant,
-              fontSize: 14,
+              color: Colors.grey.shade700,
             ),
           ),
         ],
@@ -1026,97 +624,74 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
-  Widget _cardPublicacoes() {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: Theme.of(context)
-              .dividerColor
-              .withValues(alpha: 0.7),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+  Widget _conteudo() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _carregarDados();
+        await _carregarHistorico();
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(20),
         children: [
+          _cartaoPerfil(),
+
+          const SizedBox(height: 24),
+
           _tituloSecao(
-            'Minhas publicações (${_minhasObras.length})',
+            'Minhas publicações',
             icone: Icons.library_books_outlined,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Todas as obras publicadas por si.',
-            style: TextStyle(
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 18),
+
+          const SizedBox(height: 12),
+
           _listaObras(),
-        ],
-      ),
-    );
-  }
 
-  Widget _cardHistorico() {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: Theme.of(context)
-              .dividerColor
-              .withValues(alpha: 0.7),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
+          const SizedBox(height: 28),
+
           _tituloSecao(
-            'Obras consultadas recentemente (${_historico.length})',
-            icone: Icons.history_rounded,
-            trailing: TextButton.icon(
+            'Solicitações de remoção',
+            icone: Icons.delete_outline,
+          ),
+
+          const SizedBox(height: 12),
+
+          _listaSolicitacoes(),
+
+          const SizedBox(height: 28),
+
+          _tituloSecao(
+            'Histórico',
+            icone: Icons.history,
+            trailing: TextButton(
               onPressed: _abrirHistorico,
-              icon: const Icon(
-                Icons.arrow_forward_rounded,
-                size: 17,
-              ),
-              label: const Text('Ver tudo'),
+              child: const Text('Ver tudo'),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Aceda rapidamente às últimas obras que consultou.',
-            style: TextStyle(
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 18),
+
+          const SizedBox(height: 12),
+
           _listaHistorico(),
+
+          const SizedBox(height: 28),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await _supabase.auth.signOut();
+
+                if (!mounted) return;
+
+                context.go('/login');
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text('Sair'),
+            ),
+          ),
+
+          const SizedBox(height: 20),
         ],
       ),
-    );
-  }
-
-  Widget _conteudoPrincipalMobile() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _cardPublicacoes(),
-        _cardHistorico(),
-      ],
     );
   }
 
@@ -1166,48 +741,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       appBar: AppBar(
         title: const Text('Minha conta'),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // MOBILE / TABLET
-          if (constraints.maxWidth < 850) {
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _painelLateral(),
-                  _cardPublicacoes(),
-                  _cardHistorico(),
-                ],
-              ),
-            );
-          }
-
-          // DESKTOP
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  // ALTERADO:
-                  // os dois cards passam a ter a mesma altura.
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _painelLateral(
-                      largura: 310,
-                    ),
-                    Expanded(
-                      child: _cardPublicacoes(),
-                    ),
-                  ],
-                ),
-
-                // Histórico ocupa toda a largura.
-                _cardHistorico(),
-              ],
-            ),
-          );
-        },
-      ),
+      body: _conteudo(),
     );
   }
 }

@@ -18,6 +18,7 @@ import '../pages/configuracoes_page.dart';
 import '../pages/publicar_obra_page.dart';
 import '../pages/historico_obras_page.dart';
 import '../pages/acervo_resultados_page.dart';
+import '../pages/obra_detalhes_page.dart';
 import '../pages/acervo_pesquisa_resultados_page.dart';
 import '../pages/pesquisa_resultados_page.dart';
 import '../pages/categorias_page.dart';
@@ -102,6 +103,7 @@ bool _ehRotaPublica(String caminho) {
       caminho == '/cookies' ||
       caminho == '/contacto' ||
       caminho == '/ajuda' ||
+      caminho.startsWith('/obra/') ||
       caminho.startsWith('/categoria/') ||
       caminho.startsWith('/acervo/pesquisa/') ||
       caminho.startsWith('/search/');
@@ -255,6 +257,22 @@ final GoRouter router = GoRouter(
     ),
 
     // ========================================================
+    // DETALHES DA OBRA
+    // ========================================================
+
+    GoRoute(
+      path: '/obra/:id',
+      builder: (context, state) {
+        final String id =
+            state.pathParameters['id'] ?? '';
+
+        return ObraDetalhesPage(
+          id: id,
+        );
+      },
+    ),
+
+    // ========================================================
     // PESQUISA NO ACERVO
     // ========================================================
 
@@ -302,7 +320,6 @@ final GoRouter router = GoRouter(
 
     GoRoute(
       path: '/minha-conta',
-
       redirect: (context, state) async {
         if (!_authService.estaAutenticado) {
           return '/login';
@@ -317,7 +334,6 @@ final GoRouter router = GoRouter(
 
         return null;
       },
-
       builder: (context, state) => _paginaComTitulo(
         titulo: 'Minha conta — $_tituloBase',
         child: const MinhaContaPage(),
@@ -379,8 +395,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/admin-solicitacoes-remocao',
       builder: (context, state) => _paginaComTitulo(
-        titulo:
-        'Solicitações de remoção — $_tituloBase',
+        titulo: 'Solicitações de remoção — $_tituloBase',
         child: const AdminSolicitacoesRemocaoPage(),
       ),
     ),
@@ -404,8 +419,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/politica-privacidade',
       builder: (context, state) => _paginaComTitulo(
-        titulo:
-        'Política de privacidade — $_tituloBase',
+        titulo: 'Política de privacidade — $_tituloBase',
         child: const PoliticaPrivacidadePage(),
       ),
     ),
