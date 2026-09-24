@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class BarraPesquisa extends StatelessWidget {
   final TextEditingController controller;
-  final String hintText;
+  final String? hintText;
   final VoidCallback onPesquisar;
   final VoidCallback? onLimpar;
   final ValueChanged<String>? onChanged;
@@ -11,7 +11,7 @@ class BarraPesquisa extends StatelessWidget {
   const BarraPesquisa({
     super.key,
     required this.controller,
-    required this.hintText,
+    this.hintText,
     required this.onPesquisar,
     this.onLimpar,
     this.onChanged,
@@ -20,20 +20,10 @@ class BarraPesquisa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        18,
-        24,
-        14,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: Color(0xffe8e8e8),
-          ),
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 10,
       ),
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
@@ -45,30 +35,49 @@ class BarraPesquisa extends StatelessWidget {
             onChanged: onChanged,
             decoration: InputDecoration(
               hintText: hintText,
+
               prefixIcon: const Icon(
                 Icons.search,
-                size: 21,
+                size: 22,
+                color: Color(0xff555555),
               ),
+
               suffixIcon: value.text.isNotEmpty
                   ? IconButton(
                 tooltip: 'Limpar pesquisa',
                 icon: const Icon(
                   Icons.close,
                   size: 19,
+                  color: Color(0xff666666),
                 ),
                 onPressed:
                 onLimpar ?? controller.clear,
               )
                   : null,
+
               filled: true,
-              fillColor: const Color(0xfff3f3f3),
+              fillColor: const Color(0xfff5f5f5),
+
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding:
-              const EdgeInsets.symmetric(
-                vertical: 13,
+
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xffc8c8c8),
+                  width: 1,
+                ),
+              ),
+
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 14,
                 horizontal: 12,
               ),
             ),
@@ -78,4 +87,3 @@ class BarraPesquisa extends StatelessWidget {
     );
   }
 }
-
