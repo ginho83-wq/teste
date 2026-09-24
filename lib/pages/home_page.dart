@@ -26,14 +26,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
+  final ObrasRepository _obrasRepository =
+      ObrasRepository.instancia;
 
-  final AuthService _authService = AuthService.instancia;
+  final AuthService _authService =
+      AuthService.instancia;
 
-  final HistoricoObrasService _historicoService =
+  final HistoricoObrasService
+  _historicoService =
       HistoricoObrasService.instancia;
 
-  final TextEditingController _pesquisaController =
+  final TextEditingController
+  _pesquisaController =
   TextEditingController();
 
   List<Obra> _obrasRecentes = [];
@@ -45,7 +49,8 @@ class _HomePageState extends State<HomePage> {
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
-  StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription<AuthState>?
+  _authSubscription;
 
   @override
   void initState() {
@@ -170,7 +175,8 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final consultas =
-      await _historicoService.obterConsultasRecentes(
+      await _historicoService
+          .obterConsultasRecentes(
         limite: 5,
       );
 
@@ -641,36 +647,83 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ] else ...[
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
 
-          TextButton(
-            onPressed: () {
-              context.go('/login');
-            },
-            child: const Text(
-              'Entrar',
-              style: TextStyle(
-                color: Color(0xFF444444),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+          // ======================================================
+          // BOTÃO ENTRAR
+          // ======================================================
+
+          SizedBox(
+            height: 38,
+            child: TextButton(
+              onPressed: () {
+                context.go('/login');
+              },
+              style: TextButton.styleFrom(
+                backgroundColor:
+                const Color(0xFF222222),
+                foregroundColor: Colors.white,
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal: 18,
+                ),
+                shape:
+                RoundedRectangleBorder(
+                  borderRadius:
+                  BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Entrar',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
+
+          const SizedBox(width: 8),
+
+          // ======================================================
+          // BOTÃO CRIAR CONTA
+          // ======================================================
 
           Padding(
             padding: const EdgeInsets.only(
               right: 18,
             ),
-            child: TextButton(
-              onPressed: () {
-                context.go('/cadastro');
-              },
-              child: const Text(
-                'Criar conta',
-                style: TextStyle(
-                  color: Color(0xFF444444),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+            child: SizedBox(
+              height: 38,
+              child: TextButton(
+                onPressed: () {
+                  context.go('/cadastro');
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor:
+                  const Color(0xFFF3F3F3),
+                  foregroundColor:
+                  const Color(0xFF222222),
+                  padding:
+                  const EdgeInsets.symmetric(
+                    horizontal: 18,
+                  ),
+                  side: const BorderSide(
+                    color: Color(0xFFD6D6D6),
+                    width: 1,
+                  ),
+                  shape:
+                  RoundedRectangleBorder(
+                    borderRadius:
+                    BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Criar conta',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -706,7 +759,7 @@ class _HomePageState extends State<HomePage> {
                     'Encontre obras.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 34,
+                  fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF222222),
                   height: 1.2,
@@ -748,26 +801,11 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCategorias() {
     const categorias = [
-      (
-      nome: 'Tese Doutoramento',
-      icone: Icons.school_outlined,
-      ),
-      (
-      nome: 'Dissertação de Mestrado',
-      icone: Icons.menu_book_outlined,
-      ),
-      (
-      nome: 'Monografia',
-      icone: Icons.description_outlined,
-      ),
-      (
-      nome: 'Artigos Científicos',
-      icone: Icons.article_outlined,
-      ),
-      (
-      nome: 'Literatura',
-      icone: Icons.auto_stories_outlined,
-      ),
+      'Tese Doutoramento',
+      'Dissertação de Mestrado',
+      'Monografia',
+      'Artigos Científicos',
+      'Literatura',
     ];
 
     return Container(
@@ -809,9 +847,9 @@ class _HomePageState extends State<HomePage> {
                     .map(
                       (categoria) => SizedBox(
                     width: itemLargura,
-                    child: _buildCategoriaItem(
-                      categoria.nome,
-                      categoria.icone,
+                    child:
+                    _buildCategoriaItem(
+                      categoria,
                     ),
                   ),
                 )
@@ -824,10 +862,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCategoriaItem(
-      String nome,
-      IconData icone,
-      ) {
+  Widget _buildCategoriaItem(String nome) {
     return InkWell(
       onTap: () {
         context.go(
@@ -835,34 +870,22 @@ class _HomePageState extends State<HomePage> {
               '${Uri.encodeComponent(nome)}',
         );
       },
-      borderRadius: BorderRadius.circular(6),
+      borderRadius:
+      BorderRadius.circular(6),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
+        padding:
+        const EdgeInsets.symmetric(
           vertical: 8,
           horizontal: 6,
         ),
-        child: Row(
-          mainAxisAlignment:
-          MainAxisAlignment.center,
-          children: [
-            Icon(
-              icone,
-              size: 23,
-              color: const Color(0xFF444444),
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                nome,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w300,
-                  color: Color(0xFF333333),
-                ),
-              ),
-            ),
-          ],
+        child: Text(
+          nome,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w300,
+            color: Color(0xFF333333),
+          ),
         ),
       ),
     );
@@ -876,7 +899,8 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 44,
       ),
@@ -915,7 +939,8 @@ class _HomePageState extends State<HomePage> {
               if (_carregandoObras)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(30),
+                    padding:
+                    EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -931,11 +956,14 @@ class _HomePageState extends State<HomePage> {
                   CrossAxisAlignment.start,
                   children: _obrasRecentes
                       .map(
-                        (obra) => ObraListaItem(
-                      obra: obra,
-                      onTap: () =>
-                          _abrirObra(obra),
-                    ),
+                        (obra) =>
+                        ObraListaItem(
+                          obra: obra,
+                          onTap: () =>
+                              _abrirObra(
+                                obra,
+                              ),
+                        ),
                   )
                       .toList(),
                 ),
@@ -961,7 +989,8 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 44,
       ),
@@ -987,7 +1016,9 @@ class _HomePageState extends State<HomePage> {
                       color: Color(0xFF222222),
                     ),
                   ),
+
                   SizedBox(height: 8),
+
                   Text(
                     'Aceda rapidamente às obras '
                         'que consultou.',
@@ -1005,7 +1036,8 @@ class _HomePageState extends State<HomePage> {
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(30),
+                    padding:
+                    EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -1036,12 +1068,14 @@ class _HomePageState extends State<HomePage> {
                           ),
 
                           if (index <
-                              _consultasRecentes.length -
+                              _consultasRecentes
+                                  .length -
                                   1)
                             const Divider(
                               height: 1,
                               thickness: 1,
-                              color: Color(0xFFE5E5E5),
+                              color:
+                              Color(0xFFE5E5E5),
                             ),
                         ],
                       );
@@ -1063,7 +1097,8 @@ class _HomePageState extends State<HomePage> {
       String mensagem,
       ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         vertical: 30,
       ),
       child: Center(
