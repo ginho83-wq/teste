@@ -1,115 +1,141 @@
 name: Deploy Flutter Web to GitHub Pages
-on: push: branches: - main workflow_dispatch:
-permissions: contents: read pages: write id-token: write
-concurrency: group: pages cancel-in-progress: true
-jobs: build: runs-on: ubuntu-latest
-steps:
-  - name: Checkout
-    uses: actions/checkout@v4
 
-  - name: Setup Flutter
-    uses: subosito/flutter-action@v2
-    with:
-      flutter-version: '3.41.3'
-      channel: stable
-      cache: true
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-  - name: Check Flutter
-    run: flutter --version
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
-  - name: Get dependencies
-    run: flutter pub get
+concurrency:
+  group: pages
+  cancel-in-progress: true
 
-  - name: Build Flutter Web
-    run: flutter build web --release --base-href /teste/
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-  - name: Prepare public routes
-    run: |
-      mkdir -p build/web/categorias
-      mkdir -p build/web/acervo
-      mkdir -p build/web/termos
-      mkdir -p build/web/politica-privacidade
-      mkdir -p build/web/cookies
-      mkdir -p build/web/contacto
-      mkdir -p build/web/ajuda
-      mkdir -p build/web/obra
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      cp build/web/index.html build/web/categorias/index.html
-      cp build/web/index.html build/web/acervo/index.html
-      cp build/web/index.html build/web/termos/index.html
-      cp build/web/index.html build/web/politica-privacidade/index.html
-      cp build/web/index.html build/web/cookies/index.html
-      cp build/web/index.html build/web/contacto/index.html
-      cp build/web/index.html build/web/ajuda/index.html
-      cp build/web/index.html build/web/obra/index.html
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.3'
+          channel: stable
+          cache: true
 
-  - name: Prepare individual obra routes automatically
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-    run: |
-      set -e
+      - name: Check Flutter
+        run: flutter --version
 
-      echo "A consultar obras publicadas no Supabase..."
+      - name: Get dependencies
+        run: flutter pub get
 
-      response=$(curl -sS \
-        -H "apikey: ${SUPABASE_ANON_KEY}" \
-        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-        "${SUPABASE_URL}/rest/v1/obras?select=id")
+      - name: Build Flutter Web
+        run: flutter build web --release --base-href /teste/
 
-      echo "$response" > /tmp/obras.json
+      - name: Prepare public routes
+        run: |
+          mkdir -p build/web/categorias
+          mkdir -p build/web/acervo
+          mkdir -p build/web/termos
+          mkdir -p build/web/politica-privacidade
+          mkdir -p build/web/cookies
+          mkdir -p build/web/contacto
+          mkdir -p build/web/ajuda
+          mkdir -p build/web/obra
 
-      python3 - <<'PY'
-      import json
-      import os
-      import shutil
+          cp build/web/index.html build/web/categorias/index.html
+          cp build/web/index.html build/web/acervo/index.html
+          cp build/web/index.html build/web/termos/index.html
+          cp build/web/index.html build/web/politica-privacidade/index.html
+          cp build/web/index.html build/web/cookies/index.html
+          cp build/web/index.html build/web/contacto/index.html
+          cp build/web/index.html build/web/ajuda/index.html
+          cp build/web/index.html build/web/obra/index.html
 
-      with open("/tmp/obras.json", "r", encoding="utf-8") as f:
-          data = json.load(f)
+      - name: Prepare individual obra routes automatically
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -e
 
-      if not isinstance(data, list):
-          raise RuntimeError(f"Resposta inesperada do Supabase: {data}")
+          echo "A consultar obras publicadas no Supabase..."
 
-      index = "build/web/index.html"
+          response=$(curl -sS \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/rest/v1/obras?select=id")
 
-      print(f"Obras encontradas: {len(data)}")
+          echo "$response" > /tmp/obras.json
 
-      for obra in data:
-          obra_id = str(obra["id"]).strip()
+          python3 - <<'PY'
+          import json
+          import os
+          import shutil
 
-          if not obra_id:
-              continue
+          with open("/tmp/obras.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
 
-          destino = os.path.join(
-              "build",
-              "web",
-              "obra",
-              obra_id,
-              "index.html"
-          )
+          if not isinstance(data, list):
+              raise RuntimeError(
+                  f"Resposta inesperada do Supabase: {data}"
+              )
 
-          os.makedirs(os.path.dirname(destino), exist_ok=True)
-          shutil.copy2(index, destino)
+          index = "build/web/index.html"
 
-          print(f"Rota criada: /obra/{obra_id}")
+          print(f"Obras encontradas: {len(data)}")
 
-      print("Rotas individuais preparadas automaticamente.")
-      PY
+          for obra in data:
+              obra_id = str(obra["id"]).strip()
 
-  - name: Configure Pages
-    uses: actions/configure-pages@v5
+              if not obra_id:
+                  continue
 
-  - name: Upload artifact
-    uses: actions/upload-pages-artifact@v3
-    with:
-      path: build/web
-deploy: environment: name: github-pages url: ${{ steps.deployment.outputs.page_url }}
-runs-on: ubuntu-latest
+              destino = os.path.join(
+                  "build",
+                  "web",
+                  "obra",
+                  obra_id,
+                  "index.html"
+              )
 
-needs: build
+              os.makedirs(
+                  os.path.dirname(destino),
+                  exist_ok=True
+              )
 
-steps:
-  - name: Deploy to GitHub Pages
-    id: deployment
-    uses: actions/deploy-pages@v4
+              shutil.copy2(index, destino)
 
+              print(f"Rota criada: /obra/{obra_id}")
+
+          print("Rotas individuais preparadas automaticamente.")
+          PY
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
