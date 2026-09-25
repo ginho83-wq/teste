@@ -246,9 +246,10 @@ final GoRouter router = GoRouter(
         state.uri.queryParameters['obra'];
 
         return _paginaComSeo(
-          titulo: 'Acervo — $_tituloBase',
+          titulo: 'Obra Livre — Acervo',
           descricao:
-          'Consulte obras académicas disponíveis no acervo.',
+          'Consulte teses, dissertações, monografias e artigos '
+              'científicos disponíveis no acervo da Obra Livre.',
           child: AcervoResultadosPage(
             obraId: obraId,
           ),
@@ -266,8 +267,14 @@ final GoRouter router = GoRouter(
         final String id =
             state.pathParameters['id'] ?? '';
 
-        return ObraDetalhesPage(
-          id: id,
+        return _paginaComSeo(
+          titulo: 'Obra Livre — Detalhes da obra',
+          descricao:
+          'Consulte os detalhes e informações desta obra académica '
+              'na plataforma Obra Livre.',
+          child: ObraDetalhesPage(
+            id: id,
+          ),
         );
       },
     ),
@@ -285,7 +292,7 @@ final GoRouter router = GoRouter(
         return _paginaComSeo(
           titulo: 'Pesquisa no Acervo — $_tituloBase',
           descricao:
-          'Pesquise obras académicas no acervo.',
+          'Pesquise obras académicas no acervo da Obra Livre.',
           child: AcervoPesquisaResultadosPage(
             query: query,
           ),
@@ -306,7 +313,7 @@ final GoRouter router = GoRouter(
         return _paginaComSeo(
           titulo: 'Pesquisa — $_tituloBase',
           descricao:
-          'Pesquise obras académicas na plataforma.',
+          'Pesquise obras académicas na plataforma Obra Livre.',
           child: PesquisaResultadosPage(
             query: query,
           ),
@@ -484,10 +491,9 @@ final GoRouter router = GoRouter(
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription =
-        stream.asBroadcastStream().listen((_) {
-          notifyListeners();
-        });
+    _subscription = stream.asBroadcastStream().listen((_) {
+      notifyListeners();
+    });
   }
 
   late final StreamSubscription<dynamic> _subscription;
