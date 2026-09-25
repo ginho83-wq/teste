@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
+import '../services/historico_obras_service.dart';
 
 class ObraDetalhesPage extends StatefulWidget {
   final String id;
@@ -18,6 +19,8 @@ class ObraDetalhesPage extends StatefulWidget {
 
 class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   final ObrasRepository _repository = ObrasRepository.instancia;
+  final HistoricoObrasService _historicoService =
+      HistoricoObrasService.instancia;
 
   Obra? _obra;
   bool _carregando = true;
@@ -39,6 +42,19 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         _obra = obra;
         _carregando = false;
       });
+
+      // Regista a consulta quando a página de detalhes é aberta.
+      if (obra != null) {
+        try {
+          await _historicoService.registrarConsulta(
+            obraId: obra.id,
+          );
+        } catch (e) {
+          debugPrint(
+            'OBRA DETALHES: erro ao registrar consulta: $e',
+          );
+        }
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -46,6 +62,10 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         _erro = 'Não foi possível carregar esta obra.';
         _carregando = false;
       });
+
+      debugPrint(
+        'OBRA DETALHES: erro ao carregar obra: $e',
+      );
     }
   }
 
@@ -53,19 +73,69 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     final obra = _obra;
 
     if (obra == null || obra.urlDocumento.trim().isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O documento desta obra não está disponível.',
+          ),
+        ),
+      );
+
       return;
     }
 
-    final uri = Uri.tryParse(obra.urlDocumento);
-
-    if (uri == null) {
-      return;
-    }
-
-    await launchUrl(
-      uri,
-      webOnlyWindowName: '_blank',
+    final uri = Uri.tryParse(
+      obra.urlDocumento.trim(),
     );
+
+    if (uri == null ||
+        !uri.hasScheme ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O endereço do documento não é válido.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    try {
+      final abriu = await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
+
+      if (!abriu && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível abrir o documento.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        'OBRA DETALHES: erro ao abrir documento: $e',
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível abrir o documento.',
+          ),
+        ),
+      );
+    }
   }
 
   String _formatarData(DateTime data) {
@@ -141,7 +211,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 child: Padding(
                   padding: const EdgeInsets.all(28),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
                     children: [
                       Text(
                         obra.titulo,
@@ -249,7 +320,8 @@ class _Informacao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
       children: [
         Text(
           titulo,
@@ -263,9 +335,12 @@ class _Informacao extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           valor,
-          style: Theme.of(context).textTheme.bodyLarge,
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge,
         ),
       ],
     );
   }
 }
+

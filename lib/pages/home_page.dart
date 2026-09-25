@@ -13,7 +13,6 @@ import '../services/historico_obras_service.dart';
 
 import '../widgets/avatar_utilizador.dart';
 import '../widgets/barra_pesquisa.dart';
-import '../widgets/detalhes_obra_dialog.dart';
 import '../widgets/foot_widget.dart';
 import '../widgets/historico_lista_item.dart';
 import '../widgets/obra_lista_item.dart';
@@ -270,41 +269,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _abrirObra(Obra obra) async {
     if (!mounted) return;
 
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
-
-    if (usuario != null) {
-      try {
-        await _historicoService.registrarConsulta(
-          obraId: obra.id,
-        );
-
-        debugPrint(
-          'HOME: consulta registrada ao abrir detalhes '
-              'da obra ${obra.id}',
-        );
-      } catch (e) {
-        debugPrint(
-          'HOME: erro ao registrar consulta: $e',
-        );
-      }
-    }
-
-    if (!mounted) return;
-
-    await mostrarDetalhesObraDialog(
-      context,
-      obra: obra,
-      mostrarAbrir: true,
-      onAbrir: () => _abrirDocumento(obra),
-    );
-
-    if (!mounted) return;
-
-    if (usuario != null) {
-      await _carregarConsultasRecentes();
-    }
+    context.go('/obra/${obra.id}');
   }
+
+  // ============================================================
+  // ABRIR DOCUMENTO
+  // ============================================================
 
   Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento.trim();
@@ -352,6 +322,10 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
+
+  // ============================================================
+  // ABRIR CONSULTA RECENTE
+  // ============================================================
 
   Future<void> _abrirConsultaRecente(
       HistoricoObra consulta,
@@ -413,6 +387,10 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
+
+  // ============================================================
+  // MENSAGEM
+  // ============================================================
 
   void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
@@ -480,7 +458,6 @@ class _HomePageState extends State<HomePage> {
       surfaceTintColor: Colors.white,
       automaticallyImplyLeading: false,
       titleSpacing: 24,
-
       title: const Text(
         'Obra Livre',
         style: TextStyle(
@@ -489,7 +466,6 @@ class _HomePageState extends State<HomePage> {
           fontWeight: FontWeight.w700,
         ),
       ),
-
       actions: [
         TextButton(
           onPressed: () {
@@ -504,7 +480,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-
         TextButton(
           onPressed: () {
             context.go('/acervo');
@@ -518,7 +493,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-
         if (estaAutenticado) ...[
           TextButton(
             onPressed: () {
@@ -533,9 +507,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-
           const SizedBox(width: 8),
-
           Padding(
             padding: const EdgeInsets.only(
               right: 18,
@@ -543,7 +515,6 @@ class _HomePageState extends State<HomePage> {
             child: PopupMenuButton<String>(
               tooltip: 'Conta',
               offset: const Offset(0, 48),
-
               onSelected: (value) async {
                 switch (value) {
                   case 'conta':
@@ -579,7 +550,6 @@ class _HomePageState extends State<HomePage> {
                     break;
                 }
               },
-
               itemBuilder: (context) => [
                 const PopupMenuItem<String>(
                   value: 'conta',
@@ -599,7 +569,6 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-
                 const PopupMenuItem<String>(
                   value: 'configuracoes',
                   child: Row(
@@ -618,9 +587,7 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-
                 const PopupMenuDivider(),
-
                 const PopupMenuItem<String>(
                   value: 'sair',
                   child: Row(
@@ -640,7 +607,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
-
               child: const AvatarUtilizador(
                 radius: 20,
               ),
@@ -648,11 +614,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ] else ...[
           const SizedBox(width: 8),
-
-          // ======================================================
-          // BOTÃO ENTRAR
-          // ======================================================
-
           SizedBox(
             height: 38,
             child: TextButton(
@@ -682,13 +643,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-
           const SizedBox(width: 8),
-
-          // ======================================================
-          // BOTÃO CRIAR CONTA
-          // ======================================================
-
           Padding(
             padding: const EdgeInsets.only(
               right: 18,
@@ -765,9 +720,7 @@ class _HomePageState extends State<HomePage> {
                   height: 1.2,
                 ),
               ),
-
               const SizedBox(height: 16),
-
               const Text(
                 'Pesquise e consulte trabalhos '
                     'académicos, científicos e literários.',
@@ -778,9 +731,7 @@ class _HomePageState extends State<HomePage> {
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 30),
-
               BarraPesquisa(
                 controller: _pesquisaController,
                 hintText:
@@ -810,7 +761,8 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         horizontal: 24,
         vertical: 30,
       ),
@@ -840,7 +792,8 @@ class _HomePageState extends State<HomePage> {
                       colunas;
 
               return Wrap(
-                alignment: WrapAlignment.center,
+                alignment:
+                WrapAlignment.center,
                 spacing: espacamento,
                 runSpacing: 20,
                 children: categorias
@@ -921,9 +874,7 @@ class _HomePageState extends State<HomePage> {
                   color: Color(0xFF222222),
                 ),
               ),
-
               const SizedBox(height: 8),
-
               const Text(
                 'Confira as obras publicadas '
                     'recentemente.',
@@ -933,14 +884,11 @@ class _HomePageState extends State<HomePage> {
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 24),
-
               if (_carregandoObras)
                 const Center(
                   child: Padding(
-                    padding:
-                    EdgeInsets.all(30),
+                    padding: EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -956,14 +904,11 @@ class _HomePageState extends State<HomePage> {
                   CrossAxisAlignment.start,
                   children: _obrasRecentes
                       .map(
-                        (obra) =>
-                        ObraListaItem(
-                          obra: obra,
-                          onTap: () =>
-                              _abrirObra(
-                                obra,
-                              ),
-                        ),
+                        (obra) => ObraListaItem(
+                      obra: obra,
+                      onTap: () =>
+                          _abrirObra(obra),
+                    ),
                   )
                       .toList(),
                 ),
@@ -1012,13 +957,12 @@ class _HomePageState extends State<HomePage> {
                         'recentemente',
                     style: TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.w700,
+                      fontWeight:
+                      FontWeight.w700,
                       color: Color(0xFF222222),
                     ),
                   ),
-
                   SizedBox(height: 8),
-
                   Text(
                     'Aceda rapidamente às obras '
                         'que consultou.',
@@ -1030,14 +974,11 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 24),
-
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
-                    padding:
-                    EdgeInsets.all(30),
+                    padding: EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -1066,7 +1007,6 @@ class _HomePageState extends State<HomePage> {
                               // Mantida a lógica atual.
                             },
                           ),
-
                           if (index <
                               _consultasRecentes
                                   .length -
