@@ -7,6 +7,8 @@ class Obra {
   final String urlDocumento;
   final int? anoObra;
   final DateTime dataPublicacao;
+  final int? numeroPaginas;
+  final int? tamanhoArquivoBytes;
   final String userId;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,6 +22,8 @@ class Obra {
     required this.urlDocumento,
     this.anoObra,
     required this.dataPublicacao,
+    this.numeroPaginas,
+    this.tamanhoArquivoBytes,
     required this.userId,
     required this.createdAt,
     required this.updatedAt,
@@ -38,9 +42,19 @@ class Obra {
           : null,
       dataPublicacao:
       DateTime.parse(map['data_publicacao'].toString()),
+      numeroPaginas: map['numero_paginas'] != null
+          ? int.tryParse(map['numero_paginas'].toString())
+          : null,
+      tamanhoArquivoBytes: map['tamanho_arquivo_bytes'] != null
+          ? int.tryParse(
+        map['tamanho_arquivo_bytes'].toString(),
+      )
+          : null,
       userId: map['user_id'] as String,
-      createdAt: DateTime.parse(map['created_at'].toString()),
-      updatedAt: DateTime.parse(map['updated_at'].toString()),
+      createdAt:
+      DateTime.parse(map['created_at'].toString()),
+      updatedAt:
+      DateTime.parse(map['updated_at'].toString()),
     );
   }
 
@@ -54,6 +68,8 @@ class Obra {
       'url_documento': urlDocumento,
       'ano_obra': anoObra,
       'data_publicacao': dataPublicacao.toIso8601String(),
+      'numero_paginas': numeroPaginas,
+      'tamanho_arquivo_bytes': tamanhoArquivoBytes,
       'user_id': userId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -69,6 +85,8 @@ class Obra {
     String? urlDocumento,
     int? anoObra,
     DateTime? dataPublicacao,
+    int? numeroPaginas,
+    int? tamanhoArquivoBytes,
     String? userId,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -81,7 +99,12 @@ class Obra {
       categoria: categoria ?? this.categoria,
       urlDocumento: urlDocumento ?? this.urlDocumento,
       anoObra: anoObra ?? this.anoObra,
-      dataPublicacao: dataPublicacao ?? this.dataPublicacao,
+      dataPublicacao:
+      dataPublicacao ?? this.dataPublicacao,
+      numeroPaginas:
+      numeroPaginas ?? this.numeroPaginas,
+      tamanhoArquivoBytes:
+      tamanhoArquivoBytes ?? this.tamanhoArquivoBytes,
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
