@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
 import '../services/historico_obras_service.dart';
+import '../widgets/comentarios_section.dart';
 
 class ObraDetalhesPage extends StatefulWidget {
   final String id;
@@ -18,7 +19,9 @@ class ObraDetalhesPage extends StatefulWidget {
 }
 
 class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
-  final ObrasRepository _repository = ObrasRepository.instancia;
+  final ObrasRepository _repository =
+      ObrasRepository.instancia;
+
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
@@ -72,7 +75,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   Future<void> _abrirDocumento() async {
     final obra = _obra;
 
-    if (obra == null || obra.urlDocumento.trim().isEmpty) {
+    if (obra == null ||
+        obra.urlDocumento.trim().isEmpty) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +96,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     if (uri == null ||
         !uri.hasScheme ||
-        (uri.scheme != 'http' && uri.scheme != 'https')) {
+        (uri.scheme != 'http' &&
+            uri.scheme != 'https')) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -295,6 +300,16 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                             'Abrir documento',
                           ),
                         ),
+                      ),
+
+                      // ------------------------------------------------
+                      // COMENTÁRIOS
+                      // ------------------------------------------------
+
+                      const SizedBox(height: 32),
+
+                      ComentariosSection(
+                        obraId: obra.id,
                       ),
                     ],
                   ),

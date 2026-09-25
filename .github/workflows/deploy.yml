@@ -101,7 +101,7 @@ jobs:
               )
           )
           PY
-          )
+            )
 
             destino="build/web/categoria/$rota"
 
@@ -116,6 +116,7 @@ jobs:
 
       # ==========================================================
       # PREPARAR ROTAS INDIVIDUAIS DAS OBRAS
+      # E GERAR SITEMAP AUTOMATICAMENTE
       # ==========================================================
 
       - name: Prepare individual obra routes automatically
@@ -171,6 +172,11 @@ jobs:
           import json
           import os
           import shutil
+          from xml.sax.saxutils import escape
+
+          # ======================================================
+          # LER OBRAS DO SUPABASE
+          # ======================================================
 
           with open("/tmp/obras.json", "r", encoding="utf-8") as f:
               data = json.load(f)
@@ -184,8 +190,17 @@ jobs:
 
           print(f"Obras encontradas: {len(data)}")
 
+          # ======================================================
+          # CRIAR ROTAS INDIVIDUAIS DAS OBRAS
+          # ======================================================
+
+          obra_ids = []
+
           for obra in data:
-              obra_id = str(obra["id"]).strip()
+
+              obra_id = str(
+                  obra.get("id", "")
+              ).strip()
 
               if not obra_id:
                   continue
@@ -203,14 +218,114 @@ jobs:
                   exist_ok=True
               )
 
-              shutil.copy2(index, destino)
+              shutil.copy2(
+                  index,
+                  destino
+              )
 
-              print(f"Rota criada: /obra/{obra_id}")
+              obra_ids.append(obra_id)
+
+              print(
+                  f"Rota criada: /obra/{obra_id}/"
+              )
 
           print(
-              "Todas as rotas individuais foram preparadas automaticamente."
+              "Todas as rotas individuais foram preparadas."
           )
-          PY
+
+          # ======================================================
+          # GERAR SITEMAP
+          # ======================================================
+
+          base_url = "https://ginho83-wq.github.io/teste"
+
+          sitemap_path = "build/web/sitemap.xml"
+
+          # URLs fixas que já fazem parte do sitemap
+          fixed_urls = [
+              f"{base_url}/",
+              f"{base_url}/acervo/",
+              f"{base_url}/categoria/tese-doutoramento/",
+              f"{base_url}/categoria/tese-mestrado/",
+              f"{base_url}/categoria/monografia/",
+              f"{base_url}/categoria/artigos-cientificos/",
+              f"{base_url}/categoria/literatura/",
+          ]
+
+          with open(
+              sitemap_path,
+              "w",
+              encoding="utf-8"
+          ) as sitemap:
+
+              sitemap.write(
+                  '<?xml version="1.0" encoding="UTF-8"?>\n'
+              )
+
+              sitemap.write(
+                  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+              )
+
+              # -----------------------------------------------
+              # URLs FIXAS
+              # -----------------------------------------------
+
+              for url in fixed_urls:
+
+                  sitemap.write(
+                      "    <url>\n"
+                  )
+
+                  sitemap.write(
+                      f"        <loc>{escape(url)}</loc>\n"
+                  )
+
+                  sitemap.write(
+                      "    </url>\n"
+                  )
+
+              # -----------------------------------------------
+              # URLS INDIVIDUAIS DAS OBRAS
+              # -----------------------------------------------
+
+              for obra_id in obra_ids:
+
+                  url = (
+                      f"{base_url}/obra/{obra_id}/"
+                  )
+
+                  sitemap.write(
+                      "    <url>\n"
+                  )
+
+                  sitemap.write(
+                      f"        <loc>{escape(url)}</loc>\n"
+                  )
+
+                  sitemap.write(
+                      "    </url>\n"
+                  )
+
+              sitemap.write(
+                  "</urlset>\n"
+              )
+
+          print(
+              f"Sitemap gerado: {sitemap_path}"
+          )
+
+          print(
+              f"URLs fixas no sitemap: {len(fixed_urls)}"
+          )
+
+          print(
+              f"URLs de obras no sitemap: {len(obra_ids)}"
+          )
+
+          print(
+              f"Total de URLs no sitemap: "
+              f"{len(fixed_urls) + len(obra_ids)}"
+          )
 
       # ==========================================================
       # CONFIGURAR GITHUB PAGES
