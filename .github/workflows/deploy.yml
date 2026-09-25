@@ -41,6 +41,8 @@ jobs:
 
       - name: Prepare public routes
         run: |
+          set -e
+
           mkdir -p build/web/categorias
           mkdir -p build/web/acervo
           mkdir -p build/web/termos
@@ -66,14 +68,46 @@ jobs:
         run: |
           set -e
 
+          echo "A verificar configuração do Supabase..."
+
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "ERRO: O Secret SUPABASE_URL não está configurado."
+            exit 1
+          fi
+
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "ERRO: O Secret SUPABASE_ANON_KEY não está configurado."
+            exit 1
+          fi
+
+          echo "SUPABASE_URL configurado."
+
+          if [[ "$SUPABASE_URL" != http://* && "$SUPABASE_URL" != https://* ]]; then
+            echo "ERRO: SUPABASE_URL não contém http:// ou https://"
+            exit 1
+          fi
+
+          SUPABASE_URL="${SUPABASE_URL%/}"
+
           echo "A consultar obras publicadas no Supabase..."
 
-          response=$(curl -sS \
+          HTTP_STATUS=$(curl -sS \
+            -o /tmp/obras.json \
+            -w "%{http_code}" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
             "${SUPABASE_URL}/rest/v1/obras?select=id")
 
-          echo "$response" > /tmp/obras.json
+          echo "Resposta HTTP do Supabase: ${HTTP_STATUS}"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: Não foi possível consultar a tabela obras."
+            echo "Resposta:"
+            cat /tmp/obras.json
+            exit 1
+          fi
+
+          echo "Resposta recebida do Supabase."
 
           python3 - <<'PY'
           import json
@@ -115,7 +149,7 @@ jobs:
 
               print(f"Rota criada: /obra/{obra_id}")
 
-          print("Rotas individuais preparadas automaticamente.")
+          print("Todas as rotas individuais foram preparadas automaticamente.")
           PY
 
       - name: Configure Pages
@@ -139,3 +173,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
