@@ -43,8 +43,13 @@ jobs:
         run: |
           mkdir -p build/web/categorias
           mkdir -p build/web/acervo
+          mkdir -p build/web/termos
+          mkdir -p build/web/politica-privacidade
+
           cp build/web/index.html build/web/categorias/index.html
           cp build/web/index.html build/web/acervo/index.html
+          cp build/web/index.html build/web/termos/index.html
+          cp build/web/index.html build/web/politica-privacidade/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -67,3 +72,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
