@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
@@ -67,8 +68,7 @@ class _CategoriaResultadosPageState
       if (!mounted) return;
 
       setState(() {
-        _erro =
-        'Não foi possível carregar as obras.';
+        _erro = 'Não foi possível carregar as obras.';
         _carregando = false;
       });
     }
@@ -112,9 +112,6 @@ class _CategoriaResultadosPageState
     setState(() {
       _paginaAtual = pagina;
     });
-
-    // Volta para o início da lista.
-    // Não interfere no funcionamento do restante da página.
   }
 
   // ===========================================================================
@@ -377,7 +374,13 @@ class _CategoriaResultadosPageState
             child: ObraListaItem(
               obra: obra,
 
-              onTap: () => _mostrarDetalhes(obra),
+              // ===============================================================
+              // ALTERAÇÃO PRINCIPAL:
+              // cada obra passa a ter a sua própria URL
+              // ===============================================================
+              onTap: () {
+                context.go('/obra/${obra.id}');
+              },
 
               mobile:
               MediaQuery.of(context).size.width < 700,
