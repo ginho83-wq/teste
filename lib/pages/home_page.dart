@@ -31,12 +31,10 @@ class _HomePageState extends State<HomePage> {
   final AuthService _authService =
       AuthService.instancia;
 
-  final HistoricoObrasService
-  _historicoService =
+  final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
-  final TextEditingController
-  _pesquisaController =
+  final TextEditingController _pesquisaController =
   TextEditingController();
 
   List<Obra> _obrasRecentes = [];
@@ -48,8 +46,7 @@ class _HomePageState extends State<HomePage> {
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
-  StreamSubscription<AuthState>?
-  _authSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
@@ -174,8 +171,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final consultas =
-      await _historicoService
-          .obterConsultasRecentes(
+      await _historicoService.obterConsultasRecentes(
         limite: 5,
       );
 
@@ -509,9 +505,8 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 8),
           Padding(
-            padding: const EdgeInsets.only(
-              right: 18,
-            ),
+            padding:
+            const EdgeInsets.only(right: 18),
             child: PopupMenuButton<String>(
               tooltip: 'Conta',
               offset: const Offset(0, 48),
@@ -519,13 +514,17 @@ class _HomePageState extends State<HomePage> {
                 switch (value) {
                   case 'conta':
                     if (mounted) {
-                      context.go('/minha-conta');
+                      context.go(
+                        '/minha-conta',
+                      );
                     }
                     break;
 
                   case 'configuracoes':
                     if (mounted) {
-                      context.go('/configuracoes');
+                      context.go(
+                        '/configuracoes',
+                      );
                     }
                     break;
 
@@ -645,9 +644,8 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 8),
           Padding(
-            padding: const EdgeInsets.only(
-              right: 18,
-            ),
+            padding:
+            const EdgeInsets.only(right: 18),
             child: SizedBox(
               height: 38,
               child: TextButton(
@@ -697,9 +695,9 @@ class _HomePageState extends State<HomePage> {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
         24,
-        55,
+        42,
         24,
-        20,
+        26,
       ),
       color: Colors.white,
       child: Center(
@@ -714,13 +712,14 @@ class _HomePageState extends State<HomePage> {
                     'Encontre obras.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 30,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF222222),
                   height: 1.2,
+                  letterSpacing: -0.4,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               const Text(
                 'Pesquise e consulte trabalhos '
                     'académicos, científicos e literários.',
@@ -731,7 +730,7 @@ class _HomePageState extends State<HomePage> {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 26),
               BarraPesquisa(
                 controller: _pesquisaController,
                 hintText:
@@ -752,63 +751,91 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCategorias() {
     const categorias = [
-      'Tese Doutoramento',
+      'Tese de Doutoramento',
       'Dissertação de Mestrado',
+      'Dissertação de Licenciatura',
       'Monografia',
       'Artigos Científicos',
-      'Literatura',
+      'Comunicações Científicas',
+      'Posters',
+      'Resumos',
+      'Relatórios Académicos',
+      'Trabalhos Académicos',
     ];
 
     return Container(
       width: double.infinity,
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 30,
-      ),
       color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(
+        24,
+        8,
+        24,
+        36,
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             maxWidth: 1100,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final largura =
-                  constraints.maxWidth;
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Explore as obras por tipo de publicação.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF777777),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 14),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final largura =
+                      constraints.maxWidth;
 
-              final colunas = largura >= 900
-                  ? 5
-                  : largura >= 650
-                  ? 3
-                  : 2;
+                  // Alterado apenas para permitir
+                  // 5 categorias por linha no desktop.
+                  final colunas = largura >= 1000
+                      ? 5
+                      : largura >= 650
+                      ? 3
+                      : 2;
 
-              const espacamento = 24.0;
+                  const espacamentoHorizontal =
+                  10.0;
 
-              final itemLargura =
-                  (largura -
-                      ((colunas - 1) *
-                          espacamento)) /
-                      colunas;
+                  const espacamentoVertical =
+                  10.0;
 
-              return Wrap(
-                alignment:
-                WrapAlignment.center,
-                spacing: espacamento,
-                runSpacing: 20,
-                children: categorias
-                    .map(
-                      (categoria) => SizedBox(
-                    width: itemLargura,
-                    child:
-                    _buildCategoriaItem(
-                      categoria,
-                    ),
-                  ),
-                )
-                    .toList(),
-              );
-            },
+                  final itemLargura =
+                      (largura -
+                          ((colunas - 1) *
+                              espacamentoHorizontal)) /
+                          colunas;
+
+                  return Wrap(
+                    spacing:
+                    espacamentoHorizontal,
+                    runSpacing:
+                    espacamentoVertical,
+                    children: categorias
+                        .map(
+                          (categoria) =>
+                          SizedBox(
+                            width: itemLargura,
+                            child:
+                            _buildCategoriaItem(
+                              categoria,
+                            ),
+                          ),
+                    )
+                        .toList(),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ),
@@ -816,28 +843,55 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCategoriaItem(String nome) {
-    return InkWell(
-      onTap: () {
-        context.go(
-          '/categoria/'
-              '${Uri.encodeComponent(nome)}',
-        );
-      },
+    return Material(
+      color: Colors.transparent,
       borderRadius:
-      BorderRadius.circular(6),
-      child: Padding(
-        padding:
-        const EdgeInsets.symmetric(
-          vertical: 8,
-          horizontal: 6,
-        ),
-        child: Text(
-          nome,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w300,
-            color: Color(0xFF333333),
+      BorderRadius.circular(10),
+      child: InkWell(
+        onTap: () {
+          context.go(
+            '/categoria/'
+                '${Uri.encodeComponent(nome)}',
+          );
+        },
+        borderRadius:
+        BorderRadius.circular(10),
+        hoverColor:
+        const Color(0xFFF1F3F5),
+        splashColor:
+        const Color(0xFFE9ECEF),
+        child: Container(
+          constraints: const BoxConstraints(
+            minHeight: 48,
+          ),
+          padding:
+          const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 9,
+          ),
+          decoration: BoxDecoration(
+            color:
+            const Color(0xFFF8F9FA),
+            borderRadius:
+            BorderRadius.circular(10),
+            border: Border.all(
+              color:
+              const Color(0xFFE1E4E7),
+              width: 1,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            nome,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight:
+              FontWeight.w500,
+              color:
+              Color(0xFF333333),
+              height: 1.3,
+            ),
           ),
         ),
       ),
@@ -851,11 +905,11 @@ class _HomePageState extends State<HomePage> {
   Widget _buildObrasRecentes() {
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: const Color(0xFFFAFAFA),
       padding:
       const EdgeInsets.symmetric(
         horizontal: 24,
-        vertical: 44,
+        vertical: 38,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -870,25 +924,30 @@ class _HomePageState extends State<HomePage> {
                 'Publicações recentes',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
+                  fontWeight:
+                  FontWeight.w700,
+                  color:
+                  Color(0xFF222222),
+                  letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 7),
               const Text(
                 'Confira as obras publicadas '
                     'recentemente.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF777777),
+                  color:
+                  Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
               if (_carregandoObras)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(30),
+                    padding:
+                    EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -902,13 +961,17 @@ class _HomePageState extends State<HomePage> {
                 Column(
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-                  children: _obrasRecentes
+                  children:
+                  _obrasRecentes
                       .map(
-                        (obra) => ObraListaItem(
-                      obra: obra,
-                      onTap: () =>
-                          _abrirObra(obra),
-                    ),
+                        (obra) =>
+                        ObraListaItem(
+                          obra: obra,
+                          onTap: () =>
+                              _abrirObra(
+                                obra,
+                              ),
+                        ),
                   )
                       .toList(),
                 ),
@@ -937,7 +1000,7 @@ class _HomePageState extends State<HomePage> {
       padding:
       const EdgeInsets.symmetric(
         horizontal: 24,
-        vertical: 44,
+        vertical: 38,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -948,37 +1011,34 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
-              const Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Obras consultadas '
-                        'recentemente',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight:
-                      FontWeight.w700,
-                      color: Color(0xFF222222),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Aceda rapidamente às obras '
-                        'que consultou.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF777777),
-                      height: 1.5,
-                    ),
-                  ),
-                ],
+              const Text(
+                'Obras consultadas recentemente',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight:
+                  FontWeight.w700,
+                  color:
+                  Color(0xFF222222),
+                  letterSpacing: -0.2,
+                ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 7),
+              const Text(
+                'Aceda rapidamente às obras '
+                    'que consultou.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color:
+                  Color(0xFF777777),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(30),
+                    padding:
+                    EdgeInsets.all(30),
                     child:
                     CircularProgressIndicator(),
                   ),
@@ -989,11 +1049,13 @@ class _HomePageState extends State<HomePage> {
                 )
               else
                 Column(
-                  children: List.generate(
+                  children:
+                  List.generate(
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
-                      _consultasRecentes[index];
+                      _consultasRecentes[
+                      index];
 
                       return Column(
                         children: [
@@ -1036,10 +1098,21 @@ class _HomePageState extends State<HomePage> {
   Widget _buildEstadoVazio(
       String mensagem,
       ) {
-    return Padding(
+    return Container(
+      width: double.infinity,
       padding:
       const EdgeInsets.symmetric(
-        vertical: 30,
+        vertical: 28,
+        horizontal: 20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+        BorderRadius.circular(10),
+        border: Border.all(
+          color:
+          const Color(0xFFE5E5E5),
+        ),
       ),
       child: Center(
         child: Text(
@@ -1047,7 +1120,8 @@ class _HomePageState extends State<HomePage> {
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF777777),
+            color:
+            Color(0xFF777777),
             height: 1.5,
           ),
         ),
@@ -1055,4 +1129,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-

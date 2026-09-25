@@ -1,6 +1,3 @@
-
-
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,14 +6,19 @@ class CategoriasPage extends StatelessWidget {
 
   static const List<_Categoria> _categorias = [
     _Categoria(
-      nome: 'Tese Doutoramento',
+      nome: 'Tese de Doutoramento',
       descricao: 'Teses e trabalhos académicos de doutoramento.',
       icone: Icons.school_outlined,
     ),
     _Categoria(
       nome: 'Dissertação de Mestrado',
-      descricao: 'Dissertações e trabalhos académico de mestrado.',
+      descricao: 'Dissertações e trabalhos académicos de mestrado.',
       icone: Icons.menu_book_outlined,
+    ),
+    _Categoria(
+      nome: 'Dissertação de Licenciatura',
+      descricao: 'Trabalhos finais e dissertações de licenciatura.',
+      icone: Icons.school_outlined,
     ),
     _Categoria(
       nome: 'Monografia',
@@ -29,9 +31,29 @@ class CategoriasPage extends StatelessWidget {
       icone: Icons.article_outlined,
     ),
     _Categoria(
-      nome: 'Literatura',
-      descricao: 'Obras literárias e outros conteúdos de literatura.',
-      icone: Icons.auto_stories_outlined,
+      nome: 'Comunicações Científicas',
+      descricao: 'Comunicações apresentadas em eventos científicos.',
+      icone: Icons.record_voice_over_outlined,
+    ),
+    _Categoria(
+      nome: 'Posters',
+      descricao: 'Posters académicos e apresentações científicas.',
+      icone: Icons.dashboard_outlined,
+    ),
+    _Categoria(
+      nome: 'Resumos',
+      descricao: 'Resumos de trabalhos e comunicações académicas.',
+      icone: Icons.summarize_outlined,
+    ),
+    _Categoria(
+      nome: 'Relatórios Académicos',
+      descricao: 'Relatórios de investigação, estágio e actividades académicas.',
+      icone: Icons.assignment_outlined,
+    ),
+    _Categoria(
+      nome: 'Trabalhos Académicos',
+      descricao: 'Trabalhos realizados no âmbito de disciplinas e cursos.',
+      icone: Icons.library_books_outlined,
     ),
   ];
 
@@ -170,8 +192,7 @@ class CategoriasPage extends StatelessWidget {
                     ),
                     itemCount: _categorias.length,
                     itemBuilder: (context, index) {
-                      final categoria =
-                      _categorias[index];
+                      final categoria = _categorias[index];
 
                       return _CategoriaCard(
                         categoria: categoria,
@@ -190,8 +211,7 @@ class CategoriasPage extends StatelessWidget {
                     separatorBuilder: (_, __) =>
                     const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final categoria =
-                      _categorias[index];
+                      final categoria = _categorias[index];
 
                       return _CategoriaCard(
                         categoria: categoria,
@@ -240,8 +260,7 @@ class _CategoriaCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Row(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 46,
@@ -259,8 +278,7 @@ class _CategoriaCard extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       categoria.nome,
@@ -323,5 +341,4 @@ class _Categoria {
     required this.icone,
   });
 }
-
 
