@@ -39,6 +39,10 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web --release --base-href /teste/
 
+      # ==========================================================
+      # PREPARAR ROTAS PÚBLICAS
+      # ==========================================================
+
       - name: Prepare public routes
         run: |
           set -e
@@ -59,12 +63,66 @@ jobs:
           cp build/web/index.html build/web/cookies/index.html
           cp build/web/index.html build/web/contacto/index.html
           cp build/web/index.html build/web/ajuda/index.html
-          cp build/web/index.html build/web/obra/index.html
+
+          echo "Rotas públicas preparadas."
+
+      # ==========================================================
+      # PREPARAR ROTAS DAS CATEGORIAS
+      # ==========================================================
+
+      - name: Prepare category routes automatically
+        run: |
+          set -e
+
+          INDEX="build/web/index.html"
+
+          echo "A preparar rotas das categorias..."
+
+          categorias=(
+            "Tese Doutoramento"
+            "Dissertação de Mestrado"
+            "Monografia"
+            "Artigos Científicos"
+            "Literatura"
+          )
+
+          for categoria in "${categorias[@]}"; do
+
+            rota=$(python3 - "$categoria" <<'PY'
+          import sys
+          import urllib.parse
+
+          categoria = sys.argv[1]
+
+          print(
+              urllib.parse.quote(
+                  categoria,
+                  safe=""
+              )
+          )
+          PY
+          )
+
+            destino="build/web/categoria/$rota"
+
+            mkdir -p "$destino"
+
+            cp "$INDEX" "$destino/index.html"
+
+            echo "Rota criada: /categoria/$rota"
+          done
+
+          echo "Todas as categorias foram preparadas."
+
+      # ==========================================================
+      # PREPARAR ROTAS INDIVIDUAIS DAS OBRAS
+      # ==========================================================
 
       - name: Prepare individual obra routes automatically
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
         run: |
           set -e
 
@@ -149,16 +207,30 @@ jobs:
 
               print(f"Rota criada: /obra/{obra_id}")
 
-          print("Todas as rotas individuais foram preparadas automaticamente.")
+          print(
+              "Todas as rotas individuais foram preparadas automaticamente."
+          )
           PY
+
+      # ==========================================================
+      # CONFIGURAR GITHUB PAGES
+      # ==========================================================
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      # ==========================================================
+      # UPLOAD
+      # ==========================================================
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
+
+  # ============================================================
+  # DEPLOY
+  # ============================================================
 
   deploy:
     environment:
@@ -173,4 +245,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
