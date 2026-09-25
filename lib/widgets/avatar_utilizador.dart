@@ -16,28 +16,18 @@ class AvatarUtilizador extends StatelessWidget {
         usuario?.userMetadata ?? const <String, dynamic>{};
 
     final valores = <dynamic>[
-      // Perfil da tabela profiles
       perfil?['avatar_url'],
       perfil?['picture'],
       perfil?['photo_url'],
-
-      // Metadata do Supabase / Google
-      metadata['avatar_url'],
       metadata['picture'],
+      metadata['avatar_url'],
       metadata['photo_url'],
     ];
 
     for (final valor in valores) {
       final url = valor?.toString().trim();
 
-      if (url == null || url.isEmpty) {
-        continue;
-      }
-
-      final uri = Uri.tryParse(url);
-
-      if (uri != null &&
-          (uri.scheme == 'http' || uri.scheme == 'https')) {
+      if (url != null && url.isNotEmpty) {
         return url;
       }
     }
@@ -51,7 +41,6 @@ class AvatarUtilizador extends StatelessWidget {
 
     final valores = <dynamic>[
       perfil?['nome'],
-      perfil?['name'],
       metadata['full_name'],
       metadata['name'],
       usuario?.email,
@@ -97,38 +86,38 @@ class AvatarUtilizador extends StatelessWidget {
     final foto = _obterFoto(usuario);
     final iniciais = _iniciais(_obterNome(usuario));
 
+    if (foto != null) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.grey.shade200,
+        child: ClipOval(
+          child: SizedBox(
+            width: radius * 2,
+            height: radius * 2,
+            child: Image.network(
+              foto,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) {
+                return Center(
+                  child: Text(
+                    iniciais,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: radius * 0.75,
+                      color: Colors.black54,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
     return CircleAvatar(
       radius: radius,
       backgroundColor: Colors.grey.shade200,
-      child: ClipOval(
-        child: SizedBox(
-          width: radius * 2,
-          height: radius * 2,
-          child: foto != null
-              ? Image.network(
-            foto,
-            fit: BoxFit.cover,
-            filterQuality: FilterQuality.high,
-            errorBuilder: (_, __, ___) {
-              return _buildIniciais(iniciais);
-            },
-            loadingBuilder:
-                (context, child, loadingProgress) {
-              if (loadingProgress == null) {
-                return child;
-              }
-
-              return _buildIniciais(iniciais);
-            },
-          )
-              : _buildIniciais(iniciais),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIniciais(String iniciais) {
-    return Center(
       child: Text(
         iniciais,
         style: TextStyle(
