@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
-import '../services/historico_obras_service.dart';
 import '../widgets/barra_pesquisa.dart';
-import '../widgets/detalhes_obra_dialog.dart';
 import '../widgets/obra_lista_item.dart';
 import '../widgets/paginacao.dart';
 
-class AcervoPesquisaResultadosPage
-    extends StatefulWidget {
+class AcervoPesquisaResultadosPage extends StatefulWidget {
   final String query;
 
   const AcervoPesquisaResultadosPage({
@@ -20,22 +16,15 @@ class AcervoPesquisaResultadosPage
   });
 
   @override
-  State<AcervoPesquisaResultadosPage>
-  createState() =>
+  State<AcervoPesquisaResultadosPage> createState() =>
       _AcervoPesquisaResultadosPageState();
 }
 
 class _AcervoPesquisaResultadosPageState
     extends State<AcervoPesquisaResultadosPage> {
-  final ObrasRepository _repository =
-      ObrasRepository.instancia;
+  final ObrasRepository _repository = ObrasRepository.instancia;
 
-  final HistoricoObrasService
-  _historicoService =
-      HistoricoObrasService.instancia;
-
-  final TextEditingController
-  _pesquisaController =
+  final TextEditingController _pesquisaController =
   TextEditingController();
 
   static const int _obrasPorPagina = 10;
@@ -49,18 +38,14 @@ class _AcervoPesquisaResultadosPageState
   int _paginaAtual = 1;
 
   String get _queryAtual =>
-      Uri.decodeComponent(
-        widget.query,
-      ).trim();
+      Uri.decodeComponent(widget.query).trim();
 
   int get _totalPaginas {
     if (_obras.isEmpty) {
       return 0;
     }
 
-    return (_obras.length /
-        _obrasPorPagina)
-        .ceil();
+    return (_obras.length / _obrasPorPagina).ceil();
   }
 
   List<Obra> get _obrasPaginaAtual {
@@ -69,16 +54,13 @@ class _AcervoPesquisaResultadosPageState
     }
 
     final inicio =
-        (_paginaAtual - 1) *
-            _obrasPorPagina;
+        (_paginaAtual - 1) * _obrasPorPagina;
 
     if (inicio >= _obras.length) {
       return [];
     }
 
-    final fim =
-    (inicio + _obrasPorPagina)
-        .clamp(
+    final fim = (inicio + _obrasPorPagina).clamp(
       0,
       _obras.length,
     );
@@ -93,8 +75,7 @@ class _AcervoPesquisaResultadosPageState
   void initState() {
     super.initState();
 
-    _pesquisaController.text =
-        _queryAtual;
+    _pesquisaController.text = _queryAtual;
 
     _carregarResultados();
   }
@@ -118,9 +99,7 @@ class _AcervoPesquisaResultadosPageState
 
       setState(() {
         _obras = [];
-
         _paginaAtual = 1;
-
         _carregando = false;
       });
 
@@ -130,26 +109,20 @@ class _AcervoPesquisaResultadosPageState
     if (mounted) {
       setState(() {
         _carregando = true;
-
         _erro = '';
-
         _paginaAtual = 1;
       });
     }
 
     try {
       final resultado =
-      await _repository.pesquisar(
-        termo,
-      );
+      await _repository.pesquisar(termo);
 
       if (!mounted) return;
 
       setState(() {
         _obras = resultado;
-
         _paginaAtual = 1;
-
         _carregando = false;
       });
     } catch (e) {
@@ -161,12 +134,9 @@ class _AcervoPesquisaResultadosPageState
 
       setState(() {
         _obras = [];
-
         _erro =
         'Não foi possível realizar a pesquisa.';
-
         _paginaAtual = 1;
-
         _carregando = false;
       });
     }
@@ -177,8 +147,7 @@ class _AcervoPesquisaResultadosPageState
   // =========================================================
 
   void _mudarPagina(int pagina) {
-    if (pagina < 1 ||
-        pagina > _totalPaginas) {
+    if (pagina < 1 || pagina > _totalPaginas) {
       return;
     }
 
@@ -220,106 +189,10 @@ class _AcervoPesquisaResultadosPageState
   // ABRIR OBRA
   // =========================================================
 
-  Future<void> _abrirObra(
-      Obra obra,
-      ) async {
-    try {
-      await _historicoService
-          .registrarConsulta(
-        obraId: obra.id,
-      );
-    } catch (e) {
-      debugPrint(
-        'ACERVO PESQUISA: erro ao registrar consulta: $e',
-      );
-    }
-
+  void _abrirObra(Obra obra) {
     if (!mounted) return;
 
-    await mostrarDetalhesObraDialog(
-      context,
-      obra: obra,
-      mostrarAbrir: true,
-      onAbrir: () =>
-          _abrirDocumento(obra),
-    );
-  }
-
-  // =========================================================
-  // ABRIR DOCUMENTO
-  // =========================================================
-
-  Future<void> _abrirDocumento(
-      Obra obra,
-      ) async {
-    final url = obra.urlDocumento.trim();
-
-    if (url.isEmpty) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Esta obra não possui documento disponível.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    final uri = Uri.tryParse(url);
-
-    if (uri == null ||
-        (uri.scheme != 'http' &&
-            uri.scheme != 'https')) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'O endereço do documento é inválido.',
-          ),
-        ),
-      );
-
-      return;
-    }
-
-    try {
-      final abriu = await launchUrl(
-        uri,
-        webOnlyWindowName: '_blank',
-      );
-
-      if (!abriu && mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não foi possível abrir o documento.',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        'ACERVO PESQUISA: erro ao abrir documento: $e',
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Não foi possível abrir o documento.',
-          ),
-        ),
-      );
-    }
+    context.go('/obra/${obra.id}');
   }
 
   // =========================================================
@@ -328,14 +201,10 @@ class _AcervoPesquisaResultadosPageState
 
   Widget _campoPesquisa() {
     return BarraPesquisa(
-      controller:
-      _pesquisaController,
-      hintText:
-      'Pesquisar obras académicas',
-      onPesquisar:
-      _executarPesquisa,
-      onLimpar:
-      _limparPesquisa,
+      controller: _pesquisaController,
+      hintText: 'Pesquisar obras académicas',
+      onPesquisar: _executarPesquisa,
+      onLimpar: _limparPesquisa,
     );
   }
 
@@ -345,8 +214,7 @@ class _AcervoPesquisaResultadosPageState
 
   Widget _cabecalho() {
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Acervo',
@@ -362,8 +230,7 @@ class _AcervoPesquisaResultadosPageState
           'Resultados para "$_queryAtual"',
           style: const TextStyle(
             fontSize: 25,
-            fontWeight:
-            FontWeight.w600,
+            fontWeight: FontWeight.w600,
           ),
         ),
 
@@ -389,8 +256,7 @@ class _AcervoPesquisaResultadosPageState
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(50),
-          child:
-          CircularProgressIndicator(),
+          child: CircularProgressIndicator(),
         ),
       );
     }
@@ -398,12 +264,10 @@ class _AcervoPesquisaResultadosPageState
     if (_erro.isNotEmpty) {
       return Center(
         child: Padding(
-          padding:
-          const EdgeInsets.all(30),
+          padding: const EdgeInsets.all(30),
           child: Text(
             _erro,
-            textAlign:
-            TextAlign.center,
+            textAlign: TextAlign.center,
           ),
         ),
       );
@@ -412,20 +276,17 @@ class _AcervoPesquisaResultadosPageState
     if (_obras.isEmpty) {
       return Center(
         child: Padding(
-          padding:
-          const EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             vertical: 70,
             horizontal: 20,
           ),
           child: Column(
-            mainAxisSize:
-            MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.search_off,
                 size: 50,
-                color:
-                Colors.grey.shade400,
+                color: Colors.grey.shade400,
               ),
 
               const SizedBox(height: 16),
@@ -434,8 +295,7 @@ class _AcervoPesquisaResultadosPageState
                 'Nenhuma publicação encontrada.',
                 style: TextStyle(
                   fontSize: 17,
-                  fontWeight:
-                  FontWeight.w600,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
 
@@ -444,11 +304,9 @@ class _AcervoPesquisaResultadosPageState
               Text(
                 'Tente pesquisar por outro título, '
                     'autor ou categoria.',
-                textAlign:
-                TextAlign.center,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  color:
-                  Colors.grey.shade600,
+                  color: Colors.grey.shade600,
                 ),
               ),
 
@@ -469,40 +327,30 @@ class _AcervoPesquisaResultadosPageState
     }
 
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListView.builder(
           shrinkWrap: true,
           physics:
           const NeverScrollableScrollPhysics(),
-          itemCount:
-          _obrasPaginaAtual.length,
-          itemBuilder:
-              (context, index) {
+          itemCount: _obrasPaginaAtual.length,
+          itemBuilder: (context, index) {
             final obra =
             _obrasPaginaAtual[index];
 
             return ObraListaItem(
               obra: obra,
-              onTap: () =>
-                  _abrirObra(obra),
+              onTap: () => _abrirObra(obra),
               mobile:
-              MediaQuery.of(context)
-                  .size
-                  .width <
-                  600,
+              MediaQuery.of(context).size.width < 600,
             );
           },
         ),
 
         Paginacao(
-          paginaAtual:
-          _paginaAtual,
-          totalPaginas:
-          _totalPaginas,
-          onPaginaChanged:
-          _mudarPagina,
+          paginaAtual: _paginaAtual,
+          totalPaginas: _totalPaginas,
+          onPaginaChanged: _mudarPagina,
         ),
       ],
     );
@@ -515,71 +363,46 @@ class _AcervoPesquisaResultadosPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-      Colors.white,
+      backgroundColor: Colors.white,
 
       appBar: AppBar(
-        backgroundColor:
-        Colors.white,
+        backgroundColor: Colors.white,
         elevation: 0,
-        surfaceTintColor:
-        Colors.transparent,
-
-        leading: IconButton(
-          tooltip:
-          'Voltar ao Acervo',
-          icon:
-          const Icon(Icons.arrow_back),
-          onPressed: () {
-            context.go('/acervo');
-          },
-        ),
-
+        surfaceTintColor: Colors.transparent,
         title: const Text(
           'Acervo',
           style: TextStyle(
-            fontWeight:
-            FontWeight.w600,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
 
       body: LayoutBuilder(
-        builder:
-            (context, constraints) {
+        builder: (context, constraints) {
           final larguraMaxima =
-          constraints.maxWidth >
-              1100
+          constraints.maxWidth > 1100
               ? 1000.0
-              : constraints.maxWidth *
-              0.92;
+              : constraints.maxWidth * 0.92;
 
           return Center(
-            child:
-            SingleChildScrollView(
+            child: SingleChildScrollView(
               padding:
               const EdgeInsets.symmetric(
                 vertical: 30,
               ),
               child: SizedBox(
-                width:
-                larguraMaxima,
+                width: larguraMaxima,
                 child: Column(
                   crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
                   children: [
                     _campoPesquisa(),
 
-                    const SizedBox(
-                      height: 32,
-                    ),
+                    const SizedBox(height: 32),
 
                     _cabecalho(),
 
-                    const SizedBox(
-                      height: 24,
-                    ),
+                    const SizedBox(height: 24),
 
                     _conteudo(),
                   ],
@@ -592,3 +415,4 @@ class _AcervoPesquisaResultadosPageState
     );
   }
 }
+
