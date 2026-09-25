@@ -45,11 +45,20 @@ jobs:
           mkdir -p build/web/acervo
           mkdir -p build/web/termos
           mkdir -p build/web/politica-privacidade
+          mkdir -p build/web/cookies
+          mkdir -p build/web/contacto
+          mkdir -p build/web/ajuda
+          mkdir -p build/web/obra
 
           cp build/web/index.html build/web/categorias/index.html
           cp build/web/index.html build/web/acervo/index.html
           cp build/web/index.html build/web/termos/index.html
           cp build/web/index.html build/web/politica-privacidade/index.html
+          cp build/web/index.html build/web/cookies/index.html
+          cp build/web/index.html build/web/contacto/index.html
+          cp build/web/index.html build/web/ajuda/index.html
+
+          cp build/web/index.html build/web/obra/index.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
