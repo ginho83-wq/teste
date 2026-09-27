@@ -76,10 +76,8 @@ class ObraListaItem extends StatelessWidget {
             horizontal: mobile ? 8 : 12,
             vertical: 17,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            boxShadow: [],
-          ),
+          // Sem card branco, sem sombra e sem borda.
+          color: Colors.transparent,
           child: Column(
             crossAxisAlignment:
             CrossAxisAlignment.start,
@@ -146,17 +144,6 @@ class ObraListaItem extends StatelessWidget {
                     color: Color(0xff5f6368),
                   ),
                 ),
-
-              // ESPAÇAMENTO ANTES DA LINHA
-              const SizedBox(height: 16),
-
-              // LINHA DIVISÓRIA:
-              // 1 PX, SEM SOMBRA, SEM EFEITO.
-              Container(
-                width: double.infinity,
-                height: 1,
-                color: const Color(0xffe1e4e8),
-              ),
             ],
           ),
         ),
@@ -189,3 +176,4 @@ class ObraListaItem extends StatelessWidget {
     return '${tamanho.toStringAsFixed(1)} ${unidades[indice]}';
   }
 }
+

@@ -13,7 +13,7 @@ Future<void> main() async {
     publishableKey: SupabaseConfig.publishableKey,
   );
 
-  // ✅ Usar PathUrlStrategy para URLs limpas
+  // Usar PathUrlStrategy para URLs limpas
   setUrlStrategy(PathUrlStrategy());
 
   runApp(const MyApp());
@@ -26,12 +26,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'Obra Livre Académica',
+
+      // Título principal da aplicação
+      title: 'Obra Livre — Obras Académicas',
+
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+        ),
       ),
+
       routerConfig: router,
     );
   }
 }
+
