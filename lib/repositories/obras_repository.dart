@@ -5,9 +5,11 @@ import '../models/obra.dart';
 class ObrasRepository {
   ObrasRepository._();
 
-  static final ObrasRepository instancia = ObrasRepository._();
+  static final ObrasRepository instancia =
+  ObrasRepository._();
 
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
   static const String _campos = '''
     id,
@@ -16,6 +18,7 @@ class ObrasRepository {
     autor,
     categoria,
     url_documento,
+    url_capa,
     ano_obra,
     data_publicacao,
     numero_paginas,
@@ -35,7 +38,10 @@ class ObrasRepository {
     final resposta = await _supabase
         .from('obras')
         .select(_campos)
-        .order('data_publicacao', ascending: false)
+        .order(
+      'data_publicacao',
+      ascending: false,
+    )
         .range(inicio, fim);
 
     return (resposta as List)
@@ -85,7 +91,10 @@ class ObrasRepository {
           'descricao.ilike.%$termoLimpo%,'
           'categoria.ilike.%$termoLimpo%',
     )
-        .order('data_publicacao', ascending: false)
+        .order(
+      'data_publicacao',
+      ascending: false,
+    )
         .limit(limite);
 
     return (resposta as List)
@@ -105,7 +114,10 @@ class ObrasRepository {
         .from('obras')
         .select(_campos)
         .eq('categoria', categoria)
-        .order('data_publicacao', ascending: false)
+        .order(
+      'data_publicacao',
+      ascending: false,
+    )
         .limit(limite);
 
     return (resposta as List)
@@ -251,7 +263,9 @@ class ObrasRepository {
     return (resposta as List).length;
   }
 
-  Future<int> contarMinhasObras(String userId) async {
+  Future<int> contarMinhasObras(
+      String userId,
+      ) async {
     final resposta = await _supabase
         .from('obras')
         .select('id')

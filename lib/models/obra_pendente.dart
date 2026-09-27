@@ -5,6 +5,10 @@ class ObraPendente {
   final String autor;
   final String categoria;
   final String urlDocumento;
+
+  // Caminho da capa gerada a partir da primeira página do PDF.
+  final String? urlCapa;
+
   final int? anoObra;
   final DateTime dataPublicacao;
   final String userId;
@@ -22,6 +26,7 @@ class ObraPendente {
     required this.autor,
     required this.categoria,
     required this.urlDocumento,
+    this.urlCapa,
     this.anoObra,
     required this.dataPublicacao,
     required this.userId,
@@ -50,6 +55,10 @@ class ObraPendente {
 
       urlDocumento:
       map['url_documento']?.toString() ?? '',
+
+      // Caminho da capa no bucket de capas pendentes.
+      urlCapa:
+      map['url_capa']?.toString(),
 
       anoObra:
       _parseInt(map['ano_obra']),
@@ -90,6 +99,9 @@ class ObraPendente {
 
       'url_documento': urlDocumento,
 
+      // Caminho da capa no Storage.
+      'url_capa': urlCapa,
+
       'ano_obra': anoObra,
 
       'data_publicacao':
@@ -116,6 +128,7 @@ class ObraPendente {
     String? autor,
     String? categoria,
     String? urlDocumento,
+    String? urlCapa,
     int? anoObra,
     DateTime? dataPublicacao,
     String? userId,
@@ -125,16 +138,31 @@ class ObraPendente {
   }) {
     return ObraPendente(
       id: id ?? this.id,
-      titulo: titulo ?? this.titulo,
-      descricao: descricao ?? this.descricao,
-      autor: autor ?? this.autor,
-      categoria: categoria ?? this.categoria,
+
+      titulo:
+      titulo ?? this.titulo,
+
+      descricao:
+      descricao ?? this.descricao,
+
+      autor:
+      autor ?? this.autor,
+
+      categoria:
+      categoria ?? this.categoria,
+
       urlDocumento:
       urlDocumento ?? this.urlDocumento,
+
+      urlCapa:
+      urlCapa ?? this.urlCapa,
+
       anoObra:
       anoObra ?? this.anoObra,
+
       dataPublicacao:
       dataPublicacao ?? this.dataPublicacao,
+
       userId:
       userId ?? this.userId,
 
@@ -164,7 +192,9 @@ class ObraPendente {
     );
   }
 
-  static DateTime? _parseDate(dynamic value) {
+  static DateTime? _parseDate(
+      dynamic value,
+      ) {
     if (value == null) {
       return null;
     }

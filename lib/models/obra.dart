@@ -5,6 +5,7 @@ class Obra {
   final String autor;
   final String categoria;
   final String urlDocumento;
+  final String? urlCapa;
   final int? anoObra;
   final DateTime dataPublicacao;
   final int? numeroPaginas;
@@ -20,6 +21,7 @@ class Obra {
     required this.autor,
     required this.categoria,
     required this.urlDocumento,
+    this.urlCapa,
     this.anoObra,
     required this.dataPublicacao,
     this.numeroPaginas,
@@ -37,6 +39,7 @@ class Obra {
       autor: map['autor'] as String,
       categoria: map['categoria'] as String,
       urlDocumento: map['url_documento'] as String,
+      urlCapa: map['url_capa'] as String?,
       anoObra: map['ano_obra'] != null
           ? int.tryParse(map['ano_obra'].toString())
           : null,
@@ -45,7 +48,8 @@ class Obra {
       numeroPaginas: map['numero_paginas'] != null
           ? int.tryParse(map['numero_paginas'].toString())
           : null,
-      tamanhoArquivoBytes: map['tamanho_arquivo_bytes'] != null
+      tamanhoArquivoBytes:
+      map['tamanho_arquivo_bytes'] != null
           ? int.tryParse(
         map['tamanho_arquivo_bytes'].toString(),
       )
@@ -66,8 +70,10 @@ class Obra {
       'autor': autor,
       'categoria': categoria,
       'url_documento': urlDocumento,
+      'url_capa': urlCapa,
       'ano_obra': anoObra,
-      'data_publicacao': dataPublicacao.toIso8601String(),
+      'data_publicacao':
+      dataPublicacao.toIso8601String(),
       'numero_paginas': numeroPaginas,
       'tamanho_arquivo_bytes': tamanhoArquivoBytes,
       'user_id': userId,
@@ -83,6 +89,7 @@ class Obra {
     String? autor,
     String? categoria,
     String? urlDocumento,
+    String? urlCapa,
     int? anoObra,
     DateTime? dataPublicacao,
     int? numeroPaginas,
@@ -98,6 +105,7 @@ class Obra {
       autor: autor ?? this.autor,
       categoria: categoria ?? this.categoria,
       urlDocumento: urlDocumento ?? this.urlDocumento,
+      urlCapa: urlCapa ?? this.urlCapa,
       anoObra: anoObra ?? this.anoObra,
       dataPublicacao:
       dataPublicacao ?? this.dataPublicacao,
@@ -111,4 +119,3 @@ class Obra {
     );
   }
 }
-

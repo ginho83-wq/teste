@@ -16,7 +16,9 @@ class ObraListaItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ===============================================================
     // 2ª LINHA — AUTOR + ANO DA OBRA + DESCRIÇÃO
+    // ===============================================================
     final List<String> segundaLinha = [];
 
     if (obra.autor.trim().isNotEmpty) {
@@ -31,7 +33,9 @@ class ObraListaItem extends StatelessWidget {
       segundaLinha.add(obra.descricao!.trim());
     }
 
+    // ===============================================================
     // 3ª LINHA — CATEGORIA + DATA + PDF + TAMANHO
+    // ===============================================================
     final List<String> terceiraLinha = [];
 
     if (obra.categoria.trim().isNotEmpty) {
@@ -59,12 +63,24 @@ class ObraListaItem extends StatelessWidget {
     final String textoTerceiraLinha =
     terceiraLinha.join(', ');
 
+    final bool possuiCapa =
+        obra.urlCapa != null &&
+            obra.urlCapa!.trim().isNotEmpty;
+
+    // ===============================================================
+    // DIMENSÕES DA CAPA
+    // A altura foi reduzida para acompanhar visualmente
+    // o bloco das três linhas de informação.
+    // ===============================================================
+    final double larguraCapa = mobile ? 62 : 72;
+    final double alturaCapa = mobile ? 82 : 88;
+
     return Material(
+      type: MaterialType.transparency,
       color: Colors.transparent,
       elevation: 0,
       shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
         hoverColor: const Color(0xfff8f9fa),
@@ -76,58 +92,104 @@ class ObraListaItem extends StatelessWidget {
           padding: EdgeInsets.only(
             left: mobile ? 8 : 12,
             right: mobile ? 8 : 12,
-            top: 17,
-            bottom: 16,
+            top: 14,
+            bottom: 14,
           ),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1ª LINHA — TÍTULO
-              Text(
-                obra.titulo,
-                softWrap: true,
-                style: const TextStyle(
-                  fontSize: 17,
-                  height: 1.5,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xff1a73e8),
-                  decoration: TextDecoration.underline,
-                  decorationColor: Color(0xff1a73e8),
-                  decorationThickness: 1.2,
-                ),
+              // =====================================================
+              // CAPA
+              // =====================================================
+              SizedBox(
+                width: larguraCapa,
+                height: alturaCapa,
+                child: possuiCapa
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.network(
+                    obra.urlCapa!,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    errorBuilder: (
+                        context,
+                        error,
+                        stackTrace,
+                        ) {
+                      return _placeholderCapa();
+                    },
+                  ),
+                )
+                    : _placeholderCapa(),
               ),
 
-              // ESPAÇAMENTO ENTRE A 1ª E A 2ª LINHA
-              const SizedBox(height: 4),
+              const SizedBox(width: 14),
 
-              // 2ª LINHA — AUTOR + ANO + DESCRIÇÃO
-              if (textoSegundaLinha.isNotEmpty)
-                Text(
-                  textoSegundaLinha,
-                  softWrap: true,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xff5f6368),
-                  ),
+              // =====================================================
+              // INFORMAÇÕES DA OBRA
+              // =====================================================
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // -------------------------------------------------
+                    // 1. TÍTULO
+                    // -------------------------------------------------
+                    Text(
+                      obra.titulo,
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        height: 1.4,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xff1a73e8),
+                        decoration:
+                        TextDecoration.underline,
+                        decorationColor:
+                        Color(0xff1a73e8),
+                        decorationThickness: 1.2,
+                      ),
+                    ),
+
+                    const SizedBox(height: 5),
+
+                    // -------------------------------------------------
+                    // 2. AUTOR + ANO + RESUMO
+                    // -------------------------------------------------
+                    if (textoSegundaLinha.isNotEmpty)
+                      Text(
+                        textoSegundaLinha,
+                        softWrap: true,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xff5f6368),
+                        ),
+                      ),
+
+                    const SizedBox(height: 4),
+
+                    // -------------------------------------------------
+                    // 3. CATEGORIA + DATA + PDF + TAMANHO
+                    // -------------------------------------------------
+                    Text(
+                      textoTerceiraLinha,
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.5,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xff5f6368),
+                      ),
+                    ),
+                  ],
                 ),
-
-              // ESPAÇAMENTO ENTRE A 2ª E A 3ª LINHA
-              const SizedBox(height: 4),
-
-              // 3ª LINHA — CATEGORIA + DATA + PDF + TAMANHO
-              if (textoTerceiraLinha.isNotEmpty)
-                Text(
-                  textoTerceiraLinha,
-                  softWrap: true,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.5,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xff5f6368),
-                  ),
-                ),
+              ),
             ],
           ),
         ),
@@ -135,6 +197,32 @@ class ObraListaItem extends StatelessWidget {
     );
   }
 
+  // ===============================================================
+  // PLACEHOLDER QUANDO NÃO EXISTE CAPA
+  // ===============================================================
+  Widget _placeholderCapa() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xfff1f3f4),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: const Color(0xffdadce0),
+          width: 1,
+        ),
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.picture_as_pdf_outlined,
+          size: 28,
+          color: Color(0xff5f6368),
+        ),
+      ),
+    );
+  }
+
+  // ===============================================================
+  // FORMATAÇÃO DO TAMANHO DO PDF
+  // ===============================================================
   static String _formatarTamanho(int bytes) {
     const unidades = [
       'B',

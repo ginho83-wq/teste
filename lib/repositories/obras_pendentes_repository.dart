@@ -1,9 +1,8 @@
-import 'dart:typed_data';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/obra.dart';
 import '../models/obra_pendente.dart';
+import '../services/storage_service.dart';
 
 class ObrasPendentesRepository {
   ObrasPendentesRepository._();
@@ -14,6 +13,9 @@ class ObrasPendentesRepository {
   final SupabaseClient _supabase =
       Supabase.instance.client;
 
+  final StorageService _storage =
+      StorageService.instancia;
+
   static const String _campos = '''
     id,
     titulo,
@@ -21,6 +23,7 @@ class ObrasPendentesRepository {
     autor,
     categoria,
     url_documento,
+    url_capa,
     ano_obra,
     data_publicacao,
     user_id,
@@ -107,8 +110,7 @@ class ObrasPendentesRepository {
   }
 
   Future<Obra> aprovar(String id) async {
-    final pendente =
-    await carregarPorId(id);
+    final pendente = await carregarPorId(id);
 
     if (pendente == null) {
       throw Exception(
@@ -116,95 +118,77 @@ class ObrasPendentesRepository {
       );
     }
 
-    if (pendente.urlDocumento
-        .trim()
-        .isEmpty) {
+    if (pendente.urlDocumento.trim().isEmpty) {
       throw Exception(
         'O caminho do arquivo da obra pendente '
             'não foi encontrado.',
       );
     }
 
-    final caminhoArquivo =
+    final caminhoPdfPendente =
         pendente.urlDocumento;
 
     // ============================================================
-    // BAIXAR O PDF DA ÁREA DE PENDENTES
+    // COPIAR PDF PARA O BUCKET DE OBRAS PUBLICADAS
     // ============================================================
 
-    final Uint8List arquivo =
-    await _supabase.storage
-        .from('obras_pendentes')
-        .download(
-      caminhoArquivo,
-    );
-
-    // ============================================================
-    // COPIAR O PDF PARA O BUCKET DE OBRAS PUBLICADAS
-    // ============================================================
-
-    await _supabase.storage
-        .from('obras')
-        .uploadBinary(
-      caminhoArquivo,
-      arquivo,
-      fileOptions: const FileOptions(
-        upsert: true,
-        contentType: 'application/pdf',
+    final caminhoPdfPublicado =
+    await _storage.copiarDocumentoParaPublicadas(
+      caminhoPendente: caminhoPdfPendente,
+      userId: pendente.userId,
+      nomeArquivo: _nomeArquivo(
+        caminhoPdfPendente,
       ),
     );
 
-    final urlPublica =
-    _supabase.storage
-        .from('obras')
-        .getPublicUrl(
-      caminhoArquivo,
+    final urlPdfPublica =
+    _storage.obterUrlPublica(
+      caminhoPdfPublicado,
     );
 
     // ============================================================
-    // TAMANHO REAL
+    // COPIAR CAPA, SE EXISTIR
     // ============================================================
-    //
-    // Usamos o tamanho dos bytes que acabamos
-    // de baixar do Storage.
-    //
-    // Isso garante que o valor armazenado corresponde
-    // ao PDF efetivamente publicado.
-    //
 
-    final tamanhoArquivoBytes =
-        arquivo.length;
+    String? urlCapaPublica;
 
-    final dadosObra =
-    <String, dynamic>{
-      'titulo':
-      pendente.titulo,
+    if (pendente.urlCapa != null &&
+        pendente.urlCapa!.trim().isNotEmpty) {
+      final caminhoCapaPendente =
+      pendente.urlCapa!;
 
-      'descricao':
-      pendente.descricao,
+      final caminhoCapaPublicado =
+      await _storage.copiarCapaParaPublicadas(
+        caminhoPendente: caminhoCapaPendente,
+        userId: pendente.userId,
+        nomeArquivo: _nomeArquivo(
+          caminhoCapaPendente,
+        ),
+      );
 
-      'autor':
-      pendente.autor,
+      urlCapaPublica =
+          _storage.obterUrlCapaPublica(
+            caminhoCapaPublicado,
+          );
+    }
 
-      'categoria':
-      pendente.categoria,
+    // ============================================================
+    // CRIAR OBRA PUBLICADA
+    // ============================================================
 
-      'url_documento':
-      urlPublica,
-
-      'ano_obra':
-      pendente.anoObra,
-
+    final dadosObra = <String, dynamic>{
+      'titulo': pendente.titulo,
+      'descricao': pendente.descricao,
+      'autor': pendente.autor,
+      'categoria': pendente.categoria,
+      'url_documento': urlPdfPublica,
+      'url_capa': urlCapaPublica,
+      'ano_obra': pendente.anoObra,
       'data_publicacao':
-      pendente.dataPublicacao
-          .toIso8601String(),
-
-      'user_id':
-      pendente.userId,
-
-      // Tamanho real do PDF.
+      pendente.dataPublicacao.toIso8601String(),
+      'user_id': pendente.userId,
       'tamanho_arquivo_bytes':
-      tamanhoArquivoBytes,
+      pendente.tamanhoArquivoBytes,
     };
 
     final resposta = await _supabase
@@ -213,35 +197,47 @@ class ObrasPendentesRepository {
         .select(_campos)
         .single();
 
+    // ============================================================
+    // REMOVER REGISTRO PENDENTE
+    // ============================================================
+
     await _supabase
         .from('obras_pendentes')
         .delete()
         .eq('id', id);
 
+    // ============================================================
+    // REMOVER PDF PENDENTE
+    // ============================================================
+
     try {
-      await _supabase.storage
-          .from('obras_pendentes')
-          .remove([
-        caminhoArquivo,
-      ]);
-    } catch (_) {
-      // A publicação já foi concluída.
-      // A remoção do arquivo pendente não deve
-      // desfazer a aprovação.
+      await _storage.removerDocumentoPendente(
+        caminhoPdfPendente,
+      );
+    } catch (_) {}
+
+    // ============================================================
+    // REMOVER CAPA PENDENTE
+    // ============================================================
+
+    if (pendente.urlCapa != null &&
+        pendente.urlCapa!.trim().isNotEmpty) {
+      try {
+        await _storage.removerCapaPendente(
+          pendente.urlCapa!,
+        );
+      } catch (_) {}
     }
 
     return Obra.fromMap(
-      Map<String, dynamic>.from(
-        resposta,
-      ),
+      Map<String, dynamic>.from(resposta),
     );
   }
 
   Future<void> rejeitar(
       String id,
       ) async {
-    final pendente =
-    await carregarPorId(id);
+    final pendente = await carregarPorId(id);
 
     if (pendente == null) {
       throw Exception(
@@ -258,14 +254,19 @@ class ObrasPendentesRepository {
         .trim()
         .isNotEmpty) {
       try {
-        await _supabase.storage
-            .from('obras_pendentes')
-            .remove([
+        await _storage.removerDocumentoPendente(
           pendente.urlDocumento,
-        ]);
-      } catch (_) {
-        // O registro já foi removido.
-      }
+        );
+      } catch (_) {}
+    }
+
+    if (pendente.urlCapa != null &&
+        pendente.urlCapa!.trim().isNotEmpty) {
+      try {
+        await _storage.removerCapaPendente(
+          pendente.urlCapa!,
+        );
+      } catch (_) {}
     }
   }
 
@@ -273,5 +274,15 @@ class ObrasPendentesRepository {
       String id,
       ) async {
     await rejeitar(id);
+  }
+
+  String _nomeArquivo(String caminho) {
+    final indice = caminho.lastIndexOf('/');
+
+    if (indice == -1) {
+      return caminho;
+    }
+
+    return caminho.substring(indice + 1);
   }
 }

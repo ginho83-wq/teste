@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:pdfx/pdfx.dart';
+
 import '../models/obra_pendente.dart';
 import '../repositories/obras_pendentes_repository.dart';
-import '../services/auth_service.dart';
-import '../services/storage_service.dart';
+import 'auth_service.dart';
+import 'storage_service.dart';
 
 class PublicacaoService {
   PublicacaoService._();
@@ -74,15 +76,17 @@ class PublicacaoService {
       );
     }
 
-    // ============================================================
-    // TAMANHO REAL DO PDF
-    // ============================================================
-
-    final tamanhoArquivoBytes = arquivoPdf.length;
+    final tamanhoArquivoBytes =
+        arquivoPdf.length;
 
     String? caminhoPendente;
+    String? caminhoCapaPendente;
 
     try {
+      // ==========================================================
+      // 1. ENVIAR PDF PARA PENDENTES
+      // ==========================================================
+
       caminhoPendente =
       await _storage.enviarDocumentoPendente(
         userId: usuario.id,
@@ -90,29 +94,53 @@ class PublicacaoService {
         bytes: arquivoPdf,
       );
 
-      // Data em que a obra foi enviada
-      // para análise.
+      // ==========================================================
+      // 2. GERAR CAPA DA PRIMEIRA PÁGINA
+      // ==========================================================
+
+      final bytesCapa =
+      await _gerarCapa(arquivoPdf);
+
+      // ==========================================================
+      // 3. ENVIAR CAPA PARA CAPAS-PENDENTES
+      // ==========================================================
+
+      caminhoCapaPendente =
+      await _storage.enviarCapaPendente(
+        userId: usuario.id,
+        nomeArquivo: nomeArquivoLimpo,
+        bytes: bytesCapa,
+      );
+
+      // ==========================================================
+      // 4. CRIAR REGISTRO PENDENTE
+      // ==========================================================
+
       final dataPublicacao = DateTime.now();
 
       final obra = ObraPendente(
         titulo: tituloLimpo,
-        descricao: descricao?.trim().isEmpty == true
+        descricao:
+        descricao?.trim().isEmpty == true
             ? null
             : descricao?.trim(),
         autor: autorLimpo,
         categoria: categoriaLimpa,
         urlDocumento: caminhoPendente,
+        urlCapa: caminhoCapaPendente,
         anoObra: anoObra,
         dataPublicacao: dataPublicacao,
         userId: usuario.id,
-
-        // Guarda o tamanho real.
         tamanhoArquivoBytes:
         tamanhoArquivoBytes,
       );
 
       return await _repository.inserir(obra);
     } catch (e) {
+      // ==========================================================
+      // LIMPEZA DO PDF SE HOUVER ERRO
+      // ==========================================================
+
       if (caminhoPendente != null) {
         try {
           await _storage.removerDocumentoPendente(
@@ -121,7 +149,62 @@ class PublicacaoService {
         } catch (_) {}
       }
 
+      // ==========================================================
+      // LIMPEZA DA CAPA SE HOUVER ERRO
+      // ==========================================================
+
+      if (caminhoCapaPendente != null) {
+        try {
+          await _storage.removerCapaPendente(
+            caminhoCapaPendente,
+          );
+        } catch (_) {}
+      }
+
       rethrow;
+    }
+  }
+
+  // ==============================================================
+  // GERAR CAPA A PARTIR DA PRIMEIRA PÁGINA DO PDF
+  // ==============================================================
+
+  Future<Uint8List> _gerarCapa(
+      Uint8List pdfBytes,
+      ) async {
+    PdfDocument? documento;
+    PdfPage? pagina;
+
+    try {
+      documento =
+      await PdfDocument.openData(pdfBytes);
+
+      if (documento.pagesCount < 1) {
+        throw Exception(
+          'O PDF não possui nenhuma página.',
+        );
+      }
+
+      pagina = await documento.getPage(1);
+
+      final imagem = await pagina.render(
+        width: pagina.width * 2,
+        height: pagina.height * 2,
+        format: PdfPageImageFormat.png,
+        backgroundColor: '#FFFFFF',
+      );
+
+      if (imagem == null ||
+          imagem.bytes.isEmpty) {
+        throw Exception(
+          'Não foi possível gerar a capa do PDF.',
+        );
+      }
+
+      return imagem.bytes;
+    } finally {
+      await pagina?.close();
+      await documento?.close();
     }
   }
 }
