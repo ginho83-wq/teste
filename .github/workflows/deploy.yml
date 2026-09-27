@@ -1,362 +1,778 @@
 name: Deploy Flutter Web to GitHub Pages
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
+on: push: branches: - main
+workflow_dispatch:
+permissions: contents: read pages: write id-token: write
+concurrency: group: pages cancel-in-progress: true
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build: runs-on: ubuntu-latest
+steps:
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  # ==========================================================
+  # CHECKOUT
+  # ==========================================================
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.3'
-          channel: stable
-          cache: true
+  - name: Checkout
+    uses: actions/checkout@v4
 
-      - name: Check Flutter
-        run: flutter --version
 
-      - name: Get dependencies
-        run: flutter pub get
+  # ==========================================================
+  # FLUTTER
+  # ==========================================================
 
-      - name: Build Flutter Web
-        run: flutter build web --release --base-href /teste/
+  - name: Setup Flutter
+    uses: subosito/flutter-action@v2
+    with:
+      flutter-version: '3.41.3'
+      channel: stable
+      cache: true
 
-      # ==========================================================
-      # PREPARAR ROTAS PÚBLICAS
-      # ==========================================================
 
-      - name: Prepare public routes
-        run: |
-          set -e
+  - name: Check Flutter
+    run: flutter --version
 
-          mkdir -p build/web/categorias
-          mkdir -p build/web/acervo
-          mkdir -p build/web/termos
-          mkdir -p build/web/politica-privacidade
-          mkdir -p build/web/cookies
-          mkdir -p build/web/contacto
-          mkdir -p build/web/ajuda
-          mkdir -p build/web/obra
 
-          cp build/web/index.html build/web/categorias/index.html
-          cp build/web/index.html build/web/acervo/index.html
-          cp build/web/index.html build/web/termos/index.html
-          cp build/web/index.html build/web/politica-privacidade/index.html
-          cp build/web/index.html build/web/cookies/index.html
-          cp build/web/index.html build/web/contacto/index.html
-          cp build/web/index.html build/web/ajuda/index.html
+  - name: Get dependencies
+    run: flutter pub get
 
-          echo "Rotas públicas preparadas."
 
-      # ==========================================================
-      # PREPARAR ROTAS DAS CATEGORIAS
-      # ==========================================================
+  # ==========================================================
+  # BUILD FLUTTER WEB
+  # ==========================================================
 
-      - name: Prepare category routes automatically
-        run: |
-          set -e
+  - name: Build Flutter Web
+    run: flutter build web --release --base-href /teste/
 
-          INDEX="build/web/index.html"
 
-          echo "A preparar rotas das categorias..."
+  # ==========================================================
+  # PREPARAR ROTAS PÚBLICAS
+  # ==========================================================
 
-          categorias=(
-            "Tese Doutoramento"
-            "Dissertação de Mestrado"
-            "Monografia"
-            "Artigos Científicos"
-            "Literatura"
+  - name: Prepare public routes
+    run: |
+      set -e
+
+      mkdir -p build/web/categorias
+      mkdir -p build/web/acervo
+      mkdir -p build/web/termos
+      mkdir -p build/web/politica-privacidade
+      mkdir -p build/web/cookies
+      mkdir -p build/web/contacto
+      mkdir -p build/web/ajuda
+      mkdir -p build/web/obra
+
+      cp build/web/index.html build/web/categorias/index.html
+      cp build/web/index.html build/web/acervo/index.html
+      cp build/web/index.html build/web/termos/index.html
+      cp build/web/index.html build/web/politica-privacidade/index.html
+      cp build/web/index.html build/web/cookies/index.html
+      cp build/web/index.html build/web/contacto/index.html
+      cp build/web/index.html build/web/ajuda/index.html
+
+      echo "Rotas públicas preparadas."
+
+
+  # ==========================================================
+  # PREPARAR ROTAS DAS CATEGORIAS
+  # ==========================================================
+
+  - name: Prepare category routes automatically
+    run: |
+      set -e
+
+      INDEX="build/web/index.html"
+
+      echo "A preparar rotas das categorias..."
+
+      categorias=(
+        "Tese Doutoramento"
+        "Dissertação de Mestrado"
+        "Monografia"
+        "Artigos Científicos"
+        "Literatura"
+      )
+
+      for categoria in "${categorias[@]}"; do
+
+        rota=$(python3 - "$categoria" <<'PY'
+      import sys
+      import unicodedata
+      import re
+
+      categoria = sys.argv[1]
+
+      texto = unicodedata.normalize(
+          "NFKD",
+          categoria
+      ).encode(
+          "ascii",
+          "ignore"
+      ).decode(
+          "ascii"
+      ).lower()
+
+      texto = re.sub(
+          r"[^a-z0-9]+",
+          "-",
+          texto
+      ).strip("-")
+
+      print(texto)
+      PY
+        )
+
+        destino="build/web/categoria/$rota"
+
+        mkdir -p "$destino"
+
+        cp "$INDEX" "$destino/index.html"
+
+        echo "Rota criada: /categoria/$rota/"
+      done
+
+      echo "Todas as categorias foram preparadas."
+
+
+  # ==========================================================
+  # PREPARAR ROTAS INDIVIDUAIS DAS OBRAS
+  # GERAR METADADOS SEO
+  # GERAR SITEMAP
+  # ==========================================================
+
+  - name: Prepare individual obra routes automatically
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+    run: |
+
+      set -e
+
+      echo "A verificar configuração do Supabase..."
+
+      if [ -z "$SUPABASE_URL" ]; then
+        echo "ERRO: O Secret SUPABASE_URL não está configurado."
+        exit 1
+      fi
+
+      if [ -z "$SUPABASE_ANON_KEY" ]; then
+        echo "ERRO: O Secret SUPABASE_ANON_KEY não está configurado."
+        exit 1
+      fi
+
+      echo "SUPABASE_URL configurado."
+
+      if [[ "$SUPABASE_URL" != http://* && "$SUPABASE_URL" != https://* ]]; then
+        echo "ERRO: SUPABASE_URL não contém http:// ou https://"
+        exit 1
+      fi
+
+      SUPABASE_URL="${SUPABASE_URL%/}"
+
+      echo "A consultar obras publicadas no Supabase..."
+
+      HTTP_STATUS=$(curl -sS \
+        -o /tmp/obras.json \
+        -w "%{http_code}" \
+        -H "apikey: ${SUPABASE_ANON_KEY}" \
+        -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+        "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,url_documento,url_capa")
+
+      echo "Resposta HTTP do Supabase: ${HTTP_STATUS}"
+
+      if [ "$HTTP_STATUS" != "200" ]; then
+        echo "ERRO: Não foi possível consultar a tabela obras."
+        echo "Resposta:"
+        cat /tmp/obras.json
+        exit 1
+      fi
+
+      echo "Resposta recebida do Supabase."
+
+
+      # ======================================================
+      # GERAR ROTAS E SITEMAP
+      # ======================================================
+
+      python3 - <<'PY'
+
+      import json
+      import os
+      import html
+      import re
+      import unicodedata
+      import shutil
+      from xml.sax.saxutils import escape
+
+
+      # ======================================================
+      # LER OBRAS
+      # ======================================================
+
+      with open(
+          "/tmp/obras.json",
+          "r",
+          encoding="utf-8"
+      ) as f:
+          data = json.load(f)
+
+
+      if not isinstance(data, list):
+          raise RuntimeError(
+              f"Resposta inesperada do Supabase: {data}"
           )
 
-          for categoria in "${categorias[@]}"; do
 
-            rota=$(python3 - "$categoria" <<'PY'
-          import sys
-          import urllib.parse
+      index = "build/web/index.html"
 
-          categoria = sys.argv[1]
+      print(
+          f"Obras encontradas: {len(data)}"
+      )
 
-          print(
-              urllib.parse.quote(
-                  categoria,
-                  safe=""
-              )
-          )
-          PY
-            )
 
-            destino="build/web/categoria/$rota"
+      # ======================================================
+      # FUNÇÃO PARA LIMPAR TEXTO
+      # ======================================================
 
-            mkdir -p "$destino"
+      def limpar_texto(valor):
 
-            cp "$INDEX" "$destino/index.html"
+          if valor is None:
+              return ""
 
-            echo "Rota criada: /categoria/$rota"
-          done
+          texto = str(valor)
 
-          echo "Todas as categorias foram preparadas."
-
-      # ==========================================================
-      # PREPARAR ROTAS INDIVIDUAIS DAS OBRAS
-      # E GERAR SITEMAP AUTOMATICAMENTE
-      # ==========================================================
-
-      - name: Prepare individual obra routes automatically
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-
-        run: |
-          set -e
-
-          echo "A verificar configuração do Supabase..."
-
-          if [ -z "$SUPABASE_URL" ]; then
-            echo "ERRO: O Secret SUPABASE_URL não está configurado."
-            exit 1
-          fi
-
-          if [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "ERRO: O Secret SUPABASE_ANON_KEY não está configurado."
-            exit 1
-          fi
-
-          echo "SUPABASE_URL configurado."
-
-          if [[ "$SUPABASE_URL" != http://* && "$SUPABASE_URL" != https://* ]]; then
-            echo "ERRO: SUPABASE_URL não contém http:// ou https://"
-            exit 1
-          fi
-
-          SUPABASE_URL="${SUPABASE_URL%/}"
-
-          echo "A consultar obras publicadas no Supabase..."
-
-          HTTP_STATUS=$(curl -sS \
-            -o /tmp/obras.json \
-            -w "%{http_code}" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/obras?select=id")
-
-          echo "Resposta HTTP do Supabase: ${HTTP_STATUS}"
-
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "ERRO: Não foi possível consultar a tabela obras."
-            echo "Resposta:"
-            cat /tmp/obras.json
-            exit 1
-          fi
-
-          echo "Resposta recebida do Supabase."
-
-          python3 - <<'PY'
-          import json
-          import os
-          import shutil
-          from xml.sax.saxutils import escape
-
-          # ======================================================
-          # LER OBRAS DO SUPABASE
-          # ======================================================
-
-          with open("/tmp/obras.json", "r", encoding="utf-8") as f:
-              data = json.load(f)
-
-          if not isinstance(data, list):
-              raise RuntimeError(
-                  f"Resposta inesperada do Supabase: {data}"
-              )
-
-          index = "build/web/index.html"
-
-          print(f"Obras encontradas: {len(data)}")
-
-          # ======================================================
-          # CRIAR ROTAS INDIVIDUAIS DAS OBRAS
-          # ======================================================
-
-          obra_ids = []
-
-          for obra in data:
-
-              obra_id = str(
-                  obra.get("id", "")
-              ).strip()
-
-              if not obra_id:
-                  continue
-
-              destino = os.path.join(
-                  "build",
-                  "web",
-                  "obra",
-                  obra_id,
-                  "index.html"
-              )
-
-              os.makedirs(
-                  os.path.dirname(destino),
-                  exist_ok=True
-              )
-
-              shutil.copy2(
-                  index,
-                  destino
-              )
-
-              obra_ids.append(obra_id)
-
-              print(
-                  f"Rota criada: /obra/{obra_id}/"
-              )
-
-          print(
-              "Todas as rotas individuais foram preparadas."
+          texto = re.sub(
+              r"\s+",
+              " ",
+              texto
           )
 
-          # ======================================================
-          # GERAR SITEMAP
-          # ======================================================
+          return texto.strip()
 
-          base_url = "https://ginho83-wq.github.io/teste"
 
-          sitemap_path = "build/web/sitemap.xml"
+      # ======================================================
+      # FUNÇÃO PARA GERAR DESCRIÇÃO SEO
+      # ======================================================
 
-          # URLs fixas que já fazem parte do sitemap
-          fixed_urls = [
-              f"{base_url}/",
-              f"{base_url}/acervo/",
-              f"{base_url}/categoria/tese-doutoramento/",
-              f"{base_url}/categoria/tese-mestrado/",
-              f"{base_url}/categoria/monografia/",
-              f"{base_url}/categoria/artigos-cientificos/",
-              f"{base_url}/categoria/literatura/",
-          ]
+      def gerar_descricao(obra):
+
+          descricao = limpar_texto(
+              obra.get("descricao")
+          )
+
+          titulo = limpar_texto(
+              obra.get("titulo")
+          )
+
+          autor = limpar_texto(
+              obra.get("autor")
+          )
+
+          categoria = limpar_texto(
+              obra.get("categoria")
+          )
+
+          if descricao:
+
+              texto = descricao
+
+          else:
+
+              partes = []
+
+              if titulo:
+                  partes.append(titulo)
+
+              if autor:
+                  partes.append(
+                      f"Autor: {autor}"
+                  )
+
+              if categoria:
+                  partes.append(
+                      f"Categoria: {categoria}"
+                  )
+
+              texto = " — ".join(
+                  partes
+              )
+
+          if not texto:
+
+              texto = (
+                  "Obra disponível no "
+                  "acervo digital Obra Livre."
+              )
+
+          return texto[:300]
+
+
+      # ======================================================
+      # GERAR PÁGINA HTML ESPECÍFICA DA OBRA
+      # ======================================================
+
+      def gerar_html_obra(obra):
+
+          obra_id = limpar_texto(
+              obra.get("id")
+          )
+
+          titulo = limpar_texto(
+              obra.get("titulo")
+          )
+
+          autor = limpar_texto(
+              obra.get("autor")
+          )
+
+          categoria = limpar_texto(
+              obra.get("categoria")
+          )
+
+          descricao = gerar_descricao(
+              obra
+          )
+
+          ano = limpar_texto(
+              obra.get("ano_obra")
+          )
+
+          url_documento = limpar_texto(
+              obra.get("url_documento")
+          )
+
+          url_capa = limpar_texto(
+              obra.get("url_capa")
+          )
+
+
+          if not titulo:
+              titulo = "Obra sem título"
+
+
+          titulo_seo = (
+              f"{titulo} — Obra Livre"
+          )
+
+
+          descricao_seo = descricao
+
+
+          url = (
+              "https://ginho83-wq.github.io"
+              f"/teste/obra/{obra_id}/"
+          )
+
+
+          # ==================================================
+          # IMAGEM OG
+          # ==================================================
+
+          og_image = url_capa
+
+          if not og_image:
+              og_image = (
+                  "https://ginho83-wq.github.io"
+                  "/teste/OL.png"
+              )
+
+
+          # ==================================================
+          # JSON-LD
+          # ==================================================
+
+          schema = {
+              "@context": "https://schema.org",
+              "@type": "CreativeWork",
+              "name": titulo,
+              "url": url,
+              "description": descricao
+          }
+
+
+          if autor:
+              schema["author"] = {
+                  "@type": "Person",
+                  "name": autor
+              }
+
+
+          if categoria:
+              schema["genre"] = categoria
+
+
+          if ano:
+              schema["dateCreated"] = ano
+
+
+          if url_documento:
+              schema["encoding"] = {
+                  "@type": "MediaObject",
+                  "contentUrl": url_documento
+              }
+
+
+          schema_json = json.dumps(
+              schema,
+              ensure_ascii=False
+          )
+
+
+          # ==================================================
+          # HTML
+          # ==================================================
+
+          return f"""<!DOCTYPE html>
+      <html lang="pt">
+      <head>
+
+        <meta charset="UTF-8">
+
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0"
+        >
+
+        <title>{html.escape(titulo_seo)}</title>
+
+        <meta
+          name="description"
+          content="{html.escape(descricao_seo, quote=True)}"
+        >
+
+        <meta
+          name="robots"
+          content="index, follow"
+        >
+
+        <link
+          rel="canonical"
+          href="{html.escape(url, quote=True)}"
+        >
+
+        <link
+          rel="icon"
+          type="image/png"
+          href="/teste/OL.png"
+        >
+
+        <!-- Open Graph -->
+
+        <meta
+          property="og:type"
+          content="article"
+        >
+
+        <meta
+          property="og:title"
+          content="{html.escape(titulo_seo, quote=True)}"
+        >
+
+        <meta
+          property="og:description"
+          content="{html.escape(descricao_seo, quote=True)}"
+        >
+
+        <meta
+          property="og:url"
+          content="{html.escape(url, quote=True)}"
+        >
+
+        <meta
+          property="og:site_name"
+          content="Obra Livre"
+        >
+
+        <meta
+          property="og:image"
+          content="{html.escape(og_image, quote=True)}"
+        >
+
+        <!-- Dados estruturados da obra -->
+
+        <script type="application/ld+json">
+      {schema_json}
+        </script>
+
+        <base href="/teste/">
+
+        <link
+          rel="manifest"
+          href="/teste/manifest.json"
+        >
+
+      </head>
+
+      <body>
+
+        <script
+          src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs"
+          type="module">
+        </script>
+
+        <script type="module">
+
+          var {{ pdfjsLib }} = globalThis;
+
+          pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
+
+          var pdfRenderOptions = {{
+            cMapUrl:
+              'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
+            cMapPacked: true,
+          }};
+
+        </script>
+
+        <script>
+
+          var redirect =
+            sessionStorage.getItem(
+              'flutter_redirect'
+            );
+
+          if (redirect) {{
+
+            sessionStorage.removeItem(
+              'flutter_redirect'
+            );
+
+            history.replaceState(
+              null,
+              '',
+              redirect
+            );
+
+          }}
+
+        </script>
+
+        <script
+          src="/teste/flutter_bootstrap.js"
+          async>
+        </script>
+
+      </body>
+      </html>
+      """
+
+
+      # ======================================================
+      # CRIAR ROTAS DAS OBRAS
+      # ======================================================
+
+      obra_ids = []
+
+
+      for obra in data:
+
+          obra_id = limpar_texto(
+              obra.get("id")
+          )
+
+          if not obra_id:
+              continue
+
+
+          destino_dir = os.path.join(
+              "build",
+              "web",
+              "obra",
+              obra_id
+          )
+
+
+          destino = os.path.join(
+              destino_dir,
+              "index.html"
+          )
+
+
+          os.makedirs(
+              destino_dir,
+              exist_ok=True
+          )
+
+
+          html_obra = gerar_html_obra(
+              obra
+          )
+
 
           with open(
-              sitemap_path,
+              destino,
               "w",
               encoding="utf-8"
-          ) as sitemap:
+          ) as f:
+
+              f.write(
+                  html_obra
+              )
+
+
+          obra_ids.append(
+              obra_id
+          )
+
+
+          print(
+              f"Rota SEO criada: "
+              f"/obra/{obra_id}/"
+          )
+
+
+      print(
+          "Todas as rotas individuais "
+          "foram preparadas."
+      )
+
+
+      # ======================================================
+      # GERAR SITEMAP
+      # ======================================================
+
+      base_url = (
+          "https://ginho83-wq.github.io/teste"
+      )
+
+
+      sitemap_path = (
+          "build/web/sitemap.xml"
+      )
+
+
+      fixed_urls = [
+
+          f"{base_url}/",
+
+          f"{base_url}/acervo/",
+
+          f"{base_url}/categorias/",
+
+          f"{base_url}/categoria/tese-doutoramento/",
+
+          f"{base_url}/categoria/dissertacao-de-mestrado/",
+
+          f"{base_url}/categoria/monografia/",
+
+          f"{base_url}/categoria/artigos-cientificos/",
+
+          f"{base_url}/categoria/literatura/"
+
+      ]
+
+
+      with open(
+          sitemap_path,
+          "w",
+          encoding="utf-8"
+      ) as sitemap:
+
+          sitemap.write(
+              '<?xml version="1.0" encoding="UTF-8"?>\n'
+          )
+
+          sitemap.write(
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+          )
+
+
+          # ==================================================
+          # URLS FIXAS
+          # ==================================================
+
+          for url in fixed_urls:
 
               sitemap.write(
-                  '<?xml version="1.0" encoding="UTF-8"?>\n'
+                  "  <url>\n"
               )
 
               sitemap.write(
-                  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                  f"    <loc>{escape(url)}</loc>\n"
               )
-
-              # -----------------------------------------------
-              # URLs FIXAS
-              # -----------------------------------------------
-
-              for url in fixed_urls:
-
-                  sitemap.write(
-                      "    <url>\n"
-                  )
-
-                  sitemap.write(
-                      f"        <loc>{escape(url)}</loc>\n"
-                  )
-
-                  sitemap.write(
-                      "    </url>\n"
-                  )
-
-              # -----------------------------------------------
-              # URLS INDIVIDUAIS DAS OBRAS
-              # -----------------------------------------------
-
-              for obra_id in obra_ids:
-
-                  url = (
-                      f"{base_url}/obra/{obra_id}/"
-                  )
-
-                  sitemap.write(
-                      "    <url>\n"
-                  )
-
-                  sitemap.write(
-                      f"        <loc>{escape(url)}</loc>\n"
-                  )
-
-                  sitemap.write(
-                      "    </url>\n"
-                  )
 
               sitemap.write(
-                  "</urlset>\n"
+                  "  </url>\n"
               )
 
-          print(
-              f"Sitemap gerado: {sitemap_path}"
+
+          # ==================================================
+          # URLS DAS OBRAS
+          # ==================================================
+
+          for obra_id in obra_ids:
+
+              url = (
+                  f"{base_url}/obra/{obra_id}/"
+              )
+
+              sitemap.write(
+                  "  <url>\n"
+              )
+
+              sitemap.write(
+                  f"    <loc>{escape(url)}</loc>\n"
+              )
+
+              sitemap.write(
+                  "  </url>\n"
+              )
+
+
+          sitemap.write(
+              "</urlset>\n"
           )
 
-          print(
-              f"URLs fixas no sitemap: {len(fixed_urls)}"
-          )
 
-          print(
-              f"URLs de obras no sitemap: {len(obra_ids)}"
-          )
+      print(
+          f"Sitemap gerado: {sitemap_path}"
+      )
 
-          print(
-              f"Total de URLs no sitemap: "
-              f"{len(fixed_urls) + len(obra_ids)}"
-          )
+      print(
+          f"URLs fixas no sitemap: "
+          f"{len(fixed_urls)}"
+      )
 
-      # ==========================================================
-      # CONFIGURAR GITHUB PAGES
-      # ==========================================================
+      print(
+          f"URLs de obras no sitemap: "
+          f"{len(obra_ids)}"
+      )
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      print(
+          f"Total de URLs no sitemap: "
+          f"{len(fixed_urls) + len(obra_ids)}"
+      )
 
-      # ==========================================================
-      # UPLOAD
-      # ==========================================================
+      PY
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: build/web
 
-  # ============================================================
-  # DEPLOY
-  # ============================================================
+  # ==========================================================
+  # CONFIGURAR GITHUB PAGES
+  # ==========================================================
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  - name: Configure Pages
+    uses: actions/configure-pages@v5
 
-    runs-on: ubuntu-latest
 
-    needs: build
+  # ==========================================================
+  # UPLOAD
+  # ==========================================================
 
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+  - name: Upload artifact
+    uses: actions/upload-pages-artifact@v3
+    with:
+      path: build/web
+============================================================
+DEPLOY
+============================================================
+deploy: environment: name: github-pages url: ${{ steps.deployment.outputs.page_url }}
+runs-on: ubuntu-latest
+
+needs: build
+
+steps:
+
+  - name: Deploy to GitHub Pages
+    id: deployment
+    uses: actions/deploy-pages@v4
+
