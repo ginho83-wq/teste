@@ -16,56 +16,55 @@ class ObraListaItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> informacoes = [];
+    // 2ª LINHA — AUTOR + ANO DA OBRA + DESCRIÇÃO
+    final List<String> segundaLinha = [];
 
-    // AUTOR
     if (obra.autor.trim().isNotEmpty) {
-      informacoes.add(obra.autor.trim());
+      segundaLinha.add(obra.autor.trim());
     }
 
-    // ANO DA OBRA — ENTRE PARÊNTESES
     if (obra.anoObra != null) {
-      informacoes.add(
-        '(${obra.anoObra})',
-      );
+      segundaLinha.add('(${obra.anoObra})');
     }
 
-    // DESCRIÇÃO
     if ((obra.descricao ?? '').trim().isNotEmpty) {
-      informacoes.add(
-        obra.descricao!.trim(),
-      );
+      segundaLinha.add(obra.descricao!.trim());
     }
 
-    // CATEGORIA
+    // 3ª LINHA — CATEGORIA + DATA + PDF + TAMANHO
+    final List<String> terceiraLinha = [];
+
     if (obra.categoria.trim().isNotEmpty) {
-      informacoes.add(
-        obra.categoria.trim(),
-      );
+      terceiraLinha.add(obra.categoria.trim());
     }
 
-    // ANO DE PUBLICAÇÃO
-    informacoes.add(
+    terceiraLinha.add(
       'Publicada em ${obra.dataPublicacao.year}',
     );
 
-    // FORMATO
-    informacoes.add('PDF');
+    terceiraLinha.add('PDF');
 
-    // TAMANHO DO ARQUIVO
     if (obra.tamanhoArquivoBytes != null &&
         obra.tamanhoArquivoBytes! > 0) {
-      informacoes.add(
+      terceiraLinha.add(
         _formatarTamanho(
           obra.tamanhoArquivoBytes!,
         ),
       );
     }
 
-    final String segundaLinha = informacoes.join(', ');
+    final String textoSegundaLinha =
+    segundaLinha.join(', ');
+
+    final String textoTerceiraLinha =
+    terceiraLinha.join(', ');
 
     return Material(
       color: Colors.transparent,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
         hoverColor: const Color(0xfff8f9fa),
@@ -75,66 +74,88 @@ class ObraListaItem extends StatelessWidget {
           width: double.infinity,
           padding: EdgeInsets.symmetric(
             horizontal: mobile ? 8 : 12,
-            vertical: 18,
+            vertical: 17,
           ),
           decoration: const BoxDecoration(
             color: Colors.white,
-            border: Border(
-              bottom: BorderSide(
-                color: Color(0xffdadce0),
-                width: 1,
-              ),
-            ),
+            boxShadow: [],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // PRIMEIRA LINHA — TÍTULO
-                    Text(
+              // 1ª LINHA — TÍTULO
+              Row(
+                crossAxisAlignment:
+                CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
                       obra.titulo,
                       softWrap: true,
                       style: const TextStyle(
                         fontSize: 17,
                         height: 1.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w700,
                         color: Color(0xff1a73e8),
-                        decoration: TextDecoration.underline,
-                        decorationColor: Color(0xff1a73e8),
+                        decoration:
+                        TextDecoration.underline,
+                        decorationColor:
+                        Color(0xff1a73e8),
                         decorationThickness: 1.2,
                       ),
                     ),
-
-                    // LINHA SEGUINTE — INFORMAÇÕES
-                    if (segundaLinha.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          top: 8,
-                        ),
-                        child: Text(
-                          segundaLinha,
-                          softWrap: true,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
-                            color: Color(0xff5f6368),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Icon(
+                    Icons.arrow_forward,
+                    size: 19,
+                    color: Color(0xff6b7280),
+                  ),
+                ],
               ),
 
-              const SizedBox(width: 16),
+              // ESPAÇAMENTO ENTRE A 1ª E A 2ª LINHA
+              const SizedBox(height: 4),
 
-              // SETA À DIREITA
-              const Icon(
-                Icons.arrow_forward,
-                size: 20,
-                color: Color(0xff5f6368),
+              // 2ª LINHA — AUTOR + ANO + DESCRIÇÃO
+              if (textoSegundaLinha.isNotEmpty)
+                Text(
+                  textoSegundaLinha,
+                  softWrap: true,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xff5f6368),
+                  ),
+                ),
+
+              // ESPAÇAMENTO ENTRE A 2ª E A 3ª LINHA
+              const SizedBox(height: 4),
+
+              // 3ª LINHA — CATEGORIA + DATA + PDF + TAMANHO
+              if (textoTerceiraLinha.isNotEmpty)
+                Text(
+                  textoTerceiraLinha,
+                  softWrap: true,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xff5f6368),
+                  ),
+                ),
+
+              // ESPAÇAMENTO ANTES DA LINHA
+              const SizedBox(height: 16),
+
+              // LINHA DIVISÓRIA:
+              // 1 PX, SEM SOMBRA, SEM EFEITO.
+              Container(
+                width: double.infinity,
+                height: 1,
+                color: const Color(0xffe1e4e8),
               ),
             ],
           ),
@@ -168,4 +189,3 @@ class ObraListaItem extends StatelessWidget {
     return '${tamanho.toStringAsFixed(1)} ${unidades[indice]}';
   }
 }
-
