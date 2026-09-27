@@ -13,6 +13,9 @@ class ObraPendente {
   final DateTime dataPublicacao;
   final String userId;
 
+  // Número total de páginas do PDF.
+  final int? numeroPaginas;
+
   // Tamanho real do PDF em bytes.
   final int? tamanhoArquivoBytes;
 
@@ -30,6 +33,7 @@ class ObraPendente {
     this.anoObra,
     required this.dataPublicacao,
     required this.userId,
+    this.numeroPaginas,
     this.tamanhoArquivoBytes,
     this.createdAt,
     this.updatedAt,
@@ -70,7 +74,11 @@ class ObraPendente {
       userId:
       map['user_id']?.toString() ?? '',
 
-      // Lê o tamanho real armazenado no banco.
+      // Número total de páginas do PDF.
+      numeroPaginas:
+      _parseInt(map['numero_paginas']),
+
+      // Tamanho real armazenado no banco.
       tamanhoArquivoBytes:
       _parseInt(
         map['tamanho_arquivo_bytes'],
@@ -109,7 +117,10 @@ class ObraPendente {
 
       'user_id': userId,
 
-      // Guarda o tamanho real.
+      // Número total de páginas.
+      'numero_paginas': numeroPaginas,
+
+      // Guarda o tamanho real do PDF.
       'tamanho_arquivo_bytes':
       tamanhoArquivoBytes,
 
@@ -132,6 +143,7 @@ class ObraPendente {
     int? anoObra,
     DateTime? dataPublicacao,
     String? userId,
+    int? numeroPaginas,
     int? tamanhoArquivoBytes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -165,6 +177,9 @@ class ObraPendente {
 
       userId:
       userId ?? this.userId,
+
+      numeroPaginas:
+      numeroPaginas ?? this.numeroPaginas,
 
       tamanhoArquivoBytes:
       tamanhoArquivoBytes ??

@@ -26,13 +26,15 @@ class ObrasPendentesRepository {
     url_capa,
     ano_obra,
     data_publicacao,
+    numero_paginas,
     user_id,
     tamanho_arquivo_bytes,
     created_at,
     updated_at
   ''';
 
-  Future<List<ObraPendente>> carregarTodas() async {
+  Future<List<ObraPendente>>
+  carregarTodas() async {
     final resposta = await _supabase
         .from('obras_pendentes')
         .select(_campos)
@@ -68,7 +70,8 @@ class ObrasPendentesRepository {
     );
   }
 
-  Future<List<ObraPendente>> carregarDoUsuario(
+  Future<List<ObraPendente>>
+  carregarDoUsuario(
       String userId,
       ) async {
     final resposta = await _supabase
@@ -109,8 +112,15 @@ class ObrasPendentesRepository {
     );
   }
 
-  Future<Obra> aprovar(String id) async {
-    final pendente = await carregarPorId(id);
+  // ==============================================================
+  // APROVAR OBRA
+  // ==============================================================
+
+  Future<Obra> aprovar(
+      String id,
+      ) async {
+    final pendente =
+    await carregarPorId(id);
 
     if (pendente == null) {
       throw Exception(
@@ -118,7 +128,9 @@ class ObrasPendentesRepository {
       );
     }
 
-    if (pendente.urlDocumento.trim().isEmpty) {
+    if (pendente.urlDocumento
+        .trim()
+        .isEmpty) {
       throw Exception(
         'O caminho do arquivo da obra pendente '
             'não foi encontrado.',
@@ -133,10 +145,14 @@ class ObrasPendentesRepository {
     // ============================================================
 
     final caminhoPdfPublicado =
-    await _storage.copiarDocumentoParaPublicadas(
-      caminhoPendente: caminhoPdfPendente,
-      userId: pendente.userId,
-      nomeArquivo: _nomeArquivo(
+    await _storage
+        .copiarDocumentoParaPublicadas(
+      caminhoPendente:
+      caminhoPdfPendente,
+      userId:
+      pendente.userId,
+      nomeArquivo:
+      _nomeArquivo(
         caminhoPdfPendente,
       ),
     );
@@ -153,15 +169,21 @@ class ObrasPendentesRepository {
     String? urlCapaPublica;
 
     if (pendente.urlCapa != null &&
-        pendente.urlCapa!.trim().isNotEmpty) {
+        pendente.urlCapa!
+            .trim()
+            .isNotEmpty) {
       final caminhoCapaPendente =
       pendente.urlCapa!;
 
       final caminhoCapaPublicado =
-      await _storage.copiarCapaParaPublicadas(
-        caminhoPendente: caminhoCapaPendente,
-        userId: pendente.userId,
-        nomeArquivo: _nomeArquivo(
+      await _storage
+          .copiarCapaParaPublicadas(
+        caminhoPendente:
+        caminhoCapaPendente,
+        userId:
+        pendente.userId,
+        nomeArquivo:
+        _nomeArquivo(
           caminhoCapaPendente,
         ),
       );
@@ -176,17 +198,40 @@ class ObrasPendentesRepository {
     // CRIAR OBRA PUBLICADA
     // ============================================================
 
-    final dadosObra = <String, dynamic>{
-      'titulo': pendente.titulo,
-      'descricao': pendente.descricao,
-      'autor': pendente.autor,
-      'categoria': pendente.categoria,
-      'url_documento': urlPdfPublica,
-      'url_capa': urlCapaPublica,
-      'ano_obra': pendente.anoObra,
+    final dadosObra =
+    <String, dynamic>{
+      'titulo':
+      pendente.titulo,
+
+      'descricao':
+      pendente.descricao,
+
+      'autor':
+      pendente.autor,
+
+      'categoria':
+      pendente.categoria,
+
+      'url_documento':
+      urlPdfPublica,
+
+      'url_capa':
+      urlCapaPublica,
+
+      'ano_obra':
+      pendente.anoObra,
+
       'data_publicacao':
-      pendente.dataPublicacao.toIso8601String(),
-      'user_id': pendente.userId,
+      pendente.dataPublicacao
+          .toIso8601String(),
+
+      // NOVO:
+      'numero_paginas':
+      pendente.numeroPaginas,
+
+      'user_id':
+      pendente.userId,
+
       'tamanho_arquivo_bytes':
       pendente.tamanhoArquivoBytes,
     };
@@ -211,7 +256,8 @@ class ObrasPendentesRepository {
     // ============================================================
 
     try {
-      await _storage.removerDocumentoPendente(
+      await _storage
+          .removerDocumentoPendente(
         caminhoPdfPendente,
       );
     } catch (_) {}
@@ -221,23 +267,33 @@ class ObrasPendentesRepository {
     // ============================================================
 
     if (pendente.urlCapa != null &&
-        pendente.urlCapa!.trim().isNotEmpty) {
+        pendente.urlCapa!
+            .trim()
+            .isNotEmpty) {
       try {
-        await _storage.removerCapaPendente(
+        await _storage
+            .removerCapaPendente(
           pendente.urlCapa!,
         );
       } catch (_) {}
     }
 
     return Obra.fromMap(
-      Map<String, dynamic>.from(resposta),
+      Map<String, dynamic>.from(
+        resposta,
+      ),
     );
   }
+
+  // ==============================================================
+  // REJEITAR
+  // ==============================================================
 
   Future<void> rejeitar(
       String id,
       ) async {
-    final pendente = await carregarPorId(id);
+    final pendente =
+    await carregarPorId(id);
 
     if (pendente == null) {
       throw Exception(
@@ -254,16 +310,20 @@ class ObrasPendentesRepository {
         .trim()
         .isNotEmpty) {
       try {
-        await _storage.removerDocumentoPendente(
+        await _storage
+            .removerDocumentoPendente(
           pendente.urlDocumento,
         );
       } catch (_) {}
     }
 
     if (pendente.urlCapa != null &&
-        pendente.urlCapa!.trim().isNotEmpty) {
+        pendente.urlCapa!
+            .trim()
+            .isNotEmpty) {
       try {
-        await _storage.removerCapaPendente(
+        await _storage
+            .removerCapaPendente(
           pendente.urlCapa!,
         );
       } catch (_) {}
@@ -276,13 +336,22 @@ class ObrasPendentesRepository {
     await rejeitar(id);
   }
 
-  String _nomeArquivo(String caminho) {
-    final indice = caminho.lastIndexOf('/');
+  // ==============================================================
+  // OBTER NOME DO ARQUIVO
+  // ==============================================================
+
+  String _nomeArquivo(
+      String caminho,
+      ) {
+    final indice =
+    caminho.lastIndexOf('/');
 
     if (indice == -1) {
       return caminho;
     }
 
-    return caminho.substring(indice + 1);
+    return caminho.substring(
+      indice + 1,
+    );
   }
 }

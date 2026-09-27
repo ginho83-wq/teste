@@ -95,11 +95,17 @@ class PublicacaoService {
       );
 
       // ==========================================================
-      // 2. GERAR CAPA DA PRIMEIRA PÁGINA
+      // 2. GERAR CAPA E OBTER NÚMERO DE PÁGINAS
       // ==========================================================
 
-      final bytesCapa =
+      final resultadoCapa =
       await _gerarCapa(arquivoPdf);
+
+      final bytesCapa =
+          resultadoCapa.bytes;
+
+      final numeroPaginas =
+          resultadoCapa.numeroPaginas;
 
       // ==========================================================
       // 3. ENVIAR CAPA PARA CAPAS-PENDENTES
@@ -116,26 +122,47 @@ class PublicacaoService {
       // 4. CRIAR REGISTRO PENDENTE
       // ==========================================================
 
-      final dataPublicacao = DateTime.now();
+      final dataPublicacao =
+      DateTime.now();
 
       final obra = ObraPendente(
         titulo: tituloLimpo,
+
         descricao:
         descricao?.trim().isEmpty == true
             ? null
             : descricao?.trim(),
+
         autor: autorLimpo,
+
         categoria: categoriaLimpa,
-        urlDocumento: caminhoPendente,
-        urlCapa: caminhoCapaPendente,
-        anoObra: anoObra,
-        dataPublicacao: dataPublicacao,
-        userId: usuario.id,
+
+        urlDocumento:
+        caminhoPendente,
+
+        urlCapa:
+        caminhoCapaPendente,
+
+        anoObra:
+        anoObra,
+
+        dataPublicacao:
+        dataPublicacao,
+
+        userId:
+        usuario.id,
+
+        // NOVO:
+        numeroPaginas:
+        numeroPaginas,
+
         tamanhoArquivoBytes:
         tamanhoArquivoBytes,
       );
 
-      return await _repository.inserir(obra);
+      return await _repository.inserir(
+        obra,
+      );
     } catch (e) {
       // ==========================================================
       // LIMPEZA DO PDF SE HOUVER ERRO
@@ -143,7 +170,8 @@ class PublicacaoService {
 
       if (caminhoPendente != null) {
         try {
-          await _storage.removerDocumentoPendente(
+          await _storage
+              .removerDocumentoPendente(
             caminhoPendente,
           );
         } catch (_) {}
@@ -155,7 +183,8 @@ class PublicacaoService {
 
       if (caminhoCapaPendente != null) {
         try {
-          await _storage.removerCapaPendente(
+          await _storage
+              .removerCapaPendente(
             caminhoCapaPendente,
           );
         } catch (_) {}
@@ -166,10 +195,11 @@ class PublicacaoService {
   }
 
   // ==============================================================
-  // GERAR CAPA A PARTIR DA PRIMEIRA PÁGINA DO PDF
+  // GERAR CAPA A PARTIR DA PRIMEIRA PÁGINA
+  // E OBTER O NÚMERO TOTAL DE PÁGINAS
   // ==============================================================
 
-  Future<Uint8List> _gerarCapa(
+  Future<_ResultadoCapa> _gerarCapa(
       Uint8List pdfBytes,
       ) async {
     PdfDocument? documento;
@@ -177,21 +207,30 @@ class PublicacaoService {
 
     try {
       documento =
-      await PdfDocument.openData(pdfBytes);
+      await PdfDocument.openData(
+        pdfBytes,
+      );
 
-      if (documento.pagesCount < 1) {
+      final numeroPaginas =
+          documento.pagesCount;
+
+      if (numeroPaginas < 1) {
         throw Exception(
           'O PDF não possui nenhuma página.',
         );
       }
 
-      pagina = await documento.getPage(1);
+      pagina =
+      await documento.getPage(1);
 
-      final imagem = await pagina.render(
+      final imagem =
+      await pagina.render(
         width: pagina.width * 2,
         height: pagina.height * 2,
-        format: PdfPageImageFormat.png,
-        backgroundColor: '#FFFFFF',
+        format:
+        PdfPageImageFormat.png,
+        backgroundColor:
+        '#FFFFFF',
       );
 
       if (imagem == null ||
@@ -201,10 +240,27 @@ class PublicacaoService {
         );
       }
 
-      return imagem.bytes;
+      return _ResultadoCapa(
+        bytes: imagem.bytes,
+        numeroPaginas: numeroPaginas,
+      );
     } finally {
       await pagina?.close();
       await documento?.close();
     }
   }
+}
+
+// ==============================================================
+// RESULTADO DA GERAÇÃO DA CAPA
+// ==============================================================
+
+class _ResultadoCapa {
+  final Uint8List bytes;
+  final int numeroPaginas;
+
+  const _ResultadoCapa({
+    required this.bytes,
+    required this.numeroPaginas,
+  });
 }
