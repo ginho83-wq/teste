@@ -8,6 +8,10 @@ class ObraPendente {
   final int? anoObra;
   final DateTime dataPublicacao;
   final String userId;
+
+  // Tamanho real do PDF em bytes.
+  final int? tamanhoArquivoBytes;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -21,6 +25,7 @@ class ObraPendente {
     this.anoObra,
     required this.dataPublicacao,
     required this.userId,
+    this.tamanhoArquivoBytes,
     this.createdAt,
     this.updatedAt,
   });
@@ -30,34 +35,77 @@ class ObraPendente {
       ) {
     return ObraPendente(
       id: map['id']?.toString(),
-      titulo: map['titulo']?.toString() ?? '',
-      descricao: map['descricao']?.toString(),
-      autor: map['autor']?.toString() ?? '',
-      categoria: map['categoria']?.toString() ?? '',
-      urlDocumento: map['url_documento']?.toString() ?? '',
-      anoObra: _parseInt(map['ano_obra']),
+
+      titulo:
+      map['titulo']?.toString() ?? '',
+
+      descricao:
+      map['descricao']?.toString(),
+
+      autor:
+      map['autor']?.toString() ?? '',
+
+      categoria:
+      map['categoria']?.toString() ?? '',
+
+      urlDocumento:
+      map['url_documento']?.toString() ?? '',
+
+      anoObra:
+      _parseInt(map['ano_obra']),
+
       dataPublicacao:
       _parseDate(map['data_publicacao']) ??
           DateTime.now(),
-      userId: map['user_id']?.toString() ?? '',
-      createdAt: _parseDate(map['created_at']),
-      updatedAt: _parseDate(map['updated_at']),
+
+      userId:
+      map['user_id']?.toString() ?? '',
+
+      // Lê o tamanho real armazenado no banco.
+      tamanhoArquivoBytes:
+      _parseInt(
+        map['tamanho_arquivo_bytes'],
+      ),
+
+      createdAt:
+      _parseDate(map['created_at']),
+
+      updatedAt:
+      _parseDate(map['updated_at']),
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      if (id != null) 'id': id,
+      if (id != null)
+        'id': id,
+
       'titulo': titulo,
+
       'descricao': descricao,
+
       'autor': autor,
+
       'categoria': categoria,
+
       'url_documento': urlDocumento,
+
       'ano_obra': anoObra,
-      'data_publicacao': dataPublicacao.toIso8601String(),
+
+      'data_publicacao':
+      dataPublicacao.toIso8601String(),
+
       'user_id': userId,
-      'created_at': createdAt?.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+
+      // Guarda o tamanho real.
+      'tamanho_arquivo_bytes':
+      tamanhoArquivoBytes,
+
+      'created_at':
+      createdAt?.toIso8601String(),
+
+      'updated_at':
+      updatedAt?.toIso8601String(),
     };
   }
 
@@ -71,6 +119,7 @@ class ObraPendente {
     int? anoObra,
     DateTime? dataPublicacao,
     String? userId,
+    int? tamanhoArquivoBytes,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -80,13 +129,24 @@ class ObraPendente {
       descricao: descricao ?? this.descricao,
       autor: autor ?? this.autor,
       categoria: categoria ?? this.categoria,
-      urlDocumento: urlDocumento ?? this.urlDocumento,
-      anoObra: anoObra ?? this.anoObra,
+      urlDocumento:
+      urlDocumento ?? this.urlDocumento,
+      anoObra:
+      anoObra ?? this.anoObra,
       dataPublicacao:
       dataPublicacao ?? this.dataPublicacao,
-      userId: userId ?? this.userId,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      userId:
+      userId ?? this.userId,
+
+      tamanhoArquivoBytes:
+      tamanhoArquivoBytes ??
+          this.tamanhoArquivoBytes,
+
+      createdAt:
+      createdAt ?? this.createdAt,
+
+      updatedAt:
+      updatedAt ?? this.updatedAt,
     );
   }
 
@@ -99,7 +159,9 @@ class ObraPendente {
       return value;
     }
 
-    return int.tryParse(value.toString());
+    return int.tryParse(
+      value.toString(),
+    );
   }
 
   static DateTime? _parseDate(dynamic value) {
@@ -111,7 +173,8 @@ class ObraPendente {
       return value;
     }
 
-    return DateTime.tryParse(value.toString());
+    return DateTime.tryParse(
+      value.toString(),
+    );
   }
 }
-

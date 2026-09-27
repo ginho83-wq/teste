@@ -8,14 +8,17 @@ import '../services/storage_service.dart';
 class PublicacaoService {
   PublicacaoService._();
 
-  static final PublicacaoService instancia = PublicacaoService._();
+  static final PublicacaoService instancia =
+  PublicacaoService._();
 
   final ObrasPendentesRepository _repository =
       ObrasPendentesRepository.instancia;
 
-  final StorageService _storage = StorageService.instancia;
+  final StorageService _storage =
+      StorageService.instancia;
 
-  final AuthService _auth = AuthService.instancia;
+  final AuthService _auth =
+      AuthService.instancia;
 
   Future<ObraPendente> publicar({
     required String titulo,
@@ -40,26 +43,42 @@ class PublicacaoService {
     final nomeArquivoLimpo = nomeArquivo.trim();
 
     if (tituloLimpo.isEmpty) {
-      throw Exception('Informe o título da obra.');
+      throw Exception(
+        'Informe o título da obra.',
+      );
     }
 
     if (autorLimpo.isEmpty) {
-      throw Exception('Informe o autor da obra.');
+      throw Exception(
+        'Informe o autor da obra.',
+      );
     }
 
     if (categoriaLimpa.isEmpty) {
-      throw Exception('Selecione a categoria da obra.');
+      throw Exception(
+        'Selecione a categoria da obra.',
+      );
     }
 
     if (arquivoPdf.isEmpty) {
-      throw Exception('O arquivo PDF está vazio.');
+      throw Exception(
+        'O arquivo PDF está vazio.',
+      );
     }
 
-    if (!nomeArquivoLimpo.toLowerCase().endsWith('.pdf')) {
+    if (!nomeArquivoLimpo
+        .toLowerCase()
+        .endsWith('.pdf')) {
       throw Exception(
         'O arquivo selecionado deve estar no formato PDF.',
       );
     }
+
+    // ============================================================
+    // TAMANHO REAL DO PDF
+    // ============================================================
+
+    final tamanhoArquivoBytes = arquivoPdf.length;
 
     String? caminhoPendente;
 
@@ -71,7 +90,8 @@ class PublicacaoService {
         bytes: arquivoPdf,
       );
 
-      // Data em que a obra foi enviada para publicação/análise.
+      // Data em que a obra foi enviada
+      // para análise.
       final dataPublicacao = DateTime.now();
 
       final obra = ObraPendente(
@@ -85,6 +105,10 @@ class PublicacaoService {
         anoObra: anoObra,
         dataPublicacao: dataPublicacao,
         userId: usuario.id,
+
+        // Guarda o tamanho real.
+        tamanhoArquivoBytes:
+        tamanhoArquivoBytes,
       );
 
       return await _repository.inserir(obra);
@@ -101,4 +125,3 @@ class PublicacaoService {
     }
   }
 }
-

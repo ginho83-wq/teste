@@ -13,8 +13,12 @@ class ArquivoSelecionado {
     required this.tamanho,
   });
 
+  /// Tamanho real do PDF em MB.
+  ///
+  /// O cálculo é feito diretamente sobre os bytes
+  /// que serão enviados para o Supabase.
   double get tamanhoMb {
-    return tamanho / (1024 * 1024);
+    return bytes.length / (1024 * 1024);
   }
 }
 
@@ -43,6 +47,7 @@ class ArquivoService {
       );
     }
 
+    final bytes = arquivo.bytes!;
     final nome = arquivo.name;
 
     if (!ehPdf(nome)) {
@@ -53,8 +58,11 @@ class ArquivoService {
 
     return ArquivoSelecionado(
       nome: nome,
-      bytes: arquivo.bytes!,
-      tamanho: arquivo.size,
+      bytes: bytes,
+
+      // IMPORTANTE:
+      // usamos os bytes reais que serão enviados.
+      tamanho: bytes.length,
     );
   }
 
@@ -67,12 +75,17 @@ class ArquivoService {
   }
 
   String formatarTamanho(int tamanhoBytes) {
-    final mb = tamanhoMb(tamanhoBytes);
-
-    if (mb < 1) {
-      final kb = tamanhoBytes / 1024;
-      return '${kb.toStringAsFixed(0)} KB';
+    if (tamanhoBytes < 1024) {
+      return '$tamanhoBytes bytes';
     }
+
+    if (tamanhoBytes < 1024 * 1024) {
+      final kb = tamanhoBytes / 1024;
+
+      return '${kb.toStringAsFixed(2)} KB';
+    }
+
+    final mb = tamanhoBytes / (1024 * 1024);
 
     return '${mb.toStringAsFixed(2)} MB';
   }
@@ -93,4 +106,3 @@ class ArquivoService {
     return nome;
   }
 }
-

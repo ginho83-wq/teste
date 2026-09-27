@@ -21,8 +21,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
   final _autorController = TextEditingController();
   final _anoController = TextEditingController();
 
-  final ArquivoService _arquivoService =
-      ArquivoService.instancia;
+  final ArquivoService _arquivoService = ArquivoService.instancia;
 
   final PublicacaoService _publicacaoService =
       PublicacaoService.instancia;
@@ -33,12 +32,18 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
   bool _carregando = false;
 
+  // Categorias iguais às definidas na CategoriasPage
   final List<String> _categorias = const [
     'Tese de Doutoramento',
     'Dissertação de Mestrado',
+    'Dissertação de Licenciatura',
     'Monografia',
     'Artigos Científicos',
-    'Literatura',
+    'Comunicações Científicas',
+    'Posters',
+    'Resumos',
+    'Relatórios Académicos',
+    'Trabalhos Académicos',
   ];
 
   @override
@@ -52,8 +57,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
   Future<void> _selecionarArquivo() async {
     try {
-      final arquivo =
-      await _arquivoService.selecionarPdf();
+      final arquivo = await _arquivoService.selecionarPdf();
 
       if (!mounted || arquivo == null) {
         return;
@@ -102,8 +106,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       return;
     }
 
-    final usuario =
-        AuthService.instancia.usuarioAtual;
+    final usuario = AuthService.instancia.usuarioAtual;
 
     if (usuario == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -191,8 +194,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Publicar obra académica',
@@ -262,13 +264,11 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                         ? null
                         : (valor) {
                       setState(() {
-                        _categoriaSelecionada =
-                            valor;
+                        _categoriaSelecionada = valor;
                       });
                     },
                     validator: (valor) {
-                      if (valor == null ||
-                          valor.isEmpty) {
+                      if (valor == null || valor.isEmpty) {
                         return 'Selecione a categoria.';
                       }
 
@@ -280,8 +280,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   TextFormField(
                     controller: _anoController,
-                    keyboardType:
-                    TextInputType.number,
+                    keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Ano da obra',
                       border: OutlineInputBorder(),
@@ -324,8 +323,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                       border: Border.all(
                         color: Colors.grey.shade300,
                       ),
-                      borderRadius:
-                      BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
                       crossAxisAlignment:
@@ -349,8 +347,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                           Text(
                             _arquivoSelecionado!.nome,
                             style: const TextStyle(
-                              fontWeight:
-                              FontWeight.w500,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
 
@@ -371,8 +368,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                             Icons.upload_file,
                           ),
                           label: Text(
-                            _arquivoSelecionado ==
-                                null
+                            _arquivoSelecionado == null
                                 ? 'Selecionar PDF'
                                 : 'Alterar PDF',
                           ),
