@@ -72,45 +72,29 @@ class ObraListaItem extends StatelessWidget {
         highlightColor: Colors.transparent,
         child: Container(
           width: double.infinity,
-          padding: EdgeInsets.symmetric(
-            horizontal: mobile ? 8 : 12,
-            vertical: 17,
-          ),
-          // Sem card branco, sem sombra e sem borda.
           color: Colors.transparent,
+          padding: EdgeInsets.only(
+            left: mobile ? 8 : 12,
+            right: mobile ? 8 : 12,
+            top: 17,
+            bottom: 16,
+          ),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1ª LINHA — TÍTULO
-              Row(
-                crossAxisAlignment:
-                CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text(
-                      obra.titulo,
-                      softWrap: true,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        height: 1.5,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xff1a73e8),
-                        decoration:
-                        TextDecoration.underline,
-                        decorationColor:
-                        Color(0xff1a73e8),
-                        decorationThickness: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Icon(
-                    Icons.arrow_forward,
-                    size: 19,
-                    color: Color(0xff6b7280),
-                  ),
-                ],
+              Text(
+                obra.titulo,
+                softWrap: true,
+                style: const TextStyle(
+                  fontSize: 17,
+                  height: 1.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xff1a73e8),
+                  decoration: TextDecoration.underline,
+                  decorationColor: Color(0xff1a73e8),
+                  decorationThickness: 1.2,
+                ),
               ),
 
               // ESPAÇAMENTO ENTRE A 1ª E A 2ª LINHA

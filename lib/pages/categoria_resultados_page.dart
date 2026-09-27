@@ -187,13 +187,15 @@ class _CategoriaResultadosPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
+      // FUNDO BRANCO
+      backgroundColor: Colors.white,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black87,
 
+        // Nome da categoria aparece apenas uma vez.
         title: Text(
           widget.categoria,
           style: const TextStyle(
@@ -202,16 +204,8 @@ class _CategoriaResultadosPageState
           ),
         ),
 
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Voltar'),
-          ),
-
-          const SizedBox(width: 12),
-        ],
+        // BOTÃO "VOLTAR" REMOVIDO
+        actions: const [],
       ),
 
       body: Center(
@@ -270,19 +264,10 @@ class _CategoriaResultadosPageState
       padding: const EdgeInsets.all(24),
 
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.categoria,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-
-          const SizedBox(height: 6),
+          // O título da categoria que estava repetido
+          // foi removido daqui.
 
           Text(
             'Obras disponíveis nesta categoria.',
@@ -374,10 +359,6 @@ class _CategoriaResultadosPageState
             child: ObraListaItem(
               obra: obra,
 
-              // ===============================================================
-              // ALTERAÇÃO PRINCIPAL:
-              // cada obra passa a ter a sua própria URL
-              // ===============================================================
               onTap: () {
                 context.go('/obra/${obra.id}');
               },
