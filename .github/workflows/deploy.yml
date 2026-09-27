@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # ==========================================================
       # CHECKOUT
       # ==========================================================
@@ -268,9 +269,11 @@ jobs:
               )
 
               if descricao:
+
                   texto = descricao
 
               else:
+
                   partes = []
 
                   if titulo:
@@ -289,6 +292,7 @@ jobs:
                   texto = " — ".join(partes)
 
               if not texto:
+
                   texto = (
                       "Obra disponível no "
                       "acervo digital Obra Livre."
@@ -355,6 +359,7 @@ jobs:
               og_image = url_capa
 
               if not og_image:
+
                   og_image = (
                       "https://ginho83-wq.github.io"
                       "/teste/OL.png"
@@ -373,6 +378,7 @@ jobs:
               }
 
               if autor:
+
                   schema["author"] = {
                       "@type": "Person",
                       "name": autor
@@ -385,6 +391,7 @@ jobs:
                   schema["dateCreated"] = ano
 
               if url_documento:
+
                   schema["encoding"] = {
                       "@type": "MediaObject",
                       "contentUrl": url_documento
@@ -397,9 +404,14 @@ jobs:
 
               # ==================================================
               # HTML
+              #
+              # IMPORTANTE:
+              # Não usamos f-string aqui.
+              # Assim as chaves { } do JavaScript
+              # não causam erro no Python.
               # ==================================================
 
-              return f"""<!DOCTYPE html>
+              html_modelo = """<!DOCTYPE html>
           <html lang="pt">
           <head>
 
@@ -410,11 +422,11 @@ jobs:
               content="width=device-width, initial-scale=1.0"
             >
 
-            <title>{html.escape(titulo_seo)}</title>
+            <title>__TITULO_SEO__</title>
 
             <meta
               name="description"
-              content="{html.escape(descricao_seo, quote=True)}"
+              content="__DESCRICAO_SEO__"
             >
 
             <meta
@@ -424,7 +436,7 @@ jobs:
 
             <link
               rel="canonical"
-              href="{html.escape(url, quote=True)}"
+              href="__URL__"
             >
 
             <link
@@ -442,17 +454,17 @@ jobs:
 
             <meta
               property="og:title"
-              content="{html.escape(titulo_seo, quote=True)}"
+              content="__TITULO_SEO__"
             >
 
             <meta
               property="og:description"
-              content="{html.escape(descricao_seo, quote=True)}"
+              content="__DESCRICAO_SEO__"
             >
 
             <meta
               property="og:url"
-              content="{html.escape(url, quote=True)}"
+              content="__URL__"
             >
 
             <meta
@@ -462,13 +474,13 @@ jobs:
 
             <meta
               property="og:image"
-              content="{html.escape(og_image, quote=True)}"
+              content="__OG_IMAGE__"
             >
 
             <!-- Dados estruturados da obra -->
 
             <script type="application/ld+json">
-          {schema_json}
+          __SCHEMA_JSON__
             </script>
 
             <base href="/teste/">
@@ -511,6 +523,47 @@ jobs:
           </html>
           """
 
+              html_final = html_modelo
+
+              html_final = html_final.replace(
+                  "__TITULO_SEO__",
+                  html.escape(
+                      titulo_seo,
+                      quote=True
+                  )
+              )
+
+              html_final = html_final.replace(
+                  "__DESCRICAO_SEO__",
+                  html.escape(
+                      descricao_seo,
+                      quote=True
+                  )
+              )
+
+              html_final = html_final.replace(
+                  "__URL__",
+                  html.escape(
+                      url,
+                      quote=True
+                  )
+              )
+
+              html_final = html_final.replace(
+                  "__OG_IMAGE__",
+                  html.escape(
+                      og_image,
+                      quote=True
+                  )
+              )
+
+              html_final = html_final.replace(
+                  "__SCHEMA_JSON__",
+                  schema_json
+              )
+
+              return html_final
+
           # ======================================================
           # CRIAR ROTAS DAS OBRAS
           # ======================================================
@@ -552,6 +605,7 @@ jobs:
                   "w",
                   encoding="utf-8"
               ) as f:
+
                   f.write(html_obra)
 
               obra_ids.append(
@@ -581,13 +635,21 @@ jobs:
           )
 
           fixed_urls = [
+
               f"{base_url}/",
+
               f"{base_url}/acervo/",
+
               f"{base_url}/categorias/",
+
               f"{base_url}/categoria/tese-doutoramento/",
+
               f"{base_url}/categoria/dissertacao-de-mestrado/",
+
               f"{base_url}/categoria/monografia/",
+
               f"{base_url}/categoria/artigos-cientificos/",
+
               f"{base_url}/categoria/literatura/"
           ]
 
@@ -667,6 +729,7 @@ jobs:
               f"Total de URLs no sitemap: "
               f"{len(fixed_urls) + len(obra_ids)}"
           )
+
           PY
 
       # ==========================================================
@@ -704,3 +767,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
