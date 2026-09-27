@@ -27,6 +27,38 @@ class ComentariosRepository {
         .toList();
   }
 
+  /// Obtém os comentários feitos nas obras de um determinado utilizador.
+  ///
+  /// Retorna também o título da obra através da relação
+  /// entre comentarios e obras.
+  Future<List<Map<String, dynamic>>> obterComentariosDasMinhasObras(
+      String userId,
+      ) async {
+    final resposta = await _supabase
+        .from('comentarios')
+        .select('''
+          id,
+          obra_id,
+          user_id,
+          comentario,
+          created_at,
+          updated_at,
+          obras!inner (
+            id,
+            titulo,
+            user_id
+          )
+        ''')
+        .eq('obras.user_id', userId)
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(
+      (resposta as List).map(
+            (item) => Map<String, dynamic>.from(item),
+      ),
+    );
+  }
+
   /// Cria um novo comentário.
   Future<Comentario> criarComentario({
     required String obraId,
@@ -35,13 +67,17 @@ class ComentariosRepository {
     final utilizador = _supabase.auth.currentUser;
 
     if (utilizador == null) {
-      throw Exception('É necessário iniciar sessão para comentar.');
+      throw Exception(
+        'É necessário iniciar sessão para comentar.',
+      );
     }
 
     final texto = comentario.trim();
 
     if (texto.isEmpty) {
-      throw Exception('O comentário não pode estar vazio.');
+      throw Exception(
+        'O comentário não pode estar vazio.',
+      );
     }
 
     final resposta = await _supabase
@@ -67,7 +103,9 @@ class ComentariosRepository {
     final texto = comentario.trim();
 
     if (texto.isEmpty) {
-      throw Exception('O comentário não pode estar vazio.');
+      throw Exception(
+        'O comentário não pode estar vazio.',
+      );
     }
 
     final resposta = await _supabase

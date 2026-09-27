@@ -21,8 +21,12 @@ class Comentario {
       obraId: map['obra_id'] as String,
       userId: map['user_id'] as String,
       comentario: map['comentario'] as String,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: DateTime.parse(
+        map['created_at'] as String,
+      ),
+      updatedAt: DateTime.parse(
+        map['updated_at'] as String,
+      ),
     );
   }
 

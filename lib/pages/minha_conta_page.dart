@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/historico_obra.dart';
 import '../models/obra.dart';
+import '../repositories/comentarios_repository.dart';
 import '../repositories/obras_repository.dart';
 import '../repositories/solicitacoes_remocao_repository.dart';
 import '../services/historico_obras_service.dart';
@@ -21,7 +22,11 @@ class MinhaContaPage extends StatefulWidget {
 class _MinhaContaPageState extends State<MinhaContaPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
+  final ObrasRepository _obrasRepository =
+      ObrasRepository.instancia;
+
+  final ComentariosRepository _comentariosRepository =
+      ComentariosRepository.instancia;
 
   final SolicitacoesRemocaoRepository _solicitacoesRepository =
       SolicitacoesRemocaoRepository.instancia;
@@ -32,6 +37,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   Map<String, dynamic>? _perfil;
 
   List<Map<String, dynamic>> _minhasObras = [];
+
+  List<Map<String, dynamic>> _comentarios = [];
 
   List<Map<String, dynamic>> _solicitacoes = [];
 
@@ -61,13 +68,27 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           .eq('id', usuario.id)
           .maybeSingle();
 
-      final minhasObras = await _obterMinhasObras(usuario.id);
+      final minhasObras =
+      await _obterMinhasObras(usuario.id);
+
+      List<Map<String, dynamic>> comentarios = [];
+
+      try {
+        comentarios =
+        await _comentariosRepository
+            .obterComentariosDasMinhasObras(
+          usuario.id,
+        );
+      } catch (_) {
+        comentarios = [];
+      }
 
       List<Map<String, dynamic>> solicitacoes = [];
 
       try {
         solicitacoes =
-        await _solicitacoesRepository.obterMinhasSolicitacoes();
+        await _solicitacoesRepository
+            .obterMinhasSolicitacoes();
       } catch (_) {
         solicitacoes = [];
       }
@@ -76,7 +97,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       try {
         historico =
-        await _historicoService.obterConsultasRecentes(limite: 5);
+        await _historicoService
+            .obterConsultasRecentes(limite: 5);
       } catch (_) {
         historico = [];
       }
@@ -86,6 +108,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       setState(() {
         _perfil = perfilResponse;
         _minhasObras = minhasObras;
+        _comentarios = comentarios;
         _solicitacoes = solicitacoes;
         _historico = historico;
         _carregando = false;
@@ -179,7 +202,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             if (obra.urlDocumento.trim().isNotEmpty)
               FilledButton.icon(
                 onPressed: () async {
-                  final url = Uri.tryParse(obra.urlDocumento);
+                  final url =
+                  Uri.tryParse(obra.urlDocumento);
 
                   if (url == null) return;
 
@@ -189,7 +213,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                   );
 
                   if (!aberto && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
                       const SnackBar(
                         content: Text(
                           'Não foi possível abrir o documento.',
@@ -220,18 +245,21 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Motivo',
-              hintText: 'Explique o motivo da solicitação...',
+              hintText:
+              'Explique o motivo da solicitação...',
               border: OutlineInputBorder(),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () =>
+                  Navigator.of(context).pop(),
               child: const Text('Cancelar'),
             ),
             FilledButton(
               onPressed: () {
-                final texto = controlador.text.trim();
+                final texto =
+                controlador.text.trim();
 
                 if (texto.isEmpty) {
                   return;
@@ -289,7 +317,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   Future<void> _carregarHistorico() async {
     try {
       final historico =
-      await _historicoService.obterConsultasRecentes(limite: 5);
+      await _historicoService
+          .obterConsultasRecentes(limite: 5);
 
       if (!mounted) return;
 
@@ -311,10 +340,15 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     try {
-      final data = DateTime.parse(valor.toString()).toLocal();
+      final data =
+      DateTime.parse(valor.toString()).toLocal();
 
-      final dia = data.day.toString().padLeft(2, '0');
-      final mes = data.month.toString().padLeft(2, '0');
+      final dia =
+      data.day.toString().padLeft(2, '0');
+
+      final mes =
+      data.month.toString().padLeft(2, '0');
+
       final ano = data.year.toString();
 
       return '$dia/$mes/$ano';
@@ -353,10 +387,15 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
   Widget _cartaoPerfil() {
     final nome =
-    (_perfil?['nome'] ?? _perfil?['name'] ?? 'Utilizador').toString();
+    (_perfil?['nome'] ??
+        _perfil?['name'] ??
+        'Utilizador')
+        .toString();
 
     final email =
-    (_perfil?['email'] ?? _supabase.auth.currentUser?.email ?? '')
+    (_perfil?['email'] ??
+        _supabase.auth.currentUser?.email ??
+        '')
         .toString();
 
     return Card(
@@ -368,7 +407,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             CircleAvatar(
               radius: 30,
               child: Text(
-                nome.isNotEmpty ? nome[0].toUpperCase() : 'U',
+                nome.isNotEmpty
+                    ? nome[0].toUpperCase()
+                    : 'U',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -378,7 +419,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
                   Text(
                     nome,
@@ -413,13 +455,18 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
     return Column(
       children: _minhasObras.map((dados) {
-        final titulo = (dados['titulo'] ?? 'Sem título').toString();
+        final titulo =
+        (dados['titulo'] ?? 'Sem título')
+            .toString();
 
-        final autor = (dados['autor'] ?? '').toString();
+        final autor =
+        (dados['autor'] ?? '').toString();
 
-        final categoria = (dados['categoria'] ?? '').toString();
+        final categoria =
+        (dados['categoria'] ?? '').toString();
 
-        final dataPublicacao = dados['data_publicacao'];
+        final dataPublicacao =
+        dados['data_publicacao'];
 
         final obra = Obra.fromMap(dados);
 
@@ -427,7 +474,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: const CircleAvatar(
-              child: Icon(Icons.description_outlined),
+              child: Icon(
+                Icons.description_outlined,
+              ),
             ),
             title: Text(
               titulo,
@@ -435,13 +484,17 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
-                if (autor.isNotEmpty) Text(autor),
-                if (categoria.isNotEmpty) Text(categoria),
+                if (autor.isNotEmpty)
+                  Text(autor),
+                if (categoria.isNotEmpty)
+                  Text(categoria),
                 if (dataPublicacao != null)
                   Text(
-                    'Publicada em ${_formatarData(dataPublicacao)}',
+                    'Publicada em '
+                        '${_formatarData(dataPublicacao)}',
                   ),
               ],
             ),
@@ -461,11 +514,143 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                 ),
                 PopupMenuItem(
                   value: 'remover',
-                  child: Text('Solicitar remoção'),
+                  child: Text(
+                    'Solicitar remoção',
+                  ),
                 ),
               ],
             ),
-            onTap: () => _abrirDetalhesObra(obra),
+            onTap: () =>
+                _abrirDetalhesObra(obra),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _listaComentarios() {
+    if (_comentarios.isEmpty) {
+      return _caixaVazia(
+        'Ainda não existem comentários nas suas obras.',
+        Icons.comment_outlined,
+      );
+    }
+
+    return Column(
+      children: _comentarios.map((dados) {
+        final comentario =
+        (dados['comentario'] ?? '').toString();
+
+        final data =
+        dados['created_at'];
+
+        final obraDados =
+        dados['obras'] is Map
+            ? Map<String, dynamic>.from(
+          dados['obras'] as Map,
+        )
+            : <String, dynamic>{};
+
+        final tituloObra =
+        (obraDados['titulo'] ?? 'Obra')
+            .toString();
+
+        final obraId =
+        (dados['obra_id'] ?? '').toString();
+
+        return Card(
+          margin:
+          const EdgeInsets.only(bottom: 10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () async {
+              if (obraId.isEmpty) return;
+
+              try {
+                final obra =
+                await _obrasRepository
+                    .carregarPorId(obraId);
+
+                if (obra == null || !mounted) {
+                  return;
+                }
+
+                await _abrirDetalhesObra(obra);
+              } catch (e) {
+                if (!mounted) return;
+
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Não foi possível abrir a obra: $e',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      const CircleAvatar(
+                        child: Icon(
+                          Icons.comment_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tituloObra,
+                              maxLines: 2,
+                              overflow:
+                              TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight:
+                                FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (data != null)
+                              Text(
+                                _formatarData(data),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors
+                                      .grey
+                                      .shade600,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    comentario,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       }).toList(),
@@ -483,7 +668,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     return Column(
       children: _historico.map((item) {
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin:
+          const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: const CircleAvatar(
               child: Icon(Icons.history),
@@ -493,22 +679,28 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: item.dataConsulta != null
+            subtitle:
+            item.dataConsulta != null
                 ? Text(
-              'Consultada em ${_formatarData(item.dataConsulta)}',
+              'Consultada em '
+                  '${_formatarData(item.dataConsulta)}',
             )
                 : null,
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(
+              Icons.chevron_right,
+            ),
             onTap: () async {
               final obraId = item.obraId;
 
-              if (obraId == null || obraId.isEmpty) {
+              if (obraId == null ||
+                  obraId.isEmpty) {
                 return;
               }
 
               try {
                 final obra =
-                await _obrasRepository.carregarPorId(obraId);
+                await _obrasRepository
+                    .carregarPorId(obraId);
 
                 if (obra == null || !mounted) {
                   return;
@@ -518,7 +710,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               } catch (e) {
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(
                   SnackBar(
                     content: Text(
                       'Não foi possível abrir a obra: $e',
@@ -542,12 +735,16 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Column(
-      children: _solicitacoes.map((solicitacao) {
+      children:
+      _solicitacoes.map((solicitacao) {
         final status =
-        (solicitacao['status'] ?? 'pendente').toString();
+        (solicitacao['status'] ??
+            'pendente')
+            .toString();
 
         final motivo =
-        (solicitacao['motivo'] ?? '').toString();
+        (solicitacao['motivo'] ?? '')
+            .toString();
 
         final titulo =
         (solicitacao['obra_titulo'] ??
@@ -555,12 +752,15 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             'Obra')
             .toString();
 
-        final statusFormatado = status.isEmpty
+        final statusFormatado =
+        status.isEmpty
             ? 'Pendente'
-            : '${status[0].toUpperCase()}${status.substring(1)}';
+            : '${status[0].toUpperCase()}'
+            '${status.substring(1)}';
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin:
+          const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: Icon(
               status == 'aprovada'
@@ -575,9 +775,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
-                if (motivo.isNotEmpty) Text(motivo),
+                if (motivo.isNotEmpty)
+                  Text(motivo),
                 const SizedBox(height: 4),
                 Text(
                   'Estado: $statusFormatado',
@@ -602,7 +804,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         border: Border.all(
           color: Colors.grey.shade300,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+        BorderRadius.circular(12),
       ),
       child: Column(
         children: [
@@ -639,12 +842,24 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
           _tituloSecao(
             'Minhas publicações',
-            icone: Icons.library_books_outlined,
+            icone:
+            Icons.library_books_outlined,
           ),
 
           const SizedBox(height: 12),
 
           _listaObras(),
+
+          const SizedBox(height: 28),
+
+          _tituloSecao(
+            'Comentários',
+            icone: Icons.comment_outlined,
+          ),
+
+          const SizedBox(height: 12),
+
+          _listaComentarios(),
 
           const SizedBox(height: 28),
 
@@ -728,7 +943,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _carregarDados,
-                  child: const Text('Tentar novamente'),
+                  child: const Text(
+                    'Tentar novamente',
+                  ),
                 ),
               ],
             ),

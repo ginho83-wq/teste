@@ -18,6 +18,8 @@ class ObrasRepository {
     url_documento,
     ano_obra,
     data_publicacao,
+    numero_paginas,
+    tamanho_arquivo_bytes,
     user_id,
     created_at,
     updated_at
@@ -122,8 +124,14 @@ class ObrasRepository {
     final resposta = await _supabase
         .from('obras')
         .select(_campos)
-        .ilike('autor', '%${autor.trim()}%')
-        .order('data_publicacao', ascending: false)
+        .ilike(
+      'autor',
+      '%${autor.trim()}%',
+    )
+        .order(
+      'data_publicacao',
+      ascending: false,
+    )
         .limit(limite);
 
     return (resposta as List)
@@ -143,7 +151,10 @@ class ObrasRepository {
         .from('obras')
         .select(_campos)
         .eq('ano_obra', ano)
-        .order('data_publicacao', ascending: false)
+        .order(
+      'data_publicacao',
+      ascending: false,
+    )
         .limit(limite);
 
     return (resposta as List)
@@ -167,7 +178,10 @@ class ObrasRepository {
         .from('obras')
         .select(_campos)
         .eq('user_id', userId)
-        .order('data_publicacao', ascending: false)
+        .order(
+      'data_publicacao',
+      ascending: false,
+    )
         .range(inicio, fim);
 
     return (resposta as List)
