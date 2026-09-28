@@ -25,8 +25,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
-  final AuthService _authService = AuthService.instancia;
+  final ObrasRepository _obrasRepository =
+      ObrasRepository.instancia;
+
+  final AuthService _authService =
+      AuthService.instancia;
+
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
@@ -47,9 +51,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _authSubscription = _authService.eventosAuth.listen(
-      _tratarAlteracaoAutenticacao,
-    );
+    _authSubscription =
+        _authService.eventosAuth.listen(
+          _tratarAlteracaoAutenticacao,
+        );
 
     _carregarObrasRecentes();
     _carregarConsultasRecentes();
@@ -63,7 +68,9 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  void _tratarAlteracaoAutenticacao(AuthState estado) {
+  void _tratarAlteracaoAutenticacao(
+      AuthState estado,
+      ) {
     if (!mounted) return;
 
     final autenticado = estado.session != null;
@@ -93,7 +100,8 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final obras = await _obrasRepository.carregarObras(
+      final obras =
+      await _obrasRepository.carregarObras(
         pagina: 1,
         limite: 5,
       );
@@ -181,7 +189,8 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final ehAdmin = await _authService.ehAdmin();
+      final ehAdmin =
+      await _authService.ehAdmin();
 
       if (!mounted) return;
 
@@ -244,7 +253,9 @@ class _HomePageState extends State<HomePage> {
     context.go('/obra/${obra.id}');
   }
 
-  Future<void> _abrirDocumento(Obra obra) async {
+  Future<void> _abrirDocumento(
+      Obra obra,
+      ) async {
     final url = obra.urlDocumento.trim();
 
     if (url.isEmpty) {
@@ -364,7 +375,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCFCFC),
+      backgroundColor:
+      const Color(0xFFFCFCFC),
       appBar: _buildAppBar(),
       body: RefreshIndicator(
         color: const Color(0xFF333333),
@@ -394,20 +406,25 @@ class _HomePageState extends State<HomePage> {
     final estaAutenticado = usuario != null;
 
     return AppBar(
-      backgroundColor: const Color(0xFFEAF4FF),
+      backgroundColor:
+      const Color(0xFFEAF4FF),
       elevation: 0,
-      surfaceTintColor: const Color(0xFFEAF4FF),
+      surfaceTintColor:
+      const Color(0xFFEAF4FF),
       automaticallyImplyLeading: false,
       toolbarHeight: 60,
       titleSpacing: 28,
+
       bottom: const PreferredSize(
-        preferredSize: Size.fromHeight(1),
+        preferredSize:
+        Size.fromHeight(1),
         child: Divider(
           height: 1,
           thickness: 1,
           color: Color(0xFFD5E5F5),
         ),
       ),
+
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -418,20 +435,28 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(
                 color: Color(0xFF1F1F1F),
                 fontSize: 21,
-                fontWeight: FontWeight.w700,
+                fontWeight:
+                FontWeight.w700,
                 letterSpacing: -0.3,
               ),
             ),
           ),
+
+          const SizedBox(width: 28),
+
+          // Plataforma
+          _buildNavButton(
+            label: 'Plataforma',
+            onPressed: () {
+              context.go('/plataforma');
+            },
+          ),
+
+          // Visitante:
+          // Acervo fica no lado esquerdo.
           if (!estaAutenticado) ...[
-            const SizedBox(width: 28),
-            _buildNavButton(
-              label: 'Plataforma',
-              onPressed: () {
-                context.go('/plataforma');
-              },
-            ),
             const SizedBox(width: 2),
+
             _buildNavButton(
               label: 'Acervo',
               onPressed: () {
@@ -439,48 +464,72 @@ class _HomePageState extends State<HomePage> {
               },
             ),
           ],
+
+          // Utilizador normal:
+          // Acervo e Publicar ficam no lado esquerdo.
+          if (estaAutenticado &&
+              !_ehAdmin) ...[
+            const SizedBox(width: 2),
+
+            _buildNavButton(
+              label: 'Acervo',
+              onPressed: () {
+                context.go('/acervo');
+              },
+            ),
+
+            const SizedBox(width: 2),
+
+            _buildNavButton(
+              label: 'Publicar',
+              onPressed: () {
+                context.go('/publicar');
+              },
+            ),
+          ],
         ],
       ),
+
       actions: [
         if (estaAutenticado) ...[
-          _buildNavButton(
-            label: 'Acervo',
-            onPressed: () {
-              context.go('/acervo');
-            },
-          ),
-          const SizedBox(width: 2),
-          _buildNavButton(
-            label: 'Publicar',
-            onPressed: () {
-              context.go('/publicar');
-            },
-          ),
           const SizedBox(width: 12),
+
           Padding(
             padding:
-            const EdgeInsets.only(right: 24),
-            child: PopupMenuButton<String>(
+            const EdgeInsets.only(
+              right: 24,
+            ),
+            child:
+            PopupMenuButton<String>(
               tooltip: 'Conta',
-              offset: const Offset(0, 50),
+              offset:
+              const Offset(0, 50),
               elevation: 4,
-              shape: RoundedRectangleBorder(
+              shape:
+              RoundedRectangleBorder(
                 borderRadius:
-                BorderRadius.circular(10),
+                BorderRadius.circular(
+                  10,
+                ),
               ),
-              onSelected: (value) async {
+
+              onSelected:
+                  (value) async {
                 switch (value) {
                   case 'conta':
                     _abrirConta();
                     break;
 
                   case 'configuracoes':
-                    context.go('/minha-conta');
+                    context.go(
+                      '/minha-conta',
+                    );
                     break;
 
                   case 'sair':
                     try {
-                      await _authService.sair();
+                      await _authService
+                          .sair();
 
                       if (!mounted) return;
 
@@ -500,7 +549,9 @@ class _HomePageState extends State<HomePage> {
                     break;
                 }
               },
-              itemBuilder: (context) => [
+
+              itemBuilder:
+                  (context) => [
                 PopupMenuItem<String>(
                   value: 'conta',
                   child: Row(
@@ -509,37 +560,45 @@ class _HomePageState extends State<HomePage> {
                         Icons.person_outline,
                         size: 19,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(
+                        width: 10,
+                      ),
                       Text(
                         _ehAdmin
                             ? 'Administração'
                             : 'Minha conta',
-                        style: const TextStyle(
+                        style:
+                        const TextStyle(
                           fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
+
                 const PopupMenuItem<String>(
                   value: 'configuracoes',
                   child: Row(
                     children: [
                       Icon(
-                        Icons.settings_outlined,
+                        Icons
+                            .settings_outlined,
                         size: 19,
                       ),
                       SizedBox(width: 10),
                       Text(
                         'Configurações',
-                        style: TextStyle(
+                        style:
+                        TextStyle(
                           fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
+
                 const PopupMenuDivider(),
+
                 const PopupMenuItem<String>(
                   value: 'sair',
                   child: Row(
@@ -551,7 +610,8 @@ class _HomePageState extends State<HomePage> {
                       SizedBox(width: 10),
                       Text(
                         'Sair',
-                        style: TextStyle(
+                        style:
+                        TextStyle(
                           fontSize: 14,
                         ),
                       ),
@@ -559,7 +619,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
-              child: const AvatarUtilizador(
+
+              child:
+              const AvatarUtilizador(
                 radius: 20,
               ),
             ),
@@ -571,10 +633,12 @@ class _HomePageState extends State<HomePage> {
               onPressed: () {
                 context.go('/login');
               },
-              style: TextButton.styleFrom(
+              style:
+              TextButton.styleFrom(
                 backgroundColor:
                 const Color(0xFF222222),
-                foregroundColor: Colors.white,
+                foregroundColor:
+                Colors.white,
                 padding:
                 const EdgeInsets.symmetric(
                   horizontal: 18,
@@ -582,29 +646,37 @@ class _HomePageState extends State<HomePage> {
                 shape:
                 RoundedRectangleBorder(
                   borderRadius:
-                  BorderRadius.circular(8),
+                  BorderRadius.circular(
+                    8,
+                  ),
                 ),
               ),
               child: const Text(
                 'Entrar',
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                  FontWeight.w600,
                 ),
               ),
             ),
           ),
+
           const SizedBox(width: 8),
+
           Padding(
             padding:
-            const EdgeInsets.only(right: 24),
+            const EdgeInsets.only(
+              right: 24,
+            ),
             child: SizedBox(
               height: 38,
               child: TextButton(
                 onPressed: () {
                   context.go('/cadastro');
                 },
-                style: TextButton.styleFrom(
+                style:
+                TextButton.styleFrom(
                   backgroundColor:
                   const Color(0xFFF7F7F7),
                   foregroundColor:
@@ -613,21 +685,26 @@ class _HomePageState extends State<HomePage> {
                   const EdgeInsets.symmetric(
                     horizontal: 18,
                   ),
-                  side: const BorderSide(
-                    color: Color(0xFFD8D8D8),
+                  side:
+                  const BorderSide(
+                    color:
+                    Color(0xFFD8D8D8),
                     width: 1,
                   ),
                   shape:
                   RoundedRectangleBorder(
                     borderRadius:
-                    BorderRadius.circular(8),
+                    BorderRadius.circular(
+                      8,
+                    ),
                   ),
                 ),
                 child: const Text(
                   'Criar conta',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                    FontWeight.w600,
                   ),
                 ),
               ),
@@ -690,29 +767,38 @@ class _HomePageState extends State<HomePage> {
               children: [
                 const Text(
                   'Encontre conhecimento. Encontre obras.',
-                  textAlign: TextAlign.center,
+                  textAlign:
+                  TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F1F1F),
+                    fontWeight:
+                    FontWeight.w700,
+                    color:
+                    Color(0xFF1F1F1F),
                     height: 1.18,
                     letterSpacing: -0.8,
                   ),
                 ),
+
                 const SizedBox(height: 16),
+
                 const SizedBox(
                   width: 620,
                   child: Text(
                     'Pesquise e consulte trabalhos académicos, científicos e literários.',
-                    textAlign: TextAlign.center,
+                    textAlign:
+                    TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
-                      color: Color(0xFF666666),
+                      color:
+                      Color(0xFF666666),
                       height: 1.55,
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 30),
+
                 ConstrainedBox(
                   constraints:
                   const BoxConstraints(
@@ -753,10 +839,7 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       width: double.infinity,
-
-      // Fundo alterado de #FCFCFC para branco.
       color: Colors.white,
-
       padding:
       const EdgeInsets.fromLTRB(
         24,
@@ -778,11 +861,14 @@ class _HomePageState extends State<HomePage> {
                 'Explore as obras por tipo de publicação.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF777777),
+                  color:
+                  Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
+
               const SizedBox(height: 16),
+
               LayoutBuilder(
                 builder:
                     (context, constraints) {
@@ -813,7 +899,8 @@ class _HomePageState extends State<HomePage> {
                     espacamentoHorizontal,
                     runSpacing:
                     espacamentoVertical,
-                    children: categorias
+                    children:
+                    categorias
                         .map(
                           (categoria) =>
                           SizedBox(
@@ -836,7 +923,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCategoriaItem(String nome) {
+  Widget _buildCategoriaItem(
+      String nome,
+      ) {
     return InkWell(
       onTap: () {
         context.go(
@@ -845,10 +934,14 @@ class _HomePageState extends State<HomePage> {
       },
       borderRadius:
       BorderRadius.circular(8),
-      hoverColor: Colors.transparent,
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      focusColor: Colors.transparent,
+      hoverColor:
+      Colors.transparent,
+      splashColor:
+      Colors.transparent,
+      highlightColor:
+      Colors.transparent,
+      focusColor:
+      Colors.transparent,
       child: Container(
         constraints:
         const BoxConstraints(
@@ -859,23 +952,28 @@ class _HomePageState extends State<HomePage> {
           horizontal: 14,
           vertical: 9,
         ),
-        decoration: BoxDecoration(
+        decoration:
+        BoxDecoration(
           color: Colors.transparent,
           borderRadius:
           BorderRadius.circular(8),
           border: Border.all(
-            color: const Color(0xFFE1E4E7),
+            color:
+            const Color(0xFFE1E4E7),
             width: 1,
           ),
         ),
         alignment: Alignment.center,
         child: Text(
           nome,
-          textAlign: TextAlign.center,
+          textAlign:
+          TextAlign.center,
           style: const TextStyle(
             fontSize: 13.5,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF333333),
+            fontWeight:
+            FontWeight.w500,
+            color:
+            Color(0xFF333333),
             height: 1.3,
           ),
         ),
@@ -906,21 +1004,28 @@ class _HomePageState extends State<HomePage> {
                 'Publicações recentes',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
+                  fontWeight:
+                  FontWeight.w700,
+                  color:
+                  Color(0xFF222222),
                   letterSpacing: -0.2,
                 ),
               ),
+
               const SizedBox(height: 7),
+
               const Text(
                 'Confira as obras publicadas recentemente.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF777777),
+                  color:
+                  Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
+
               const SizedBox(height: 5),
+
               if (_carregandoObras)
                 const Center(
                   child: Padding(
@@ -938,13 +1043,16 @@ class _HomePageState extends State<HomePage> {
                 Column(
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-                  children: _obrasRecentes
+                  children:
+                  _obrasRecentes
                       .map(
                         (obra) =>
                         ObraListaItem(
                           obra: obra,
                           onTap: () =>
-                              _abrirObra(obra),
+                              _abrirObra(
+                                obra,
+                              ),
                         ),
                   )
                       .toList(),
@@ -986,21 +1094,28 @@ class _HomePageState extends State<HomePage> {
                 'Obras consultadas recentemente',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF222222),
+                  fontWeight:
+                  FontWeight.w700,
+                  color:
+                  Color(0xFF222222),
                   letterSpacing: -0.2,
                 ),
               ),
+
               const SizedBox(height: 7),
+
               const Text(
                 'Aceda rapidamente às obras que consultou.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Color(0xFF777777),
+                  color:
+                  Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
+
               const SizedBox(height: 22),
+
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
@@ -1016,11 +1131,13 @@ class _HomePageState extends State<HomePage> {
                 )
               else
                 Column(
-                  children: List.generate(
+                  children:
+                  List.generate(
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
-                      _consultasRecentes[index];
+                      _consultasRecentes[
+                      index];
 
                       return HistoricoListaItem(
                         obra: consulta,
@@ -1040,7 +1157,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEstadoVazio(String mensagem) {
+  Widget _buildEstadoVazio(
+      String mensagem,
+      ) {
     return Container(
       width: double.infinity,
       padding:
@@ -1048,21 +1167,25 @@ class _HomePageState extends State<HomePage> {
         vertical: 28,
         horizontal: 20,
       ),
-      decoration: BoxDecoration(
+      decoration:
+      BoxDecoration(
         color: Colors.white,
         borderRadius:
         BorderRadius.circular(10),
         border: Border.all(
-          color: const Color(0xFFE5E5E5),
+          color:
+          const Color(0xFFE5E5E5),
         ),
       ),
       child: Center(
         child: Text(
           mensagem,
-          textAlign: TextAlign.center,
+          textAlign:
+          TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF777777),
+            color:
+            Color(0xFF777777),
             height: 1.5,
           ),
         ),
