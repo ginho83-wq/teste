@@ -141,8 +141,7 @@ jobs:
 
       # ==========================================================
       # PREPARAR ROTAS INDIVIDUAIS DAS OBRAS
-      # GERAR METADADOS SEO
-      # GERAR SITEMAP
+      # SEO + SITEMAP
       # ==========================================================
 
       - name: Prepare individual obra routes automatically
@@ -181,7 +180,7 @@ jobs:
             -w "%{http_code}" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,url_documento,url_capa")
+            "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,data_publicacao,numero_paginas,tamanho_arquivo_bytes,url_documento,url_capa")
 
           echo "Resposta HTTP do Supabase: ${HTTP_STATUS}"
 
@@ -195,7 +194,7 @@ jobs:
           echo "Resposta recebida do Supabase."
 
           # ======================================================
-          # GERAR ROTAS E SITEMAP
+          # PYTHON
           # ======================================================
 
           python3 - <<'PY'
@@ -221,8 +220,6 @@ jobs:
                   f"Resposta inesperada do Supabase: {data}"
               )
 
-          index = "build/web/index.html"
-
           print(
               f"Obras encontradas: {len(data)}"
           )
@@ -247,7 +244,7 @@ jobs:
               return texto.strip()
 
           # ======================================================
-          # GERAR DESCRIÇÃO SEO
+          # DESCRIÇÃO SEO
           # ======================================================
 
           def gerar_descricao(obra):
@@ -268,37 +265,60 @@ jobs:
                   obra.get("categoria")
               )
 
+              partes = []
+
               if descricao:
+                  partes.append(descricao)
 
-                  texto = descricao
+              if autor:
+                  partes.append(
+                      f"Autor: {autor}"
+                  )
 
-              else:
+              if categoria:
+                  partes.append(
+                      f"Categoria: {categoria}"
+                  )
 
-                  partes = []
+              if not partes:
 
-                  if titulo:
-                      partes.append(titulo)
-
-                  if autor:
-                      partes.append(
-                          f"Autor: {autor}"
-                      )
-
-                  if categoria:
-                      partes.append(
-                          f"Categoria: {categoria}"
-                      )
-
-                  texto = " — ".join(partes)
-
-              if not texto:
-
-                  texto = (
+                  partes.append(
                       "Obra disponível no "
                       "acervo digital Obra Livre."
                   )
 
+              texto = " — ".join(partes)
+
               return texto[:300]
+
+          # ======================================================
+          # DATA
+          # ======================================================
+
+          def extrair_data(valor):
+
+              if not valor:
+                  return ""
+
+              texto = limpar_texto(valor)
+
+              return texto[:10]
+
+          # ======================================================
+          # NÚMERO DE PÁGINAS
+          # ======================================================
+
+          def extrair_paginas(valor):
+
+              if valor is None:
+                  return ""
+
+              texto = limpar_texto(valor)
+
+              if not texto:
+                  return ""
+
+              return texto
 
           # ======================================================
           # GERAR HTML DA OBRA
@@ -330,6 +350,14 @@ jobs:
                   obra.get("ano_obra")
               )
 
+              data_publicacao = extrair_data(
+                  obra.get("data_publicacao")
+              )
+
+              numero_paginas = extrair_paginas(
+                  obra.get("numero_paginas")
+              )
+
               url_documento = limpar_texto(
                   obra.get("url_documento")
               )
@@ -345,15 +373,13 @@ jobs:
                   f"{titulo} — Obra Livre"
               )
 
-              descricao_seo = descricao
-
               url = (
                   "https://ginho83-wq.github.io"
                   f"/teste/obra/{obra_id}/"
               )
 
               # ==================================================
-              # IMAGEM OG
+              # IMAGEM
               # ==================================================
 
               og_image = url_capa
@@ -385,16 +411,38 @@ jobs:
                   }
 
               if categoria:
+
                   schema["genre"] = categoria
 
               if ano:
+
                   schema["dateCreated"] = ano
+
+              if data_publicacao:
+
+                  schema["datePublished"] = (
+                      data_publicacao
+                  )
+
+              if numero_paginas:
+
+                  try:
+                      schema["numberOfPages"] = int(
+                          numero_paginas
+                      )
+                  except Exception:
+                      pass
+
+              if url_capa:
+
+                  schema["image"] = url_capa
 
               if url_documento:
 
                   schema["encoding"] = {
                       "@type": "MediaObject",
-                      "contentUrl": url_documento
+                      "contentUrl": url_documento,
+                      "encodingFormat": "application/pdf"
                   }
 
               schema_json = json.dumps(
@@ -402,13 +450,16 @@ jobs:
                   ensure_ascii=False
               )
 
+              # Evita que </script> dentro de algum
+              # texto encerre prematuramente o JSON-LD.
+
+              schema_json = schema_json.replace(
+                  "</",
+                  "<\\/"
+              )
+
               # ==================================================
               # HTML
-              #
-              # IMPORTANTE:
-              # Não usamos f-string aqui.
-              # Assim as chaves { } do JavaScript
-              # não causam erro no Python.
               # ==================================================
 
               html_modelo = """<!DOCTYPE html>
@@ -477,7 +528,34 @@ jobs:
               content="__OG_IMAGE__"
             >
 
-            <!-- Dados estruturados da obra -->
+            <meta
+              property="og:image:alt"
+              content="__TITULO_SEO__"
+            >
+
+            <!-- Twitter -->
+
+            <meta
+              name="twitter:card"
+              content="summary_large_image"
+            >
+
+            <meta
+              name="twitter:title"
+              content="__TITULO_SEO__"
+            >
+
+            <meta
+              name="twitter:description"
+              content="__DESCRICAO_SEO__"
+            >
+
+            <meta
+              name="twitter:image"
+              content="__OG_IMAGE__"
+            >
+
+            <!-- Dados estruturados -->
 
             <script type="application/ld+json">
           __SCHEMA_JSON__
@@ -490,9 +568,82 @@ jobs:
               href="/teste/manifest.json"
             >
 
+            <style>
+
+              #seo-content {
+                max-width: 900px;
+                margin: 30px auto;
+                padding: 24px;
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+              }
+
+              #seo-content h1 {
+                margin-bottom: 20px;
+              }
+
+              #seo-content .info {
+                margin: 8px 0;
+              }
+
+              #seo-content .descricao {
+                margin-top: 24px;
+              }
+
+              #seo-content img {
+                max-width: 240px;
+                height: auto;
+                margin-bottom: 20px;
+              }
+
+              #seo-content a {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 10px 16px;
+                border-radius: 8px;
+                text-decoration: none;
+                border: 1px solid currentColor;
+              }
+
+            </style>
+
           </head>
 
           <body>
+
+            <!--
+              Conteúdo inicial específico da obra.
+              Serve também como conteúdo HTML para mecanismos
+              de pesquisa antes da aplicação Flutter carregar.
+            -->
+
+            <main id="seo-content">
+
+              __CAPA_HTML__
+
+              <h1>__TITULO__</h1>
+
+              __AUTOR_HTML__
+
+              __CATEGORIA_HTML__
+
+              __ANO_HTML__
+
+              __DATA_HTML__
+
+              __PAGINAS_HTML__
+
+              <section class="descricao">
+
+                <h2>Descrição</h2>
+
+                <p>__DESCRICAO_BODY__</p>
+
+              </section>
+
+              __PDF_HTML__
+
+            </main>
 
             <script>
               var redirect =
@@ -514,6 +665,35 @@ jobs:
               }
             </script>
 
+            <!-- PDF.js -->
+
+            <script
+              src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs"
+              type="module">
+            </script>
+
+            <script type="module">
+
+              var { pdfjsLib } = globalThis;
+
+              if (pdfjsLib) {
+
+                pdfjsLib.GlobalWorkerOptions.workerSrc =
+                  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
+
+              }
+
+              var pdfRenderOptions = {
+
+                cMapUrl:
+                  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
+
+                cMapPacked: true,
+
+              }
+
+            </script>
+
             <script
               src="/teste/flutter_bootstrap.js"
               async>
@@ -522,6 +702,107 @@ jobs:
           </body>
           </html>
           """
+
+              # ==================================================
+              # CONTEÚDO HTML
+              # ==================================================
+
+              capa_html = ""
+
+              if url_capa:
+
+                  capa_html = (
+                      '<img src="'
+                      + html.escape(
+                          url_capa,
+                          quote=True
+                      )
+                      + '" alt="'
+                      + html.escape(
+                          titulo,
+                          quote=True
+                      )
+                      + '">'
+                  )
+
+              autor_html = ""
+
+              if autor:
+
+                  autor_html = (
+                      '<p class="info"><strong>'
+                      'Autor:</strong> '
+                      + html.escape(autor)
+                      + '</p>'
+                  )
+
+              categoria_html = ""
+
+              if categoria:
+
+                  categoria_html = (
+                      '<p class="info"><strong>'
+                      'Categoria:</strong> '
+                      + html.escape(categoria)
+                      + '</p>'
+                  )
+
+              ano_html = ""
+
+              if ano:
+
+                  ano_html = (
+                      '<p class="info"><strong>'
+                      'Ano da obra:</strong> '
+                      + html.escape(ano)
+                      + '</p>'
+                  )
+
+              data_html = ""
+
+              if data_publicacao:
+
+                  data_html = (
+                      '<p class="info"><strong>'
+                      'Data de publicação:</strong> '
+                      + html.escape(
+                          data_publicacao
+                      )
+                      + '</p>'
+                  )
+
+              paginas_html = ""
+
+              if numero_paginas:
+
+                  paginas_html = (
+                      '<p class="info"><strong>'
+                      'Número de páginas:</strong> '
+                      + html.escape(
+                          numero_paginas
+                      )
+                      + '</p>'
+                  )
+
+              pdf_html = ""
+
+              if url_documento:
+
+                  pdf_html = (
+                      '<a href="'
+                      + html.escape(
+                          url_documento,
+                          quote=True
+                      )
+                      + '" target="_blank" '
+                      'rel="noopener">'
+                      'Consultar documento PDF'
+                      '</a>'
+                  )
+
+              # ==================================================
+              # SUBSTITUIÇÕES
+              # ==================================================
 
               html_final = html_modelo
 
@@ -534,10 +815,27 @@ jobs:
               )
 
               html_final = html_final.replace(
+                  "__TITULO__",
+                  html.escape(
+                      titulo
+                  )
+              )
+
+              html_final = html_final.replace(
                   "__DESCRICAO_SEO__",
                   html.escape(
-                      descricao_seo,
+                      descricao,
                       quote=True
+                  )
+              )
+
+              html_final = html_final.replace(
+                  "__DESCRICAO_BODY__",
+                  html.escape(
+                      limpar_texto(
+                          obra.get("descricao")
+                      )
+                      or descricao
                   )
               )
 
@@ -562,10 +860,45 @@ jobs:
                   schema_json
               )
 
+              html_final = html_final.replace(
+                  "__CAPA_HTML__",
+                  capa_html
+              )
+
+              html_final = html_final.replace(
+                  "__AUTOR_HTML__",
+                  autor_html
+              )
+
+              html_final = html_final.replace(
+                  "__CATEGORIA_HTML__",
+                  categoria_html
+              )
+
+              html_final = html_final.replace(
+                  "__ANO_HTML__",
+                  ano_html
+              )
+
+              html_final = html_final.replace(
+                  "__DATA_HTML__",
+                  data_html
+              )
+
+              html_final = html_final.replace(
+                  "__PAGINAS_HTML__",
+                  paginas_html
+              )
+
+              html_final = html_final.replace(
+                  "__PDF_HTML__",
+                  pdf_html
+              )
+
               return html_final
 
           # ======================================================
-          # CRIAR ROTAS DAS OBRAS
+          # CRIAR ROTAS INDIVIDUAIS
           # ======================================================
 
           obra_ids = []
@@ -667,9 +1000,7 @@ jobs:
                   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
               )
 
-              # ==================================================
-              # URLS FIXAS
-              # ==================================================
+              # URLs fixas
 
               for url in fixed_urls:
 
@@ -685,9 +1016,7 @@ jobs:
                       "  </url>\n"
                   )
 
-              # ==================================================
-              # URLS DAS OBRAS
-              # ==================================================
+              # URLs das obras
 
               for obra_id in obra_ids:
 
@@ -767,4 +1096,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
