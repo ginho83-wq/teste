@@ -124,6 +124,10 @@ jobs:
               texto
           ).strip("-")
 
+          # Manter a rota oficial já utilizada pelo sitemap
+          if texto == "dissertacao-de-mestrado":
+              texto = "dissertacao-mestrado"
+
           print(texto)
           PY
             )
@@ -135,6 +139,7 @@ jobs:
             cp "$INDEX" "$destino/index.html"
 
             echo "Rota criada: /categoria/$rota/"
+
           done
 
           echo "Todas as categorias foram preparadas."
@@ -202,6 +207,7 @@ jobs:
           import os
           import html
           import re
+          from datetime import datetime
           from xml.sax.saxutils import escape
 
           # ======================================================
@@ -253,10 +259,6 @@ jobs:
                   obra.get("descricao")
               )
 
-              titulo = limpar_texto(
-                  obra.get("titulo")
-              )
-
               autor = limpar_texto(
                   obra.get("autor")
               )
@@ -281,10 +283,8 @@ jobs:
                   )
 
               if not partes:
-
                   partes.append(
-                      "Obra disponível no "
-                      "acervo digital Obra Livre."
+                      "Obra disponível no acervo digital Obra Livre."
                   )
 
               texto = " — ".join(partes)
@@ -385,7 +385,6 @@ jobs:
               og_image = url_capa
 
               if not og_image:
-
                   og_image = (
                       "https://ginho83-wq.github.io"
                       "/teste/OL.png"
@@ -427,10 +426,13 @@ jobs:
               if numero_paginas:
 
                   try:
+
                       schema["numberOfPages"] = int(
                           numero_paginas
                       )
+
                   except Exception:
+
                       pass
 
               if url_capa:
@@ -449,9 +451,6 @@ jobs:
                   schema,
                   ensure_ascii=False
               )
-
-              # Evita que </script> dentro de algum
-              # texto encerre prematuramente o JSON-LD.
 
               schema_json = schema_json.replace(
                   "</",
@@ -611,12 +610,6 @@ jobs:
 
           <body>
 
-            <!--
-              Conteúdo inicial específico da obra.
-              Serve também como conteúdo HTML para mecanismos
-              de pesquisa antes da aplicação Flutter carregar.
-            -->
-
             <main id="seo-content">
 
               __CAPA_HTML__
@@ -646,6 +639,7 @@ jobs:
             </main>
 
             <script>
+
               var redirect =
                 sessionStorage.getItem(
                   'flutter_redirect'
@@ -662,7 +656,9 @@ jobs:
                   '',
                   redirect
                 );
+
               }
+
             </script>
 
             <!-- PDF.js -->
@@ -700,6 +696,7 @@ jobs:
             </script>
 
           </body>
+
           </html>
           """
 
@@ -816,9 +813,7 @@ jobs:
 
               html_final = html_final.replace(
                   "__TITULO__",
-                  html.escape(
-                      titulo
-                  )
+                  html.escape(titulo)
               )
 
               html_final = html_final.replace(
@@ -834,8 +829,7 @@ jobs:
                   html.escape(
                       limpar_texto(
                           obra.get("descricao")
-                      )
-                      or descricao
+                      ) or descricao
                   )
               )
 
@@ -901,7 +895,7 @@ jobs:
           # CRIAR ROTAS INDIVIDUAIS
           # ======================================================
 
-          obra_ids = []
+          obras_sitemap = []
 
           for obra in data:
 
@@ -941,8 +935,15 @@ jobs:
 
                   f.write(html_obra)
 
-              obra_ids.append(
-                  obra_id
+              data_publicacao = extrair_data(
+                  obra.get("data_publicacao")
+              )
+
+              obras_sitemap.append(
+                  {
+                      "id": obra_id,
+                      "lastmod": data_publicacao
+                  }
               )
 
               print(
@@ -977,13 +978,14 @@ jobs:
 
               f"{base_url}/categoria/tese-doutoramento/",
 
-              f"{base_url}/categoria/dissertacao-de-mestrado/",
+              f"{base_url}/categoria/dissertacao-mestrado/",
 
               f"{base_url}/categoria/monografia/",
 
               f"{base_url}/categoria/artigos-cientificos/",
 
               f"{base_url}/categoria/literatura/"
+
           ]
 
           with open(
@@ -1000,7 +1002,9 @@ jobs:
                   '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
               )
 
-              # URLs fixas
+              # ==================================================
+              # URLs FIXAS
+              # ==================================================
 
               for url in fixed_urls:
 
@@ -1016,12 +1020,15 @@ jobs:
                       "  </url>\n"
                   )
 
-              # URLs das obras
+              # ==================================================
+              # URLs DAS OBRAS
+              # ==================================================
 
-              for obra_id in obra_ids:
+              for obra in obras_sitemap:
 
                   url = (
-                      f"{base_url}/obra/{obra_id}/"
+                      f"{base_url}/obra/"
+                      f"{obra['id']}/"
                   )
 
                   sitemap.write(
@@ -1031,6 +1038,16 @@ jobs:
                   sitemap.write(
                       f"    <loc>{escape(url)}</loc>\n"
                   )
+
+                  lastmod = obra.get(
+                      "lastmod"
+                  )
+
+                  if lastmod:
+
+                      sitemap.write(
+                          f"    <lastmod>{escape(lastmod)}</lastmod>\n"
+                      )
 
                   sitemap.write(
                       "  </url>\n"
@@ -1051,15 +1068,13 @@ jobs:
 
           print(
               f"URLs de obras no sitemap: "
-              f"{len(obra_ids)}"
+              f"{len(obras_sitemap)}"
           )
 
           print(
               f"Total de URLs no sitemap: "
-              f"{len(fixed_urls) + len(obra_ids)}"
+              f"{len(fixed_urls) + len(obras_sitemap)}"
           )
-
-          PY
 
       # ==========================================================
       # CONFIGURAR GITHUB PAGES
