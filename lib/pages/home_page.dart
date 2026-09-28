@@ -26,9 +26,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final ObrasRepository _obrasRepository = ObrasRepository.instancia;
-
   final AuthService _authService = AuthService.instancia;
-
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
@@ -40,7 +38,6 @@ class _HomePageState extends State<HomePage> {
 
   bool _carregandoObras = true;
   bool _carregandoConsultas = false;
-
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
@@ -60,34 +57,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _carregarConsultasRecentes();
-        _verificarAdministrador();
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _authSubscription?.cancel();
     _pesquisaController.dispose();
     super.dispose();
   }
 
-  // ============================================================
-  // AUTENTICAÇÃO
-  // ============================================================
-
-  void _tratarAlteracaoAutenticacao(
-      AuthState estado,
-      ) {
+  void _tratarAlteracaoAutenticacao(AuthState estado) {
     if (!mounted) return;
 
-    final bool autenticado = estado.session != null;
+    final autenticado = estado.session != null;
 
     setState(() {
       if (!autenticado) {
@@ -105,10 +84,6 @@ class _HomePageState extends State<HomePage> {
       _carregarConsultasRecentes();
     }
   }
-
-  // ============================================================
-  // CARREGAMENTO
-  // ============================================================
 
   Future<void> _carregarObrasRecentes() async {
     if (mounted) {
@@ -206,8 +181,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final ehAdmin =
-      await _authService.ehAdmin();
+      final ehAdmin = await _authService.ehAdmin();
 
       if (!mounted) return;
 
@@ -229,9 +203,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ============================================================
-  // PESQUISA
-  // ============================================================
+  Future<void> _atualizarTudo() async {
+    await Future.wait([
+      _carregarObrasRecentes(),
+      _carregarConsultasRecentes(),
+      _verificarAdministrador(),
+    ]);
+  }
 
   void _executarPesquisa() {
     final pesquisa =
@@ -240,8 +218,7 @@ class _HomePageState extends State<HomePage> {
     if (pesquisa.isEmpty) return;
 
     context.go(
-      '/acervo/pesquisa/'
-          '${Uri.encodeComponent(pesquisa)}',
+      '/acervo/pesquisa/${Uri.encodeComponent(pesquisa)}',
     );
   }
 
@@ -253,19 +230,19 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ============================================================
-  // ABRIR OBRA
-  // ============================================================
+  void _abrirConta() {
+    if (_ehAdmin) {
+      context.go('/admin-obras');
+    } else {
+      context.go('/minha-conta');
+    }
+  }
 
-  Future<void> _abrirObra(Obra obra) async {
+  void _abrirObra(Obra obra) {
     if (!mounted) return;
 
     context.go('/obra/${obra.id}');
   }
-
-  // ============================================================
-  // ABRIR DOCUMENTO
-  // ============================================================
 
   Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento.trim();
@@ -294,10 +271,6 @@ class _HomePageState extends State<HomePage> {
         webOnlyWindowName: '_blank',
       );
 
-      debugPrint(
-        'HOME: documento aberto: $abriu',
-      );
-
       if (!abriu) {
         _mostrarMensagem(
           'Não foi possível abrir o documento.',
@@ -313,10 +286,6 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
-
-  // ============================================================
-  // ABRIR CONSULTA RECENTE
-  // ============================================================
 
   Future<void> _abrirConsultaRecente(
       HistoricoObra consulta,
@@ -379,10 +348,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ============================================================
-  // MENSAGEM
-  // ============================================================
-
   void _mostrarMensagem(String mensagem) {
     if (!mounted) return;
 
@@ -396,25 +361,15 @@ class _HomePageState extends State<HomePage> {
       );
   }
 
-  // ============================================================
-  // BUILD
-  // ============================================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFFCFCFC),
       appBar: _buildAppBar(),
       body: RefreshIndicator(
-        color: const Color(0xFF444444),
+        color: const Color(0xFF333333),
         backgroundColor: Colors.white,
-        onRefresh: () async {
-          await Future.wait([
-            _carregarObrasRecentes(),
-            _carregarConsultasRecentes(),
-            _verificarAdministrador(),
-          ]);
-        },
+        onRefresh: _atualizarTudo,
         child: SingleChildScrollView(
           physics:
           const AlwaysScrollableScrollPhysics(),
@@ -432,121 +387,95 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // APP BAR
-  // ============================================================
-
   PreferredSizeWidget _buildAppBar() {
     final usuario =
         Supabase.instance.client.auth.currentUser;
 
-    final bool estaAutenticado =
-        usuario != null;
+    final estaAutenticado = usuario != null;
 
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFEAF4FF),
       elevation: 0,
-      surfaceTintColor: Colors.white,
+      surfaceTintColor: const Color(0xFFEAF4FF),
       automaticallyImplyLeading: false,
-      titleSpacing: 24,
-
-      // ========================================================
-      // LADO ESQUERDO
-      //
-      // NÃO AUTENTICADO:
-      // Obra Livre | Plataforma | Acervo
-      //
-      // AUTENTICADO:
-      // Obra Livre
-      // ========================================================
-
+      toolbarHeight: 60,
+      titleSpacing: 28,
+      bottom: const PreferredSize(
+        preferredSize: Size.fromHeight(1),
+        child: Divider(
+          height: 1,
+          thickness: 1,
+          color: Color(0xFFD5E5F5),
+        ),
+      ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Obra Livre',
-            style: TextStyle(
-              color: Color(0xFF222222),
-              fontSize: 21,
-              fontWeight: FontWeight.w700,
+          GestureDetector(
+            onTap: () => context.go('/'),
+            child: const Text(
+              'Obra Livre',
+              style: TextStyle(
+                color: Color(0xFF1F1F1F),
+                fontSize: 21,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
             ),
           ),
-
           if (!estaAutenticado) ...[
-            const SizedBox(width: 20),
-
-            TextButton(
+            const SizedBox(width: 28),
+            _buildNavButton(
+              label: 'Plataforma',
               onPressed: () {
                 context.go('/plataforma');
               },
-              child: const Text(
-                'Plataforma',
-                style: TextStyle(
-                  color: Color(0xFF444444),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ),
-
-            TextButton(
+            const SizedBox(width: 2),
+            _buildNavButton(
+              label: 'Acervo',
               onPressed: () {
                 context.go('/acervo');
               },
-              child: const Text(
-                'Acervo',
-                style: TextStyle(
-                  color: Color(0xFF444444),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
             ),
           ],
         ],
       ),
-
-      // ========================================================
-      // LADO DIREITO
-      // ========================================================
-
       actions: [
         if (estaAutenticado) ...[
-          TextButton(
+          _buildNavButton(
+            label: 'Acervo',
+            onPressed: () {
+              context.go('/acervo');
+            },
+          ),
+          const SizedBox(width: 2),
+          _buildNavButton(
+            label: 'Publicar',
             onPressed: () {
               context.go('/publicar');
             },
-            child: const Text(
-              'Publicar',
-              style: TextStyle(
-                color: Color(0xFF444444),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
           ),
-
-          const SizedBox(width: 8),
-
+          const SizedBox(width: 12),
           Padding(
             padding:
-            const EdgeInsets.only(right: 18),
+            const EdgeInsets.only(right: 24),
             child: PopupMenuButton<String>(
               tooltip: 'Conta',
-              offset: const Offset(0, 48),
-
+              offset: const Offset(0, 50),
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius:
+                BorderRadius.circular(10),
+              ),
               onSelected: (value) async {
                 switch (value) {
                   case 'conta':
-                    if (mounted) {
-                      context.go('/minha-conta');
-                    }
+                    _abrirConta();
                     break;
 
                   case 'configuracoes':
-                    if (mounted) {
-                      context.go('/configuracoes');
-                    }
+                    context.go('/minha-conta');
                     break;
 
                   case 'sair':
@@ -567,30 +496,31 @@ class _HomePageState extends State<HomePage> {
                         'Não foi possível terminar a sessão.',
                       );
                     }
+
                     break;
                 }
               },
-
               itemBuilder: (context) => [
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'conta',
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.person_outline,
                         size: 19,
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Text(
-                        'Minha conta',
-                        style: TextStyle(
+                        _ehAdmin
+                            ? 'Administração'
+                            : 'Minha conta',
+                        style: const TextStyle(
                           fontSize: 14,
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const PopupMenuItem<String>(
                   value: 'configuracoes',
                   child: Row(
@@ -609,9 +539,7 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-
                 const PopupMenuDivider(),
-
                 const PopupMenuItem<String>(
                   value: 'sair',
                   child: Row(
@@ -631,17 +559,12 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
-
               child: const AvatarUtilizador(
                 radius: 20,
               ),
             ),
           ),
         ] else ...[
-          // ====================================================
-          // NÃO AUTENTICADO
-          // ====================================================
-
           SizedBox(
             height: 38,
             child: TextButton(
@@ -671,12 +594,10 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-
           const SizedBox(width: 8),
-
           Padding(
             padding:
-            const EdgeInsets.only(right: 18),
+            const EdgeInsets.only(right: 24),
             child: SizedBox(
               height: 38,
               child: TextButton(
@@ -685,7 +606,7 @@ class _HomePageState extends State<HomePage> {
                 },
                 style: TextButton.styleFrom(
                   backgroundColor:
-                  const Color(0xFFF3F3F3),
+                  const Color(0xFFF7F7F7),
                   foregroundColor:
                   const Color(0xFF222222),
                   padding:
@@ -693,7 +614,7 @@ class _HomePageState extends State<HomePage> {
                     horizontal: 18,
                   ),
                   side: const BorderSide(
-                    color: Color(0xFFD6D6D6),
+                    color: Color(0xFFD8D8D8),
                     width: 1,
                   ),
                   shape:
@@ -717,77 +638,104 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // HERO
-  // ============================================================
-
-  Widget _buildHero() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        24,
-        42,
-        24,
-        26,
+  Widget _buildNavButton({
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor:
+        const Color(0xFF444444),
+        padding:
+        const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 8,
+        ),
+        shape:
+        RoundedRectangleBorder(
+          borderRadius:
+          BorderRadius.circular(7),
+        ),
       ),
-      color: Colors.white,
-      child: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 850,
-          ),
-          child: Column(
-            children: [
-              const Text(
-                'Encontre conhecimento. '
-                    'Encontre obras.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight:
-                  FontWeight.w700,
-                  color: Color(0xFF222222),
-                  height: 1.2,
-                  letterSpacing: -0.4,
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              const Text(
-                'Pesquise e consulte trabalhos '
-                    'académicos, científicos e literários.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF666666),
-                  height: 1.5,
-                ),
-              ),
-
-              const SizedBox(height: 26),
-
-              BarraPesquisa(
-                controller:
-                _pesquisaController,
-                hintText:
-                'Pesquisar obras académicas',
-                onPesquisar:
-                _executarPesquisa,
-                onLimpar:
-                _limparPesquisa,
-              ),
-            ],
-          ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
   }
 
-  // ============================================================
-  // CATEGORIAS
-  // ============================================================
+  Widget _buildHero() {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+          const BoxConstraints(
+            maxWidth: 900,
+          ),
+          child: Padding(
+            padding:
+            const EdgeInsets.fromLTRB(
+              24,
+              64,
+              24,
+              48,
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'Encontre conhecimento. Encontre obras.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F1F1F),
+                    height: 1.18,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const SizedBox(
+                  width: 620,
+                  child: Text(
+                    'Pesquise e consulte trabalhos académicos, científicos e literários.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF666666),
+                      height: 1.55,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                ConstrainedBox(
+                  constraints:
+                  const BoxConstraints(
+                    maxWidth: 760,
+                  ),
+                  child: BarraPesquisa(
+                    controller:
+                    _pesquisaController,
+                    hintText:
+                    'Pesquisar obras académicas',
+                    onPesquisar:
+                    _executarPesquisa,
+                    onLimpar:
+                    _limparPesquisa,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildCategorias() {
     const categorias = [
@@ -805,12 +753,16 @@ class _HomePageState extends State<HomePage> {
 
     return Container(
       width: double.infinity,
+
+      // Fundo alterado de #FCFCFC para branco.
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(
+
+      padding:
+      const EdgeInsets.fromLTRB(
         24,
-        8,
+        34,
         24,
-        36,
+        48,
       ),
       child: Center(
         child: ConstrainedBox(
@@ -830,9 +782,7 @@ class _HomePageState extends State<HomePage> {
                   height: 1.5,
                 ),
               ),
-
-              const SizedBox(height: 14),
-
+              const SizedBox(height: 16),
               LayoutBuilder(
                 builder:
                     (context, constraints) {
@@ -863,17 +813,19 @@ class _HomePageState extends State<HomePage> {
                     espacamentoHorizontal,
                     runSpacing:
                     espacamentoVertical,
-                    children:
-                    categorias.map(
+                    children: categorias
+                        .map(
                           (categoria) =>
                           SizedBox(
-                            width: itemLargura,
+                            width:
+                            itemLargura,
                             child:
                             _buildCategoriaItem(
                               categoria,
                             ),
                           ),
-                    ).toList(),
+                    )
+                        .toList(),
                   );
                 },
               ),
@@ -884,67 +836,52 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCategoriaItem(
-      String nome,
-      ) {
-    return Material(
-      color: Colors.transparent,
+  Widget _buildCategoriaItem(String nome) {
+    return InkWell(
+      onTap: () {
+        context.go(
+          '/categoria/${Uri.encodeComponent(nome)}',
+        );
+      },
       borderRadius:
-      BorderRadius.circular(10),
-      child: InkWell(
-        onTap: () {
-          context.go(
-            '/categoria/'
-                '${Uri.encodeComponent(nome)}',
-          );
-        },
-        borderRadius:
-        BorderRadius.circular(10),
-        hoverColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        highlightColor:
-        Colors.transparent,
-        child: Container(
-          constraints:
-          const BoxConstraints(
-            minHeight: 48,
+      BorderRadius.circular(8),
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      focusColor: Colors.transparent,
+      child: Container(
+        constraints:
+        const BoxConstraints(
+          minHeight: 48,
+        ),
+        padding:
+        const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 9,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius:
+          BorderRadius.circular(8),
+          border: Border.all(
+            color: const Color(0xFFE1E4E7),
+            width: 1,
           ),
-          padding:
-          const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 9,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius:
-            BorderRadius.circular(10),
-            border: Border.all(
-              color:
-              const Color(0xFFE1E4E7),
-              width: 1,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            nome,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight:
-              FontWeight.w500,
-              color:
-              Color(0xFF333333),
-              height: 1.3,
-            ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          nome,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF333333),
+            height: 1.3,
           ),
         ),
       ),
     );
   }
-
-  // ============================================================
-  // PUBLICAÇÕES RECENTES
-  // ============================================================
 
   Widget _buildObrasRecentes() {
     return Container(
@@ -969,28 +906,21 @@ class _HomePageState extends State<HomePage> {
                 'Publicações recentes',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight:
-                  FontWeight.w700,
-                  color:
-                  Color(0xFF222222),
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
                   letterSpacing: -0.2,
                 ),
               ),
-
               const SizedBox(height: 7),
-
               const Text(
                 'Confira as obras publicadas recentemente.',
                 style: TextStyle(
                   fontSize: 14,
-                  color:
-                  Color(0xFF777777),
+                  color: Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 5),
-
               if (_carregandoObras)
                 const Center(
                   child: Padding(
@@ -1008,18 +938,16 @@ class _HomePageState extends State<HomePage> {
                 Column(
                   crossAxisAlignment:
                   CrossAxisAlignment.start,
-                  children:
-                  _obrasRecentes
+                  children: _obrasRecentes
                       .map(
                         (obra) =>
                         ObraListaItem(
                           obra: obra,
                           onTap: () =>
-                              _abrirObra(
-                                obra,
-                              ),
+                              _abrirObra(obra),
                         ),
-                  ).toList(),
+                  )
+                      .toList(),
                 ),
             ],
           ),
@@ -1027,10 +955,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // ============================================================
-  // CONSULTAS RECENTES
-  // ============================================================
 
   Widget _buildConsultasRecentes() {
     final usuario =
@@ -1062,28 +986,21 @@ class _HomePageState extends State<HomePage> {
                 'Obras consultadas recentemente',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight:
-                  FontWeight.w700,
-                  color:
-                  Color(0xFF222222),
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
                   letterSpacing: -0.2,
                 ),
               ),
-
               const SizedBox(height: 7),
-
               const Text(
                 'Aceda rapidamente às obras que consultou.',
                 style: TextStyle(
                   fontSize: 14,
-                  color:
-                  Color(0xFF777777),
+                  color: Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
-
               const SizedBox(height: 22),
-
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
@@ -1099,18 +1016,11 @@ class _HomePageState extends State<HomePage> {
                 )
               else
                 Column(
-                  children:
-                  List.generate(
+                  children: List.generate(
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
                       _consultasRecentes[index];
-
-                      // A linha divisória NÃO é mais
-                      // criada pela HomePage.
-                      // Essa responsabilidade fica
-                      // no widget ObraListaItem /
-                      // componente correspondente.
 
                       return HistoricoListaItem(
                         obra: consulta,
@@ -1118,9 +1028,7 @@ class _HomePageState extends State<HomePage> {
                             _abrirConsultaRecente(
                               consulta,
                             ),
-                        onRemover: () {
-                          // Mantida a lógica atual.
-                        },
+                        onRemover: () {},
                       );
                     },
                   ),
@@ -1132,13 +1040,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // ESTADO VAZIO
-  // ============================================================
-
-  Widget _buildEstadoVazio(
-      String mensagem,
-      ) {
+  Widget _buildEstadoVazio(String mensagem) {
     return Container(
       width: double.infinity,
       padding:
@@ -1151,8 +1053,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius:
         BorderRadius.circular(10),
         border: Border.all(
-          color:
-          const Color(0xFFE5E5E5),
+          color: const Color(0xFFE5E5E5),
         ),
       ),
       child: Center(
@@ -1161,8 +1062,7 @@ class _HomePageState extends State<HomePage> {
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color:
-            Color(0xFF777777),
+            color: Color(0xFF777777),
             height: 1.5,
           ),
         ),
@@ -1170,3 +1070,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
