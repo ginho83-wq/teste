@@ -22,7 +22,8 @@ class AcervoPesquisaResultadosPage extends StatefulWidget {
 
 class _AcervoPesquisaResultadosPageState
     extends State<AcervoPesquisaResultadosPage> {
-  final ObrasRepository _repository = ObrasRepository.instancia;
+  final ObrasRepository _repository =
+      ObrasRepository.instancia;
 
   final TextEditingController _pesquisaController =
   TextEditingController();
@@ -87,10 +88,6 @@ class _AcervoPesquisaResultadosPageState
     super.dispose();
   }
 
-  // =========================================================
-  // CARREGAR RESULTADOS
-  // =========================================================
-
   Future<void> _carregarResultados() async {
     final termo = _queryAtual;
 
@@ -142,12 +139,9 @@ class _AcervoPesquisaResultadosPageState
     }
   }
 
-  // =========================================================
-  // PAGINAÇÃO
-  // =========================================================
-
   void _mudarPagina(int pagina) {
-    if (pagina < 1 || pagina > _totalPaginas) {
+    if (pagina < 1 ||
+        pagina > _totalPaginas) {
       return;
     }
 
@@ -155,10 +149,6 @@ class _AcervoPesquisaResultadosPageState
       _paginaAtual = pagina;
     });
   }
-
-  // =========================================================
-  // NOVA PESQUISA
-  // =========================================================
 
   void _executarPesquisa() {
     final texto =
@@ -173,10 +163,6 @@ class _AcervoPesquisaResultadosPageState
     );
   }
 
-  // =========================================================
-  // LIMPAR PESQUISA
-  // =========================================================
-
   void _limparPesquisa() {
     _pesquisaController.clear();
 
@@ -185,19 +171,11 @@ class _AcervoPesquisaResultadosPageState
     context.go('/acervo');
   }
 
-  // =========================================================
-  // ABRIR OBRA
-  // =========================================================
-
   void _abrirObra(Obra obra) {
     if (!mounted) return;
 
     context.go('/obra/${obra.id}');
   }
-
-  // =========================================================
-  // CAMPO DE PESQUISA
-  // =========================================================
 
   Widget _campoPesquisa() {
     return BarraPesquisa(
@@ -208,13 +186,10 @@ class _AcervoPesquisaResultadosPageState
     );
   }
 
-  // =========================================================
-  // CABEÇALHO
-  // =========================================================
-
   Widget _cabecalho() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
       children: [
         const Text(
           'Acervo',
@@ -223,9 +198,7 @@ class _AcervoPesquisaResultadosPageState
             color: Colors.grey,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Text(
           'Resultados para "$_queryAtual"',
           style: const TextStyle(
@@ -233,9 +206,7 @@ class _AcervoPesquisaResultadosPageState
             fontWeight: FontWeight.w600,
           ),
         ),
-
         const SizedBox(height: 8),
-
         Text(
           '${_obras.length} publicação(ões) encontrada(s)',
           style: const TextStyle(
@@ -246,10 +217,6 @@ class _AcervoPesquisaResultadosPageState
       ],
     );
   }
-
-  // =========================================================
-  // CONTEÚDO
-  // =========================================================
 
   Widget _conteudo() {
     if (_carregando) {
@@ -288,9 +255,7 @@ class _AcervoPesquisaResultadosPageState
                 size: 50,
                 color: Colors.grey.shade400,
               ),
-
               const SizedBox(height: 16),
-
               const Text(
                 'Nenhuma publicação encontrada.',
                 style: TextStyle(
@@ -298,9 +263,7 @@ class _AcervoPesquisaResultadosPageState
                   fontWeight: FontWeight.w600,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Tente pesquisar por outro título, '
                     'autor ou categoria.',
@@ -309,9 +272,7 @@ class _AcervoPesquisaResultadosPageState
                   color: Colors.grey.shade600,
                 ),
               ),
-
               const SizedBox(height: 20),
-
               OutlinedButton(
                 onPressed: () {
                   context.go('/acervo');
@@ -327,13 +288,15 @@ class _AcervoPesquisaResultadosPageState
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment:
+      CrossAxisAlignment.stretch,
       children: [
         ListView.builder(
           shrinkWrap: true,
           physics:
           const NeverScrollableScrollPhysics(),
-          itemCount: _obrasPaginaAtual.length,
+          itemCount:
+          _obrasPaginaAtual.length,
           itemBuilder: (context, index) {
             final obra =
             _obrasPaginaAtual[index];
@@ -346,7 +309,6 @@ class _AcervoPesquisaResultadosPageState
             );
           },
         ),
-
         Paginacao(
           paginaAtual: _paginaAtual,
           totalPaginas: _totalPaginas,
@@ -356,63 +318,56 @@ class _AcervoPesquisaResultadosPageState
     );
   }
 
-  // =========================================================
-  // BUILD
-  // =========================================================
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-
-      appBar: AppBar(
+    return Title(
+      title: 'Obra Livre — Obras Académicas — Pesquisa',
+      color: Colors.white,
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Acervo',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          title: const Text(
+            'Acervo',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-      ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final larguraMaxima =
+            constraints.maxWidth > 1100
+                ? 1000.0
+                : constraints.maxWidth * 0.92;
 
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final larguraMaxima =
-          constraints.maxWidth > 1100
-              ? 1000.0
-              : constraints.maxWidth * 0.92;
-
-          return Center(
-            child: SingleChildScrollView(
-              padding:
-              const EdgeInsets.symmetric(
-                vertical: 30,
-              ),
-              child: SizedBox(
-                width: larguraMaxima,
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children: [
-                    _campoPesquisa(),
-
-                    const SizedBox(height: 32),
-
-                    _cabecalho(),
-
-                    const SizedBox(height: 24),
-
-                    _conteudo(),
-                  ],
+            return Center(
+              child: SingleChildScrollView(
+                padding:
+                const EdgeInsets.symmetric(
+                  vertical: 30,
+                ),
+                child: SizedBox(
+                  width: larguraMaxima,
+                  child: Column(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      _campoPesquisa(),
+                      const SizedBox(height: 32),
+                      _cabecalho(),
+                      const SizedBox(height: 24),
+                      _conteudo(),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 }
-

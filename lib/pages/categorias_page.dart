@@ -47,12 +47,14 @@ class CategoriasPage extends StatelessWidget {
     ),
     _Categoria(
       nome: 'Relatórios Académicos',
-      descricao: 'Relatórios de investigação, estágio e actividades académicas.',
+      descricao:
+      'Relatórios de investigação, estágio e actividades académicas.',
       icone: Icons.assignment_outlined,
     ),
     _Categoria(
       nome: 'Trabalhos Académicos',
-      descricao: 'Trabalhos realizados no âmbito de disciplinas e cursos.',
+      descricao:
+      'Trabalhos realizados no âmbito de disciplinas e cursos.',
       icone: Icons.library_books_outlined,
     ),
   ];
@@ -79,151 +81,157 @@ class CategoriasPage extends StatelessWidget {
     final largura = MediaQuery.of(context).size.width;
     final isDesktop = largura >= 800;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        titleSpacing: 24,
-        title: const Text(
-          'Categorias',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 19,
-            fontWeight: FontWeight.w600,
+    return Title(
+      title: 'Obra Livre — Obras Académicas — Categorias',
+      color: Colors.white,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F7F7),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          titleSpacing: 24,
+          title: const Text(
+            'Categorias',
+            style: TextStyle(
+              color: Colors.black87,
+              fontSize: 19,
+              fontWeight: FontWeight.w600,
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => _abrirInicio(context),
+              child: const Text(
+                'Início',
+                style: TextStyle(
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: OutlinedButton(
+                onPressed: () => _abrirAcervo(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black87,
+                  side: const BorderSide(
+                    color: Color(0xFFD5D5D5),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: const Text('Acervo'),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => _abrirInicio(context),
-            child: const Text(
-              'Início',
-              style: TextStyle(
-                color: Colors.black87,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 1200,
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 32 : 18,
+                vertical: 28,
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: OutlinedButton(
-              onPressed: () => _abrirAcervo(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.black87,
-                side: const BorderSide(
-                  color: Color(0xFFD5D5D5),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Categorias',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Explore o acervo por área e tipo de publicação.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  OutlinedButton.icon(
+                    onPressed: () => _abrirAcervo(context),
+                    icon: const Icon(
+                      Icons.library_books_outlined,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Explorar todo o Acervo',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: const BorderSide(
+                        color: Color(0xFFD5D5D5),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 13,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Expanded(
+                    child: isDesktop
+                        ? GridView.builder(
+                      padding: const EdgeInsets.only(
+                        bottom: 20,
+                      ),
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 1.65,
+                      ),
+                      itemCount: _categorias.length,
+                      itemBuilder: (context, index) {
+                        final categoria =
+                        _categorias[index];
+
+                        return _CategoriaCard(
+                          categoria: categoria,
+                          onTap: () => _abrirCategoria(
+                            context,
+                            categoria.nome,
+                          ),
+                        );
+                      },
+                    )
+                        : ListView.separated(
+                      padding: const EdgeInsets.only(
+                        bottom: 20,
+                      ),
+                      itemCount: _categorias.length,
+                      separatorBuilder: (_, __) =>
+                      const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final categoria =
+                        _categorias[index];
+
+                        return _CategoriaCard(
+                          categoria: categoria,
+                          onTap: () => _abrirCategoria(
+                            context,
+                            categoria.nome,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-              child: const Text('Acervo'),
-            ),
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 1200,
-          ),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: isDesktop ? 32 : 18,
-              vertical: 28,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Categorias',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Explore o acervo por área e tipo de publicação.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 22),
-                OutlinedButton.icon(
-                  onPressed: () => _abrirAcervo(context),
-                  icon: const Icon(
-                    Icons.library_books_outlined,
-                    size: 18,
-                  ),
-                  label: const Text(
-                    'Explorar todo o Acervo',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    side: const BorderSide(
-                      color: Color(0xFFD5D5D5),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 13,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Expanded(
-                  child: isDesktop
-                      ? GridView.builder(
-                    padding: const EdgeInsets.only(
-                      bottom: 20,
-                    ),
-                    gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.65,
-                    ),
-                    itemCount: _categorias.length,
-                    itemBuilder: (context, index) {
-                      final categoria = _categorias[index];
-
-                      return _CategoriaCard(
-                        categoria: categoria,
-                        onTap: () => _abrirCategoria(
-                          context,
-                          categoria.nome,
-                        ),
-                      );
-                    },
-                  )
-                      : ListView.separated(
-                    padding: const EdgeInsets.only(
-                      bottom: 20,
-                    ),
-                    itemCount: _categorias.length,
-                    separatorBuilder: (_, __) =>
-                    const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final categoria = _categorias[index];
-
-                      return _CategoriaCard(
-                        categoria: categoria,
-                        onTap: () => _abrirCategoria(
-                          context,
-                          categoria.nome,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
             ),
           ),
         ),

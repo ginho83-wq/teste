@@ -47,7 +47,8 @@ class _AcervoResultadosPageState
   void initState() {
     super.initState();
 
-    _pesquisaController.text = widget.query ?? '';
+    _pesquisaController.text =
+        widget.query ?? '';
 
     _carregar();
   }
@@ -69,35 +70,30 @@ class _AcervoResultadosPageState
     try {
       List<Obra> obras;
 
-      // 1. Abrir uma obra específica
       if (widget.obraId != null &&
           widget.obraId!.trim().isNotEmpty) {
-        final obra = await _repository.carregarPorId(
+        final obra =
+        await _repository.carregarPorId(
           widget.obraId!.trim(),
         );
 
-        obras = obra == null ? [] : [obra];
-      }
-
-      // 2. Filtrar por categoria
-      else if (widget.categoria != null &&
+        obras =
+        obra == null ? [] : [obra];
+      } else if (widget.categoria != null &&
           widget.categoria!.trim().isNotEmpty) {
-        obras = await _repository.carregarPorCategoria(
+        obras =
+        await _repository.carregarPorCategoria(
           widget.categoria!.trim(),
         );
-      }
-
-      // 3. Pesquisar por texto
-      else if (widget.query != null &&
+      } else if (widget.query != null &&
           widget.query!.trim().isNotEmpty) {
-        obras = await _repository.pesquisar(
+        obras =
+        await _repository.pesquisar(
           widget.query!.trim(),
         );
-      }
-
-      // 4. Mostrar todo o acervo
-      else {
-        obras = await _repository.carregarObras(
+      } else {
+        obras =
+        await _repository.carregarObras(
           pagina: 1,
           limite: 50,
         );
@@ -115,7 +111,8 @@ class _AcervoResultadosPageState
       if (!mounted) return;
 
       setState(() {
-        _erro = 'Não foi possível carregar o acervo.';
+        _erro =
+        'Não foi possível carregar o acervo.';
         _carregando = false;
       });
 
@@ -196,30 +193,35 @@ class _AcervoResultadosPageState
     setState(() {
       _historico.removeWhere(
             (historico) =>
-        historico.obraId == item.obraId,
+        historico.obraId ==
+            item.obraId,
       );
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Acervo'),
-        centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          BarraPesquisa(
-            controller: _pesquisaController,
-            hintText: 'Pesquisar no acervo...',
-            onPesquisar: _pesquisar,
-            onLimpar: _limparPesquisa,
-          ),
-          Expanded(
-            child: _buildConteudo(),
-          ),
-        ],
+    return Title(
+      title: 'Obra Livre — Obras Académicas — Acervo',
+      color: Colors.white,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Acervo'),
+          centerTitle: false,
+        ),
+        body: Column(
+          children: [
+            BarraPesquisa(
+              controller: _pesquisaController,
+              hintText: 'Pesquisar no acervo...',
+              onPesquisar: _pesquisar,
+              onLimpar: _limparPesquisa,
+            ),
+            Expanded(
+              child: _buildConteudo(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -236,7 +238,8 @@ class _AcervoResultadosPageState
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+            MainAxisSize.min,
             children: [
               const Icon(
                 Icons.error_outline,
@@ -330,7 +333,8 @@ class _AcervoResultadosPageState
 
         return ObraListaItem(
           obra: obra,
-          onTap: () => _abrirDetalhes(obra),
+          onTap: () =>
+              _abrirDetalhes(obra),
         );
       },
     );
@@ -362,7 +366,9 @@ class _AcervoResultadosPageState
                     onPressed: () {
                       context.go('/historico');
                     },
-                    child: const Text('Ver tudo'),
+                    child: const Text(
+                      'Ver tudo',
+                    ),
                   ),
                 ],
               ),
@@ -382,8 +388,10 @@ class _AcervoResultadosPageState
                   shrinkWrap: true,
                   physics:
                   const NeverScrollableScrollPhysics(),
-                  itemCount: _historico.length,
-                  separatorBuilder: (_, __) =>
+                  itemCount:
+                  _historico.length,
+                  separatorBuilder:
+                      (_, __) =>
                   const Divider(),
                   itemBuilder:
                       (context, index) {
@@ -393,10 +401,14 @@ class _AcervoResultadosPageState
                     return HistoricoListaItem(
                       obra: item,
                       onAbrir: () {
-                        _abrirHistorico(item);
+                        _abrirHistorico(
+                          item,
+                        );
                       },
                       onRemover: () {
-                        _removerHistorico(item);
+                        _removerHistorico(
+                          item,
+                        );
                       },
                     );
                   },
