@@ -29,11 +29,14 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   final _authService = AuthService.instancia;
 
   final _obrasRepository = ObrasRepository.instancia;
-  final _obrasPendentesRepository = ObrasPendentesRepository.instancia;
-  final _comentariosRepository = ComentariosRepository.instancia;
+  final _obrasPendentesRepository =
+      ObrasPendentesRepository.instancia;
+  final _comentariosRepository =
+      ComentariosRepository.instancia;
   final _solicitacoesRepository =
       SolicitacoesRemocaoRepository.instancia;
-  final _historicoService = HistoricoObrasService.instancia;
+  final _historicoService =
+      HistoricoObrasService.instancia;
 
   Map<String, dynamic>? _perfil;
 
@@ -146,7 +149,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           .eq('id', usuario.id)
           .maybeSingle();
 
-      final minhasObras = await _obterMinhasObras(usuario.id);
+      final minhasObras =
+      await _obterMinhasObras(usuario.id);
 
       List<ObraPendente> minhasObrasPendentes = [];
 
@@ -159,8 +163,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         minhasObrasPendentes = [];
       }
 
-      final comentarios = await _comentariosRepository
-          .obterComentariosDasMinhasObras(usuario.id);
+      final comentarios =
+      await _comentariosRepository
+          .obterComentariosDasMinhasObras(
+        usuario.id,
+      );
 
       final solicitacoes =
       await _solicitacoesRepository.obterMinhasSolicitacoes();
@@ -191,7 +198,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
   }
 
-  Future<List<Obra>> _obterMinhasObras(String userId) async {
+  Future<List<Obra>> _obterMinhasObras(
+      String userId,
+      ) async {
     final resposta = await _supabase
         .from('obras')
         .select()
@@ -261,40 +270,35 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
                 const Divider(height: 20),
-
                 _linhaDetalhePendente(
                   dialogContext,
                   'Autor',
                   obra.autor,
                 ),
-
                 _linhaDetalhePendente(
                   dialogContext,
                   'Categoria',
                   obra.categoria,
                 ),
-
                 _linhaDetalhePendente(
                   dialogContext,
                   'Data de envio',
                   _formatarData(obra.createdAt),
                 ),
-
                 const SizedBox(height: 4),
-
                 _linhaEstadoPendente(dialogContext),
-
                 const SizedBox(height: 20),
-
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF7E6),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius:
+                    BorderRadius.circular(10),
                     border: Border.all(
                       color: const Color(0xFFF2D59C),
                     ),
@@ -350,7 +354,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Text(
             titulo,
@@ -378,9 +383,12 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
-  Widget _linhaEstadoPendente(BuildContext context) {
+  Widget _linhaEstadoPendente(
+      BuildContext context,
+      ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
       children: [
         Text(
           'Estado',
@@ -450,12 +458,14 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () =>
+                  Navigator.of(context).pop(),
               child: const Text('Cancelar'),
             ),
             FilledButton(
               onPressed: () {
-                final texto = controlador.text.trim();
+                final texto =
+                controlador.text.trim();
 
                 if (texto.isEmpty) {
                   return;
@@ -526,6 +536,86 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     } catch (_) {}
   }
 
+  Future<void> _removerConsulta(
+      HistoricoObra item,
+      ) async {
+    try {
+      await _historicoService.removerConsulta(
+        id: item.id,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _historico.removeWhere(
+              (historico) => historico.id == item.id,
+        );
+      });
+
+      _mostrarMensagem(
+        'Consulta removida do histórico.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      _mostrarMensagem(
+        'Não foi possível remover a consulta.',
+        erro: true,
+      );
+    }
+  }
+
+  Future<void> _limparHistorico() async {
+    if (_historico.isEmpty) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Limpar histórico'),
+          content: const Text(
+            'Tem a certeza de que deseja remover todo o histórico de obras consultadas?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(true),
+              child: const Text('Limpar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      await _historicoService.limparHistorico();
+
+      if (!mounted) return;
+
+      setState(() {
+        _historico.clear();
+      });
+
+      _mostrarMensagem(
+        'Histórico limpo com sucesso.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      _mostrarMensagem(
+        'Não foi possível limpar o histórico.',
+        erro: true,
+      );
+    }
+  }
+
   String _formatarData(DateTime? data) {
     if (data == null) {
       return '—';
@@ -554,6 +644,33 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
+      ),
+    );
+  }
+
+  Widget _tituloSecaoHistorico() {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 2,
+        bottom: 12,
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Histórico recente',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (_historico.isNotEmpty)
+            TextButton(
+              onPressed: _limparHistorico,
+              child: const Text('Limpar histórico'),
+            ),
+        ],
       ),
     );
   }
@@ -691,7 +808,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Column(
-      children: _comentarios.map((comentario) {
+      children:
+      _comentarios.map((comentario) {
         final obraDados = comentario['obras'];
 
         final tituloObra = obraDados is Map
@@ -711,7 +829,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         comentario['created_at']?.toString();
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin:
+          const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: const CircleAvatar(
               child: Icon(Icons.comment_outlined),
@@ -745,7 +864,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                     .eq('id', obraId)
                     .maybeSingle();
 
-                if (dados == null || !mounted) {
+                if (dados == null ||
+                    !mounted) {
                   return;
                 }
 
@@ -779,7 +899,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     return Column(
       children: _historico.map((item) {
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin:
+          const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: const CircleAvatar(
               child: Icon(Icons.history),
@@ -791,6 +912,12 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             ),
             subtitle: Text(
               _formatarData(item.createdAt),
+            ),
+            trailing: IconButton(
+              tooltip: 'Remover do histórico',
+              icon: const Icon(Icons.close),
+              onPressed: () =>
+                  _removerConsulta(item),
             ),
             onTap: () {
               context.push(
@@ -816,8 +943,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Column(
-      children: _solicitacoes.map((solicitacao) {
-        final obraDados = solicitacao['obras'];
+      children:
+      _solicitacoes.map((solicitacao) {
+        final obraDados =
+        solicitacao['obras'];
 
         final tituloObra = obraDados is Map
             ? (obraDados['titulo']?.toString() ??
@@ -825,16 +954,19 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             : 'Obra';
 
         final motivo =
-            solicitacao['motivo']?.toString() ?? '';
+            solicitacao['motivo']?.toString() ??
+                '';
 
         final status =
-            solicitacao['status']?.toString() ?? '';
+            solicitacao['status']?.toString() ??
+                '';
 
         final data =
         solicitacao['created_at']?.toString();
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin:
+          const EdgeInsets.only(bottom: 10),
           child: ListTile(
             leading: const CircleAvatar(
               child: Icon(Icons.delete_outline),
@@ -912,7 +1044,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         border: Border.all(
           color: const Color(0xFFDDE7F0),
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+        BorderRadius.circular(12),
       ),
       child: Column(
         children: [
@@ -943,9 +1076,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         _supabase.auth.currentUser != null;
 
     return AppBar(
-      backgroundColor: const Color(0xFFEAF4FF),
+      backgroundColor:
+      const Color(0xFFEAF4FF),
       elevation: 0,
-      surfaceTintColor: const Color(0xFFEAF4FF),
+      surfaceTintColor:
+      const Color(0xFFEAF4FF),
       automaticallyImplyLeading: false,
       toolbarHeight: 60,
       titleSpacing: 28,
@@ -959,7 +1094,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       actions: [
         if (estaAutenticado)
           Padding(
-            padding: const EdgeInsets.only(right: 20),
+            padding:
+            const EdgeInsets.only(right: 20),
             child: PopupMenuButton<String>(
               tooltip: 'Conta',
               offset: const Offset(0, 48),
@@ -1137,9 +1273,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
               const SizedBox(height: 32),
 
-              _tituloSecao(
-                'Histórico recente',
-              ),
+              _tituloSecaoHistorico(),
 
               _listaHistorico(),
             ],
@@ -1156,7 +1290,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFCFCFC),
+      backgroundColor:
+      const Color(0xFFFCFCFC),
       appBar: _buildAppBar(),
       body: _carregando
           ? const Center(
@@ -1165,9 +1300,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           : _erro != null
           ? Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding:
+          const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+            MainAxisSize.min,
             children: [
               const Icon(
                 Icons.error_outline,
@@ -1177,11 +1314,13 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               const SizedBox(height: 12),
               Text(
                 _erro!,
-                textAlign: TextAlign.center,
+                textAlign:
+                TextAlign.center,
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: _carregarDados,
+                onPressed:
+                _carregarDados,
                 icon: const Icon(
                   Icons.refresh,
                 ),
