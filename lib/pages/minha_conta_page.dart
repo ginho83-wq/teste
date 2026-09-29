@@ -31,7 +31,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   final _obrasRepository = ObrasRepository.instancia;
   final _obrasPendentesRepository = ObrasPendentesRepository.instancia;
   final _comentariosRepository = ComentariosRepository.instancia;
-  final _solicitacoesRepository = SolicitacoesRemocaoRepository.instancia;
+  final _solicitacoesRepository =
+      SolicitacoesRemocaoRepository.instancia;
   final _historicoService = HistoricoObrasService.instancia;
 
   Map<String, dynamic>? _perfil;
@@ -68,7 +69,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     super.dispose();
   }
 
-  Future<void> _tratarAlteracaoAutenticacao(AuthState estado) async {
+  Future<void> _tratarAlteracaoAutenticacao(
+      AuthState estado,
+      ) async {
     if (!mounted) return;
 
     if (estado.session == null) {
@@ -149,7 +152,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       try {
         minhasObrasPendentes =
-        await _obrasPendentesRepository.carregarDoUsuario(usuario.id);
+        await _obrasPendentesRepository.carregarDoUsuario(
+          usuario.id,
+        );
       } catch (_) {
         minhasObrasPendentes = [];
       }
@@ -161,7 +166,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       await _solicitacoesRepository.obterMinhasSolicitacoes();
 
       final historico =
-      await _historicoService.obterConsultasRecentes(limite: 5);
+      await _historicoService.obterConsultasRecentes(
+        limite: 5,
+      );
 
       if (!mounted) return;
 
@@ -200,117 +207,116 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         .toList();
   }
 
-  Future<void> _abrirDetalhesObra(Obra obra) async {
+  // ============================================================
+  // ABRIR OBRA PUBLICADA
+  // ============================================================
+
+  Future<void> _abrirObra(Obra obra) async {
     if (!mounted) return;
 
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(obra.titulo),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _linhaDetalhe('Autor', obra.autor),
-                _linhaDetalhe('Categoria', obra.categoria),
-
-                // CORRIGIDO:
-                // O modelo Obra usa "anoObra", não "ano".
-                _linhaDetalhe(
-                  'Ano',
-                  obra.anoObra?.toString(),
-                ),
-
-                _linhaDetalhe('Estado', 'Publicada'),
-
-                if (obra.descricao != null &&
-                    obra.descricao!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Descrição',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(obra.descricao!),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fechar'),
-            ),
-            if (obra.urlDocumento.trim().isNotEmpty)
-              FilledButton.icon(
-                onPressed: () async {
-                  final url = Uri.tryParse(obra.urlDocumento);
-
-                  if (url == null) {
-                    return;
-                  }
-
-                  await launchUrl(
-                    url,
-                    webOnlyWindowName: '_blank',
-                  );
-                },
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Abrir obra'),
-              ),
-          ],
-        );
-      },
-    );
+    await context.push('/obra/${obra.id}');
   }
+
+  // ============================================================
+  // DETALHES DA OBRA PENDENTE
+  // ============================================================
 
   Future<void> _abrirDetalhesObraPendente(
       ObraPendente obra,
       ) async {
     if (!mounted) return;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: Text(obra.titulo),
+          titlePadding: const EdgeInsets.fromLTRB(
+            24,
+            22,
+            24,
+            8,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            24,
+            8,
+            24,
+            8,
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(
+            16,
+            8,
+            16,
+            12,
+          ),
+          title: Text(
+            obra.titulo,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _linhaDetalhe('Autor', obra.autor),
-                _linhaDetalhe('Categoria', obra.categoria),
-                _linhaDetalhe(
-                  'Data',
+                const Divider(height: 20),
+
+                _linhaDetalhePendente(
+                  dialogContext,
+                  'Autor',
+                  obra.autor,
+                ),
+
+                _linhaDetalhePendente(
+                  dialogContext,
+                  'Categoria',
+                  obra.categoria,
+                ),
+
+                _linhaDetalhePendente(
+                  dialogContext,
+                  'Data de envio',
                   _formatarData(obra.createdAt),
                 ),
-                _linhaDetalhe('Estado', 'Pendente'),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
+
+                _linhaEstadoPendente(dialogContext),
+
+                const SizedBox(height: 20),
 
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.10),
+                    color: const Color(0xFFFFF7E6),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFFF2D59C),
+                    ),
                   ),
                   child: const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.info_outline,
+                        size: 21,
                         color: Colors.orange,
                       ),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Esta obra ainda está pendente de aprovação.',
+                          'Esta obra foi enviada e está pendente de aprovação.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],
@@ -321,7 +327,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
               child: const Text('Fechar'),
             ),
           ],
@@ -330,7 +338,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
-  Widget _linhaDetalhe(
+  Widget _linhaDetalhePendente(
+      BuildContext context,
       String titulo,
       String? valor,
       ) {
@@ -339,23 +348,87 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: RichText(
-        text: TextSpan(
-          style: DefaultTextStyle.of(context).style,
-          children: [
-            TextSpan(
-              text: '$titulo: ',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
             ),
-            TextSpan(text: valor),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            valor,
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(
+              color: Colors.black87,
+              fontSize: 15,
+            ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _linhaEstadoPendente(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Estado',
+          style: Theme.of(context)
+              .textTheme
+              .labelLarge
+              ?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF1D6),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.hourglass_empty,
+                size: 17,
+                color: Colors.orange,
+              ),
+              SizedBox(width: 7),
+              Text(
+                'Pendente',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // SOLICITAR REMOÇÃO
+  // ============================================================
 
   Future<void> _solicitarRemocao(Obra obra) async {
     final controlador = TextEditingController();
@@ -370,7 +443,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Motivo',
-              hintText: 'Explique o motivo da solicitação...',
+              hintText:
+              'Explique o motivo da solicitação...',
               border: OutlineInputBorder(),
             ),
           ),
@@ -425,6 +499,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
   }
 
+  // ============================================================
+  // HISTÓRICO
+  // ============================================================
+
   Future<void> _abrirHistorico() async {
     await context.push('/historico-obras');
 
@@ -460,6 +538,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     return '$dia/$mes/$ano';
   }
 
+  // ============================================================
+  // TÍTULO DE SECÇÃO
+  // ============================================================
+
   Widget _tituloSecao(String titulo) {
     return Padding(
       padding: const EdgeInsets.only(
@@ -476,20 +558,24 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
-  Widget _cartaoObraPublicada(
-      Map<String, dynamic> dados,
-      ) {
-    final obra = Obra.fromMap(dados);
+  // ============================================================
+  // CARTÃO DE OBRA PUBLICADA
+  // ============================================================
 
+  Widget _cartaoObraPublicada(Obra obra) {
     final mobile =
         MediaQuery.sizeOf(context).width < 600;
 
     return ObraListaItem(
       obra: obra,
       mobile: mobile,
-      onTap: () => _abrirDetalhesObra(obra),
+      onTap: () => _abrirObra(obra),
     );
   }
+
+  // ============================================================
+  // CARTÃO DE OBRA PENDENTE
+  // ============================================================
 
   Widget _cartaoObraPendente(
       ObraPendente obra,
@@ -509,14 +595,13 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
           children: [
             if (obra.autor.trim().isNotEmpty)
               Text(obra.autor),
-
             if (obra.categoria.trim().isNotEmpty)
               Text(obra.categoria),
-
             Text(
               'Enviada em ${_formatarData(obra.createdAt)}',
             ),
@@ -534,6 +619,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
+  // ============================================================
+  // LISTA DE OBRAS
+  // ============================================================
+
   Widget _listaObras() {
     if (_minhasObras.isEmpty &&
         _minhasObrasPendentes.isEmpty) {
@@ -544,7 +633,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
       children: [
         if (_minhasObrasPendentes.isNotEmpty) ...[
           const Padding(
@@ -560,15 +650,12 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               ),
             ),
           ),
-
           ..._minhasObrasPendentes.map(
             _cartaoObraPendente,
           ),
-
           if (_minhasObras.isNotEmpty)
             const SizedBox(height: 18),
         ],
-
         if (_minhasObras.isNotEmpty) ...[
           const Padding(
             padding: EdgeInsets.only(
@@ -583,16 +670,17 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               ),
             ),
           ),
-
           ..._minhasObras.map(
-                (obra) => _cartaoObraPublicada(
-              obra.toMap(),
-            ),
+            _cartaoObraPublicada,
           ),
         ],
       ],
     );
   }
+
+  // ============================================================
+  // COMENTÁRIOS
+  // ============================================================
 
   Widget _listaComentarios() {
     if (_comentarios.isEmpty) {
@@ -607,7 +695,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         final obraDados = comentario['obras'];
 
         final tituloObra = obraDados is Map
-            ? (obraDados['titulo']?.toString() ?? 'Obra')
+            ? (obraDados['titulo']?.toString() ??
+            'Obra')
             : 'Obra';
 
         final obraId =
@@ -638,7 +727,6 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               children: [
                 if (texto.isNotEmpty)
                   Text(texto),
-
                 if (data != null)
                   Text(
                     _formatarData(
@@ -662,10 +750,12 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                 }
 
                 final obra = Obra.fromMap(
-                  Map<String, dynamic>.from(dados),
+                  Map<String, dynamic>.from(
+                    dados,
+                  ),
                 );
 
-                await _abrirDetalhesObra(obra);
+                await _abrirObra(obra);
               } catch (_) {}
             },
           ),
@@ -673,6 +763,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       }).toList(),
     );
   }
+
+  // ============================================================
+  // HISTÓRICO
+  // ============================================================
 
   Widget _listaHistorico() {
     if (_historico.isEmpty) {
@@ -698,11 +792,20 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             subtitle: Text(
               _formatarData(item.createdAt),
             ),
+            onTap: () {
+              context.push(
+                '/obra/${item.obraId}',
+              );
+            },
           ),
         );
       }).toList(),
     );
   }
+
+  // ============================================================
+  // SOLICITAÇÕES DE REMOÇÃO
+  // ============================================================
 
   Widget _listaSolicitacoes() {
     if (_solicitacoes.isEmpty) {
@@ -717,7 +820,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         final obraDados = solicitacao['obras'];
 
         final tituloObra = obraDados is Map
-            ? (obraDados['titulo']?.toString() ?? 'Obra')
+            ? (obraDados['titulo']?.toString() ??
+            'Obra')
             : 'Obra';
 
         final motivo =
@@ -746,15 +850,15 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               children: [
                 if (status.isNotEmpty)
                   Text(
-                    _formatarStatusSolicitacao(status),
+                    _formatarStatusSolicitacao(
+                      status,
+                    ),
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                 if (motivo.isNotEmpty)
                   Text(motivo),
-
                 if (data != null)
                   Text(
                     _formatarData(
@@ -789,6 +893,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         return status;
     }
   }
+
+  // ============================================================
+  // CAIXA VAZIA
+  // ============================================================
 
   Widget _caixaVazia(
       String mensagem,
@@ -825,6 +933,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       ),
     );
   }
+
+  // ============================================================
+  // APP BAR
+  // ============================================================
 
   PreferredSizeWidget _buildAppBar() {
     final estaAutenticado =
@@ -884,7 +996,6 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                       ],
                     ),
                   ),
-
                   const PopupMenuItem<String>(
                     value: 'configuracoes',
                     child: Row(
@@ -897,9 +1008,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
                       ],
                     ),
                   ),
-
                   const PopupMenuDivider(),
-
                   const PopupMenuItem<String>(
                     value: 'sair',
                     child: Row(
@@ -929,6 +1038,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
+  // ============================================================
+  // SAIR
+  // ============================================================
+
   Future<void> _sair() async {
     try {
       await _authService.sair();
@@ -946,6 +1059,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
   }
 
+  // ============================================================
+  // CONTA / ADMINISTRAÇÃO
+  // ============================================================
+
   void _abrirConta() {
     if (_ehAdmin) {
       context.go('/admin-obras');
@@ -953,6 +1070,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       context.go('/minha-conta');
     }
   }
+
+  // ============================================================
+  // MENSAGEM
+  // ============================================================
 
   void _mostrarMensagem(
       String mensagem, {
@@ -970,6 +1091,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         ),
       );
   }
+
+  // ============================================================
+  // CONTEÚDO
+  // ============================================================
 
   Widget _conteudo() {
     return Center(
@@ -991,6 +1116,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               _tituloSecao(
                 'Minhas publicações',
               ),
+
               _listaObras(),
 
               const SizedBox(height: 32),
@@ -998,6 +1124,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               _tituloSecao(
                 'Comentários',
               ),
+
               _listaComentarios(),
 
               const SizedBox(height: 32),
@@ -1005,6 +1132,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               _tituloSecao(
                 'Solicitações de remoção',
               ),
+
               _listaSolicitacoes(),
 
               const SizedBox(height: 32),
@@ -1012,6 +1140,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               _tituloSecao(
                 'Histórico recente',
               ),
+
               _listaHistorico(),
             ],
           ),
@@ -1019,6 +1148,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       ),
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -1071,3 +1204,4 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 }
+
