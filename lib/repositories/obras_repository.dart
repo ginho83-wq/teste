@@ -23,12 +23,14 @@ class ObrasRepository {
     data_publicacao,
     numero_paginas,
     tamanho_arquivo_bytes,
+    hash_pdf,
     user_id,
     created_at,
     updated_at
   ''';
 
-  Future<List<Obra>> carregarObras({
+  Future<List<Obra>>
+  carregarObras({
     int pagina = 1,
     int limite = 10,
   }) async {
@@ -69,7 +71,8 @@ class ObrasRepository {
     );
   }
 
-  Future<List<Obra>> pesquisar(
+  Future<List<Obra>>
+  pesquisar(
       String termo, {
         int limite = 50,
       }) async {
@@ -106,7 +109,8 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>> carregarPorCategoria(
+  Future<List<Obra>>
+  carregarPorCategoria(
       String categoria, {
         int limite = 50,
       }) async {
@@ -129,7 +133,8 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>> carregarPorAutor(
+  Future<List<Obra>>
+  carregarPorAutor(
       String autor, {
         int limite = 50,
       }) async {
@@ -155,7 +160,8 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>> carregarPorAno(
+  Future<List<Obra>>
+  carregarPorAno(
       int ano, {
         int limite = 50,
       }) async {
@@ -178,7 +184,8 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>> carregarMinhasObras(
+  Future<List<Obra>>
+  carregarMinhasObras(
       String userId, {
         int pagina = 1,
         int limite = 10,
@@ -203,6 +210,88 @@ class ObrasRepository {
       ),
     )
         .toList();
+  }
+
+  // ============================================================
+  // VERIFICAR DUPLICADO
+  // ============================================================
+
+  Future<bool> existeDuplicado({
+    required String titulo,
+    required String autor,
+    required String nomeArquivo,
+    String? hashPdf,
+  }) async {
+    final tituloLimpo = titulo.trim();
+    final autorLimpo = autor.trim();
+    final nomeArquivoLimpo =
+    _nomeArquivo(nomeArquivo);
+    final hashLimpo = hashPdf?.trim() ?? '';
+
+    // ----------------------------------------------------------
+    // 1. VERIFICAR HASH DO PDF
+    // ----------------------------------------------------------
+
+    if (hashLimpo.isNotEmpty) {
+      final respostaHash = await _supabase
+          .from('obras')
+          .select('id, hash_pdf')
+          .eq('hash_pdf', hashLimpo)
+          .limit(1);
+
+      if ((respostaHash as List).isNotEmpty) {
+        return true;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 2. VERIFICAR TÍTULO + AUTOR
+    // ----------------------------------------------------------
+
+    if (tituloLimpo.isNotEmpty &&
+        autorLimpo.isNotEmpty) {
+      final respostaTituloAutor =
+      await _supabase
+          .from('obras')
+          .select('id, titulo, autor')
+          .ilike(
+        'titulo',
+        tituloLimpo,
+      )
+          .ilike(
+        'autor',
+        autorLimpo,
+      )
+          .limit(20);
+
+      if ((respostaTituloAutor as List)
+          .isNotEmpty) {
+        return true;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 3. VERIFICAR NOME DO PDF
+    // ----------------------------------------------------------
+
+    if (nomeArquivoLimpo.isNotEmpty) {
+      final respostaArquivo =
+      await _supabase
+          .from('obras')
+          .select('id, url_documento')
+          .ilike(
+        'url_documento',
+        '%/$nomeArquivoLimpo',
+      )
+          .limit(20);
+
+      if ((respostaArquivo as List)
+          .isNotEmpty) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   Future<Obra> inserir(Obra obra) async {
@@ -272,5 +361,20 @@ class ObrasRepository {
         .eq('user_id', userId);
 
     return (resposta as List).length;
+  }
+
+  String _nomeArquivo(String caminho) {
+    final caminhoLimpo = caminho.trim();
+
+    final indice =
+    caminhoLimpo.lastIndexOf('/');
+
+    if (indice == -1) {
+      return caminhoLimpo;
+    }
+
+    return caminhoLimpo.substring(
+      indice + 1,
+    );
   }
 }

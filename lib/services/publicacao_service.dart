@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:pdfx/pdfx.dart';
 
 import '../models/obra_pendente.dart';
 import '../repositories/obras_pendentes_repository.dart';
+import '../repositories/obras_repository.dart';
 import 'auth_service.dart';
 import 'storage_service.dart';
 
@@ -15,6 +17,9 @@ class PublicacaoService {
 
   final ObrasPendentesRepository _repository =
       ObrasPendentesRepository.instancia;
+
+  final ObrasRepository _obrasRepository =
+      ObrasRepository.instancia;
 
   final StorageService _storage =
       StorageService.instancia;
@@ -31,7 +36,8 @@ class PublicacaoService {
     required String nomeArquivo,
     int? anoObra,
   }) async {
-    final usuario = _auth.usuarioAtual;
+    final usuario =
+        _auth.usuarioAtual;
 
     if (usuario == null) {
       throw Exception(
@@ -39,10 +45,17 @@ class PublicacaoService {
       );
     }
 
-    final tituloLimpo = titulo.trim();
-    final autorLimpo = autor.trim();
-    final categoriaLimpa = categoria.trim();
-    final nomeArquivoLimpo = nomeArquivo.trim();
+    final tituloLimpo =
+    titulo.trim();
+
+    final autorLimpo =
+    autor.trim();
+
+    final categoriaLimpa =
+    categoria.trim();
+
+    final nomeArquivoLimpo =
+    nomeArquivo.trim();
 
     if (tituloLimpo.isEmpty) {
       throw Exception(
@@ -76,6 +89,55 @@ class PublicacaoService {
       );
     }
 
+    // ==========================================================
+    // CALCULAR SHA-256 DO PDF
+    // ==========================================================
+
+    final hashPdf =
+    sha256.convert(arquivoPdf).toString();
+
+    // ==========================================================
+    // VERIFICAR DUPLICADO NAS OBRAS PUBLICADAS
+    // ==========================================================
+
+    final existePublicado =
+    await _obrasRepository
+        .existeDuplicado(
+      titulo: tituloLimpo,
+      autor: autorLimpo,
+      nomeArquivo:
+      nomeArquivoLimpo,
+      hashPdf: hashPdf,
+    );
+
+    if (existePublicado) {
+      throw Exception(
+        'Este PDF já existe na Obra Livre. '
+            'A mesma obra não pode ser publicada novamente.',
+      );
+    }
+
+    // ==========================================================
+    // VERIFICAR DUPLICADO NAS OBRAS PENDENTES
+    // ==========================================================
+
+    final existePendente =
+    await _repository
+        .existeDuplicado(
+      titulo: tituloLimpo,
+      autor: autorLimpo,
+      nomeArquivo:
+      nomeArquivoLimpo,
+      hashPdf: hashPdf,
+    );
+
+    if (existePendente) {
+      throw Exception(
+        'Este PDF já foi enviado e encontra-se '
+            'pendente de análise.',
+      );
+    }
+
     final tamanhoArquivoBytes =
         arquivoPdf.length;
 
@@ -83,23 +145,27 @@ class PublicacaoService {
     String? caminhoCapaPendente;
 
     try {
-      // ==========================================================
+      // ========================================================
       // 1. ENVIAR PDF PARA PENDENTES
-      // ==========================================================
+      // ========================================================
 
       caminhoPendente =
-      await _storage.enviarDocumentoPendente(
+      await _storage
+          .enviarDocumentoPendente(
         userId: usuario.id,
-        nomeArquivo: nomeArquivoLimpo,
+        nomeArquivo:
+        nomeArquivoLimpo,
         bytes: arquivoPdf,
       );
 
-      // ==========================================================
+      // ========================================================
       // 2. GERAR CAPA E OBTER NÚMERO DE PÁGINAS
-      // ==========================================================
+      // ========================================================
 
       final resultadoCapa =
-      await _gerarCapa(arquivoPdf);
+      await _gerarCapa(
+        arquivoPdf,
+      );
 
       final bytesCapa =
           resultadoCapa.bytes;
@@ -107,35 +173,40 @@ class PublicacaoService {
       final numeroPaginas =
           resultadoCapa.numeroPaginas;
 
-      // ==========================================================
-      // 3. ENVIAR CAPA PARA CAPAS-PENDENTES
-      // ==========================================================
+      // ========================================================
+      // 3. ENVIAR CAPA
+      // ========================================================
 
       caminhoCapaPendente =
-      await _storage.enviarCapaPendente(
+      await _storage
+          .enviarCapaPendente(
         userId: usuario.id,
-        nomeArquivo: nomeArquivoLimpo,
+        nomeArquivo:
+        nomeArquivoLimpo,
         bytes: bytesCapa,
       );
 
-      // ==========================================================
+      // ========================================================
       // 4. CRIAR REGISTRO PENDENTE
-      // ==========================================================
+      // ========================================================
 
       final dataPublicacao =
       DateTime.now();
 
       final obra = ObraPendente(
-        titulo: tituloLimpo,
+        titulo:
+        tituloLimpo,
 
         descricao:
         descricao?.trim().isEmpty == true
             ? null
             : descricao?.trim(),
 
-        autor: autorLimpo,
+        autor:
+        autorLimpo,
 
-        categoria: categoriaLimpa,
+        categoria:
+        categoriaLimpa,
 
         urlDocumento:
         caminhoPendente,
@@ -152,7 +223,6 @@ class PublicacaoService {
         userId:
         usuario.id,
 
-        // NOVO:
         numeroPaginas:
         numeroPaginas,
 
@@ -162,11 +232,12 @@ class PublicacaoService {
 
       return await _repository.inserir(
         obra,
+        hashPdf: hashPdf,
       );
     } catch (e) {
-      // ==========================================================
+      // ========================================================
       // LIMPEZA DO PDF SE HOUVER ERRO
-      // ==========================================================
+      // ========================================================
 
       if (caminhoPendente != null) {
         try {
@@ -177,9 +248,9 @@ class PublicacaoService {
         } catch (_) {}
       }
 
-      // ==========================================================
+      // ========================================================
       // LIMPEZA DA CAPA SE HOUVER ERRO
-      // ==========================================================
+      // ========================================================
 
       if (caminhoCapaPendente != null) {
         try {
@@ -194,10 +265,10 @@ class PublicacaoService {
     }
   }
 
-  // ==============================================================
+  // ============================================================
   // GERAR CAPA A PARTIR DA PRIMEIRA PÁGINA
-  // E OBTER O NÚMERO TOTAL DE PÁGINAS
-  // ==============================================================
+  // E OBTER NÚMERO TOTAL DE PÁGINAS
+  // ============================================================
 
   Future<_ResultadoCapa> _gerarCapa(
       Uint8List pdfBytes,
@@ -225,8 +296,10 @@ class PublicacaoService {
 
       final imagem =
       await pagina.render(
-        width: pagina.width * 2,
-        height: pagina.height * 2,
+        width:
+        pagina.width * 2,
+        height:
+        pagina.height * 2,
         format:
         PdfPageImageFormat.png,
         backgroundColor:
@@ -242,7 +315,8 @@ class PublicacaoService {
 
       return _ResultadoCapa(
         bytes: imagem.bytes,
-        numeroPaginas: numeroPaginas,
+        numeroPaginas:
+        numeroPaginas,
       );
     } finally {
       await pagina?.close();
@@ -251,9 +325,9 @@ class PublicacaoService {
   }
 }
 
-// ==============================================================
+// ============================================================
 // RESULTADO DA GERAÇÃO DA CAPA
-// ==============================================================
+// ============================================================
 
 class _ResultadoCapa {
   final Uint8List bytes;

@@ -29,6 +29,7 @@ class ObrasPendentesRepository {
     numero_paginas,
     user_id,
     tamanho_arquivo_bytes,
+    hash_pdf,
     created_at,
     updated_at
   ''';
@@ -92,14 +93,108 @@ class ObrasPendentesRepository {
         .toList();
   }
 
+  // ============================================================
+  // VERIFICAR DUPLICADO
+  // ============================================================
+
+  Future<bool> existeDuplicado({
+    required String titulo,
+    required String autor,
+    required String nomeArquivo,
+    String? hashPdf,
+  }) async {
+    final tituloLimpo = titulo.trim();
+    final autorLimpo = autor.trim();
+    final nomeArquivoLimpo =
+    _nomeArquivo(nomeArquivo);
+    final hashLimpo = hashPdf?.trim() ?? '';
+
+    // ----------------------------------------------------------
+    // 1. VERIFICAR HASH DO PDF
+    // ----------------------------------------------------------
+
+    if (hashLimpo.isNotEmpty) {
+      final respostaHash =
+      await _supabase
+          .from('obras_pendentes')
+          .select('id, hash_pdf')
+          .eq('hash_pdf', hashLimpo)
+          .limit(1);
+
+      if ((respostaHash as List)
+          .isNotEmpty) {
+        return true;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 2. VERIFICAR TÍTULO + AUTOR
+    // ----------------------------------------------------------
+
+    if (tituloLimpo.isNotEmpty &&
+        autorLimpo.isNotEmpty) {
+      final respostaTituloAutor =
+      await _supabase
+          .from('obras_pendentes')
+          .select('id, titulo, autor')
+          .ilike(
+        'titulo',
+        tituloLimpo,
+      )
+          .ilike(
+        'autor',
+        autorLimpo,
+      )
+          .limit(20);
+
+      if ((respostaTituloAutor as List)
+          .isNotEmpty) {
+        return true;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 3. VERIFICAR NOME DO PDF
+    // ----------------------------------------------------------
+
+    if (nomeArquivoLimpo.isNotEmpty) {
+      final respostaArquivo =
+      await _supabase
+          .from('obras_pendentes')
+          .select('id, url_documento')
+          .ilike(
+        'url_documento',
+        '%/$nomeArquivoLimpo',
+      )
+          .limit(20);
+
+      if ((respostaArquivo as List)
+          .isNotEmpty) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // ============================================================
+  // INSERIR OBRA PENDENTE
+  // ============================================================
+
   Future<ObraPendente> inserir(
-      ObraPendente obra,
-      ) async {
+      ObraPendente obra, {
+        String? hashPdf,
+      }) async {
     final dados = obra.toMap();
 
     dados.remove('id');
     dados.remove('created_at');
     dados.remove('updated_at');
+
+    if (hashPdf != null &&
+        hashPdf.trim().isNotEmpty) {
+      dados['hash_pdf'] = hashPdf.trim();
+    }
 
     final resposta = await _supabase
         .from('obras_pendentes')
@@ -112,9 +207,9 @@ class ObrasPendentesRepository {
     );
   }
 
-  // ==============================================================
+  // ============================================================
   // APROVAR OBRA
-  // ==============================================================
+  // ============================================================
 
   Future<Obra> aprovar(
       String id,
@@ -137,12 +232,26 @@ class ObrasPendentesRepository {
       );
     }
 
+    // ==========================================================
+    // OBTER HASH DA OBRA PENDENTE
+    // ==========================================================
+
+    final respostaHash =
+    await _supabase
+        .from('obras_pendentes')
+        .select('hash_pdf')
+        .eq('id', id)
+        .maybeSingle();
+
+    final hashPdf =
+    respostaHash?['hash_pdf']?.toString();
+
+    // ==========================================================
+    // COPIAR PDF
+    // ==========================================================
+
     final caminhoPdfPendente =
         pendente.urlDocumento;
-
-    // ============================================================
-    // COPIAR PDF PARA O BUCKET DE OBRAS PUBLICADAS
-    // ============================================================
 
     final caminhoPdfPublicado =
     await _storage
@@ -162,9 +271,9 @@ class ObrasPendentesRepository {
       caminhoPdfPublicado,
     );
 
-    // ============================================================
-    // COPIAR CAPA, SE EXISTIR
-    // ============================================================
+    // ==========================================================
+    // COPIAR CAPA
+    // ==========================================================
 
     String? urlCapaPublica;
 
@@ -194,9 +303,9 @@ class ObrasPendentesRepository {
           );
     }
 
-    // ============================================================
+    // ==========================================================
     // CRIAR OBRA PUBLICADA
-    // ============================================================
+    // ==========================================================
 
     final dadosObra =
     <String, dynamic>{
@@ -225,7 +334,6 @@ class ObrasPendentesRepository {
       pendente.dataPublicacao
           .toIso8601String(),
 
-      // NOVO:
       'numero_paginas':
       pendente.numeroPaginas,
 
@@ -234,26 +342,30 @@ class ObrasPendentesRepository {
 
       'tamanho_arquivo_bytes':
       pendente.tamanhoArquivoBytes,
+
+      'hash_pdf':
+      hashPdf,
     };
 
-    final resposta = await _supabase
+    final resposta =
+    await _supabase
         .from('obras')
         .insert(dadosObra)
         .select(_campos)
         .single();
 
-    // ============================================================
-    // REMOVER REGISTRO PENDENTE
-    // ============================================================
+    // ==========================================================
+    // REMOVER REGISTO PENDENTE
+    // ==========================================================
 
     await _supabase
         .from('obras_pendentes')
         .delete()
         .eq('id', id);
 
-    // ============================================================
+    // ==========================================================
     // REMOVER PDF PENDENTE
-    // ============================================================
+    // ==========================================================
 
     try {
       await _storage
@@ -262,9 +374,9 @@ class ObrasPendentesRepository {
       );
     } catch (_) {}
 
-    // ============================================================
+    // ==========================================================
     // REMOVER CAPA PENDENTE
-    // ============================================================
+    // ==========================================================
 
     if (pendente.urlCapa != null &&
         pendente.urlCapa!
@@ -285,9 +397,9 @@ class ObrasPendentesRepository {
     );
   }
 
-  // ==============================================================
+  // ============================================================
   // REJEITAR
-  // ==============================================================
+  // ============================================================
 
   Future<void> rejeitar(
       String id,
@@ -336,21 +448,20 @@ class ObrasPendentesRepository {
     await rejeitar(id);
   }
 
-  // ==============================================================
-  // OBTER NOME DO ARQUIVO
-  // ==============================================================
-
   String _nomeArquivo(
       String caminho,
       ) {
+    final caminhoLimpo =
+    caminho.trim();
+
     final indice =
-    caminho.lastIndexOf('/');
+    caminhoLimpo.lastIndexOf('/');
 
     if (indice == -1) {
-      return caminho;
+      return caminhoLimpo;
     }
 
-    return caminho.substring(
+    return caminhoLimpo.substring(
       indice + 1,
     );
   }
