@@ -7,10 +7,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/historico_obra.dart';
 import '../models/obra.dart';
+import '../models/obra_pendente.dart';
 import '../repositories/comentarios_repository.dart';
+import '../repositories/obras_pendentes_repository.dart';
 import '../repositories/obras_repository.dart';
 import '../repositories/solicitacoes_remocao_repository.dart';
+import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
+import '../widgets/avatar_utilizador.dart';
+import '../widgets/obra_lista_item.dart';
 
 class MinhaContaPage extends StatefulWidget {
   const MinhaContaPage({super.key});
@@ -22,8 +27,13 @@ class MinhaContaPage extends StatefulWidget {
 class _MinhaContaPageState extends State<MinhaContaPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  final AuthService _authService = AuthService.instancia;
+
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
+
+  final ObrasPendentesRepository _obrasPendentesRepository =
+      ObrasPendentesRepository.instancia;
 
   final ComentariosRepository _comentariosRepository =
       ComentariosRepository.instancia;
@@ -38,6 +48,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
   List<Map<String, dynamic>> _minhasObras = [];
 
+  List<ObraPendente> _minhasObrasPendentes = [];
+
   List<Map<String, dynamic>> _comentarios = [];
 
   List<Map<String, dynamic>> _solicitacoes = [];
@@ -48,18 +60,105 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
   String? _erro;
 
+  bool _ehAdmin = false;
+
+  bool _carregandoPerfil = true;
+
+  StreamSubscription<AuthState>? _authSubscription;
+
   @override
   void initState() {
     super.initState();
+
+    _authSubscription = _authService.eventosAuth.listen(
+      _tratarAlteracaoAutenticacao,
+    );
+
     _carregarDados();
+
+    _verificarAdministrador();
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _tratarAlteracaoAutenticacao(
+      AuthState estado,
+      ) {
+    if (!mounted) return;
+
+    final autenticado = estado.session != null;
+
+    setState(() {
+      if (!autenticado) {
+        _ehAdmin = false;
+        _carregandoPerfil = false;
+      } else {
+        _carregandoPerfil = true;
+      }
+    });
+
+    if (autenticado) {
+      _verificarAdministrador();
+      _carregarDados();
+    }
+  }
+
+  Future<void> _verificarAdministrador() async {
+    final usuario = _supabase.auth.currentUser;
+
+    if (usuario == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _ehAdmin = false;
+        _carregandoPerfil = false;
+      });
+
+      return;
+    }
+
+    try {
+      final ehAdmin = await _authService.ehAdmin();
+
+      if (!mounted) return;
+
+      setState(() {
+        _ehAdmin = ehAdmin;
+        _carregandoPerfil = false;
+      });
+    } catch (e) {
+      debugPrint(
+        'MINHA CONTA: erro ao verificar administrador: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _ehAdmin = false;
+        _carregandoPerfil = false;
+      });
+    }
   }
 
   Future<void> _carregarDados() async {
+    if (mounted) {
+      setState(() {
+        _carregando = true;
+        _erro = null;
+      });
+    }
+
     try {
       final usuario = _supabase.auth.currentUser;
 
       if (usuario == null) {
-        throw Exception('Utilizador não autenticado.');
+        throw Exception(
+          'Utilizador não autenticado.',
+        );
       }
 
       final perfilResponse = await _supabase
@@ -70,6 +169,17 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       final minhasObras =
       await _obterMinhasObras(usuario.id);
+
+      List<ObraPendente> minhasObrasPendentes = [];
+
+      try {
+        minhasObrasPendentes =
+        await _obrasPendentesRepository.carregarDoUsuario(
+          usuario.id,
+        );
+      } catch (_) {
+        minhasObrasPendentes = [];
+      }
 
       List<Map<String, dynamic>> comentarios = [];
 
@@ -87,8 +197,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       try {
         solicitacoes =
-        await _solicitacoesRepository
-            .obterMinhasSolicitacoes();
+        await _solicitacoesRepository.obterMinhasSolicitacoes();
       } catch (_) {
         solicitacoes = [];
       }
@@ -97,8 +206,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       try {
         historico =
-        await _historicoService
-            .obterConsultasRecentes(limite: 5);
+        await _historicoService.obterConsultasRecentes(
+          limite: 5,
+        );
       } catch (_) {
         historico = [];
       }
@@ -108,18 +218,18 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       setState(() {
         _perfil = perfilResponse;
         _minhasObras = minhasObras;
+        _minhasObrasPendentes = minhasObrasPendentes;
         _comentarios = comentarios;
         _solicitacoes = solicitacoes;
         _historico = historico;
         _carregando = false;
-        _erro = null;
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        _carregando = false;
         _erro = e.toString();
+        _carregando = false;
       });
     }
   }
@@ -131,64 +241,61 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         .from('obras')
         .select()
         .eq('user_id', userId)
-        .order('created_at', ascending: false);
+        .order(
+      'created_at',
+      ascending: false,
+    );
 
-    return List<Map<String, dynamic>>.from(response);
+    return List<Map<String, dynamic>>.from(
+      response,
+    );
   }
 
-  Future<void> _abrirDetalhesObra(Obra obra) async {
+  Future<void> _abrirDetalhesObra(
+      Obra obra,
+      ) async {
     await showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(obra.titulo),
+          title: Text(
+            obra.titulo,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
           content: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (obra.autor.trim().isNotEmpty) ...[
-                  const Text(
-                    'Autor',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(obra.autor),
-                  const SizedBox(height: 16),
-                ],
-                if (obra.categoria.trim().isNotEmpty) ...[
-                  const Text(
-                    'Categoria',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(obra.categoria),
-                  const SizedBox(height: 16),
-                ],
-                if (obra.anoObra != null) ...[
-                  const Text(
+                _linhaDetalhe(
+                  'Autor',
+                  obra.autor,
+                ),
+                _linhaDetalhe(
+                  'Categoria',
+                  obra.categoria,
+                ),
+                if (obra.anoObra != null)
+                  _linhaDetalhe(
                     'Ano',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    obra.anoObra.toString(),
                   ),
-                  const SizedBox(height: 4),
-                  Text(obra.anoObra.toString()),
-                  const SizedBox(height: 16),
-                ],
+                _linhaDetalhe(
+                  'Estado',
+                  'Publicada',
+                ),
                 if (obra.descricao != null &&
                     obra.descricao!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
                   const Text(
                     'Descrição',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(obra.descricao!),
                 ],
               ],
@@ -196,57 +303,181 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () =>
+                  Navigator.of(context).pop(),
               child: const Text('Fechar'),
             ),
-            if (obra.urlDocumento.trim().isNotEmpty)
-              FilledButton.icon(
-                onPressed: () async {
-                  final url =
-                  Uri.tryParse(obra.urlDocumento);
+            FilledButton.icon(
+              onPressed: () async {
+                final url = Uri.tryParse(
+                  obra.urlDocumento,
+                );
 
-                  if (url == null) return;
+                if (url == null) {
+                  return;
+                }
 
-                  final aberto = await launchUrl(
-                    url,
-                    webOnlyWindowName: '_blank',
-                  );
-
-                  if (!aberto && context.mounted) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Não foi possível abrir o documento.',
-                        ),
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Abrir obra'),
+                await launchUrl(
+                  url,
+                  webOnlyWindowName: '_blank',
+                );
+              },
+              icon: const Icon(
+                Icons.open_in_new,
               ),
+              label: const Text(
+                'Abrir obra',
+              ),
+            ),
           ],
         );
       },
     );
   }
 
-  Future<void> _solicitarRemocao(Obra obra) async {
-    final controlador = TextEditingController();
+  Future<void> _abrirDetalhesObraPendente(
+      ObraPendente obra,
+      ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            obra.titulo,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _linhaDetalhe(
+                  'Autor',
+                  obra.autor,
+                ),
+                _linhaDetalhe(
+                  'Categoria',
+                  obra.categoria,
+                ),
+                if (obra.anoObra != null)
+                  _linhaDetalhe(
+                    'Ano',
+                    obra.anoObra.toString(),
+                  ),
+                _linhaDetalhe(
+                  'Estado',
+                  'Pendente',
+                ),
+                if (obra.descricao != null &&
+                    obra.descricao!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Descrição',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(obra.descricao!),
+                ],
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(
+                      alpha: 0.08,
+                    ),
+                    borderRadius:
+                    BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.orange.withValues(
+                        alpha: 0.25,
+                      ),
+                    ),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.hourglass_empty,
+                        size: 20,
+                        color: Colors.orange,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Esta obra está pendente de análise e aprovação. '
+                              'Ela será disponibilizada no acervo após a aprovação.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(),
+              child: const Text('Fechar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _linhaDetalhe(
+      String titulo,
+      String valor,
+      ) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 8,
+      ),
+      child: RichText(
+        text: TextSpan(
+          style:
+          DefaultTextStyle.of(context).style,
+          children: [
+            TextSpan(
+              text: '$titulo: ',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextSpan(text: valor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _solicitarRemocao(
+      Obra obra,
+      ) async {
+    final controller = TextEditingController();
 
     final motivo = await showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Solicitar remoção'),
+          title: const Text(
+            'Solicitar remoção',
+          ),
           content: TextField(
-            controller: controlador,
+            controller: controller,
             maxLines: 4,
-            decoration: const InputDecoration(
+            decoration:
+            const InputDecoration(
               labelText: 'Motivo',
               hintText:
-              'Explique o motivo da solicitação...',
+              'Indique o motivo da solicitação...',
               border: OutlineInputBorder(),
             ),
           ),
@@ -254,29 +485,35 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             TextButton(
               onPressed: () =>
                   Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
+              child: const Text(
+                'Cancelar',
+              ),
             ),
             FilledButton(
               onPressed: () {
                 final texto =
-                controlador.text.trim();
+                controller.text.trim();
 
                 if (texto.isEmpty) {
                   return;
                 }
 
-                Navigator.of(context).pop(texto);
+                Navigator.of(context)
+                    .pop(texto);
               },
-              child: const Text('Enviar'),
+              child: const Text(
+                'Enviar',
+              ),
             ),
           ],
         );
       },
     );
 
-    controlador.dispose();
+    controller.dispose();
 
-    if (motivo == null || motivo.trim().isEmpty) {
+    if (motivo == null ||
+        motivo.trim().isEmpty) {
       return;
     }
 
@@ -288,7 +525,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Solicitação de remoção enviada com sucesso.',
@@ -300,10 +538,11 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
-            'Erro ao enviar solicitação: $e',
+            'Não foi possível enviar a solicitação: $e',
           ),
         ),
       );
@@ -311,27 +550,29 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   }
 
   Future<void> _abrirHistorico() async {
-    await context.push('/historico-obras');
+    await context.push(
+      '/historico-obras',
+    );
+
+    if (mounted) {
+      await _carregarHistorico();
+    }
   }
 
   Future<void> _carregarHistorico() async {
     try {
       final historico =
       await _historicoService
-          .obterConsultasRecentes(limite: 5);
+          .obterConsultasRecentes(
+        limite: 5,
+      );
 
       if (!mounted) return;
 
       setState(() {
         _historico = historico;
       });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _historico = [];
-      });
-    }
+    } catch (_) {}
   }
 
   String _formatarData(dynamic valor) {
@@ -340,14 +581,19 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     try {
-      final data =
-      DateTime.parse(valor.toString()).toLocal();
+      final data = valor is DateTime
+          ? valor
+          : DateTime.parse(
+        valor.toString(),
+      );
 
-      final dia =
-      data.day.toString().padLeft(2, '0');
+      final dia = data.day
+          .toString()
+          .padLeft(2, '0');
 
-      final mes =
-      data.month.toString().padLeft(2, '0');
+      final mes = data.month
+          .toString()
+          .padLeft(2, '0');
 
       final ano = data.year.toString();
 
@@ -360,82 +606,122 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   Widget _tituloSecao(
       String titulo, {
         IconData? icone,
-        Widget? trailing,
+        VoidCallback? onVerTodos,
       }) {
-    return Row(
-      children: [
-        if (icone != null) ...[
-          Icon(
-            icone,
-            size: 22,
-          ),
-          const SizedBox(width: 8),
-        ],
-        Expanded(
-          child: Text(
-            titulo,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 24,
+        bottom: 12,
+      ),
+      child: Row(
+        children: [
+          if (icone != null) ...[
+            Icon(
+              icone,
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: Text(
+              titulo,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-        if (trailing != null) trailing,
-      ],
+          if (onVerTodos != null)
+            TextButton(
+              onPressed: onVerTodos,
+              child: const Text(
+                'Ver todos',
+              ),
+            ),
+        ],
+      ),
     );
   }
 
   Widget _cartaoPerfil() {
     final nome =
-    (_perfil?['nome'] ??
-        _perfil?['name'] ??
-        'Utilizador')
-        .toString();
+    (_perfil?['nome'] ?? '')
+        .toString()
+        .trim();
 
     final email =
     (_perfil?['email'] ??
-        _supabase.auth.currentUser?.email ??
+        _supabase
+            .auth
+            .currentUser
+            ?.email ??
         '')
+        .toString()
+        .trim();
+
+    final role =
+    (_perfil?['role'] ?? 'user')
         .toString();
 
+    final nomeExibicao =
+    nome.isNotEmpty
+        ? nome
+        : 'Utilizador';
+
     return Card(
-      elevation: 0,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding:
+        const EdgeInsets.all(18),
         child: Row(
           children: [
-            CircleAvatar(
+            AvatarUtilizador(
               radius: 30,
-              child: Text(
-                nome.isNotEmpty
-                    ? nome[0].toUpperCase()
-                    : 'U',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              perfil: _perfil,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment:
                 CrossAxisAlignment.start,
                 children: [
                   Text(
-                    nome,
+                    nomeExibicao,
                     style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      fontWeight:
+                      FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    email,
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
+                  if (email.isNotEmpty)
+                    Padding(
+                      padding:
+                      const EdgeInsets.only(
+                        top: 3,
+                      ),
+                      child: Text(
+                        email,
+                        overflow:
+                        TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
+                  if (role.isNotEmpty)
+                    Padding(
+                      padding:
+                      const EdgeInsets.only(
+                        top: 5,
+                      ),
+                      child: Text(
+                        role == 'admin'
+                            ? 'Administrador'
+                            : 'Utilizador',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors
+                              .grey
+                              .shade700,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -445,86 +731,191 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
+  // ===============================================================
+  // OBRAS PUBLICADAS
+  // ===============================================================
+
+  Widget _cartaoObraPublicada(
+      Map<String, dynamic> dados,
+      ) {
+    final obra =
+    Obra.fromMap(dados);
+
+    final mobile =
+        MediaQuery.sizeOf(context).width <
+            600;
+
+    return ObraListaItem(
+      obra: obra,
+      mobile: mobile,
+      onTap: () =>
+          _abrirDetalhesObra(obra),
+    );
+  }
+
+  Widget _cartaoObraPendente(
+      ObraPendente obra,
+      ) {
+    return Card(
+      margin:
+      const EdgeInsets.only(
+        bottom: 10,
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor:
+          Colors.orange.withValues(
+            alpha: 0.12,
+          ),
+          child: const Icon(
+            Icons.hourglass_empty,
+            color: Colors.orange,
+          ),
+        ),
+        title: Text(
+          obra.titulo,
+          maxLines: 2,
+          overflow:
+          TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
+          children: [
+            if (obra.autor.isNotEmpty)
+              Text(obra.autor),
+            if (obra.categoria.isNotEmpty)
+              Text(obra.categoria),
+            Text(
+              'Submetida em '
+                  '${_formatarData(obra.dataPublicacao)}',
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize:
+              MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.hourglass_empty,
+                  size: 16,
+                  color:
+                  Colors.orange.shade700,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Pendente',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                    FontWeight.w600,
+                    color:
+                    Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        isThreeLine: true,
+        trailing: IconButton(
+          tooltip: 'Ver detalhes',
+          icon: const Icon(
+            Icons.more_vert,
+          ),
+          onPressed: () {
+            _abrirDetalhesObraPendente(
+              obra,
+            );
+          },
+        ),
+        onTap: () =>
+            _abrirDetalhesObraPendente(
+              obra,
+            ),
+      ),
+    );
+  }
+
   Widget _listaObras() {
-    if (_minhasObras.isEmpty) {
+    if (_minhasObras.isEmpty &&
+        _minhasObrasPendentes.isEmpty) {
       return _caixaVazia(
-        'Ainda não publicou nenhuma obra.',
+        'Ainda não publicou nem submeteu nenhuma obra.',
         Icons.library_books_outlined,
       );
     }
 
     return Column(
-      children: _minhasObras.map((dados) {
-        final titulo =
-        (dados['titulo'] ?? 'Sem título')
-            .toString();
-
-        final autor =
-        (dados['autor'] ?? '').toString();
-
-        final categoria =
-        (dados['categoria'] ?? '').toString();
-
-        final dataPublicacao =
-        dados['data_publicacao'];
-
-        final obra = Obra.fromMap(dados);
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(
-                Icons.description_outlined,
-              ),
+      children: [
+        if (_minhasObrasPendentes
+            .isNotEmpty) ...[
+          Padding(
+            padding:
+            const EdgeInsets.only(
+              bottom: 8,
             ),
-            title: Text(
-              titulo,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
+            child: Row(
               children: [
-                if (autor.isNotEmpty)
-                  Text(autor),
-                if (categoria.isNotEmpty)
-                  Text(categoria),
-                if (dataPublicacao != null)
-                  Text(
-                    'Publicada em '
-                        '${_formatarData(dataPublicacao)}',
-                  ),
-              ],
-            ),
-            isThreeLine: true,
-            trailing: PopupMenuButton<String>(
-              onSelected: (valor) {
-                if (valor == 'abrir') {
-                  _abrirDetalhesObra(obra);
-                } else if (valor == 'remover') {
-                  _solicitarRemocao(obra);
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'abrir',
-                  child: Text('Ver detalhes'),
+                const Icon(
+                  Icons
+                      .pending_actions_outlined,
+                  size: 19,
                 ),
-                PopupMenuItem(
-                  value: 'remover',
-                  child: Text(
-                    'Solicitar remoção',
+                const SizedBox(width: 7),
+                Text(
+                  'Pendentes',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight:
+                    FontWeight.w600,
+                    color: Colors
+                        .grey
+                        .shade800,
                   ),
                 ),
               ],
             ),
-            onTap: () =>
-                _abrirDetalhesObra(obra),
           ),
-        );
-      }).toList(),
+          ..._minhasObrasPendentes
+              .map(_cartaoObraPendente),
+        ],
+        if (_minhasObras.isNotEmpty &&
+            _minhasObrasPendentes
+                .isNotEmpty)
+          const SizedBox(height: 10),
+        if (_minhasObras.isNotEmpty) ...[
+          Padding(
+            padding:
+            const EdgeInsets.only(
+              top: 4,
+              bottom: 8,
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons
+                      .library_books_outlined,
+                  size: 19,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'Publicadas',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight:
+                    FontWeight.w600,
+                    color: Colors
+                        .grey
+                        .shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ..._minhasObras
+              .map(_cartaoObraPublicada),
+        ],
+      ],
     );
   }
 
@@ -537,120 +928,91 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Column(
-      children: _comentarios.map((dados) {
-        final comentario =
-        (dados['comentario'] ?? '').toString();
-
-        final data =
-        dados['created_at'];
-
+      children:
+      _comentarios.map((comentario) {
         final obraDados =
-        dados['obras'] is Map
+        comentario['obras'];
+
+        final obra =
+        obraDados is Map
             ? Map<String, dynamic>.from(
-          dados['obras'] as Map,
+          obraDados,
         )
             : <String, dynamic>{};
 
-        final tituloObra =
-        (obraDados['titulo'] ?? 'Obra')
+        final titulo =
+        (obra['titulo'] ??
+            'Obra')
             .toString();
 
         final obraId =
-        (dados['obra_id'] ?? '').toString();
+        (comentario['obra_id'] ??
+            '')
+            .toString();
+
+        final comentarioTexto =
+        (comentario['comentario'] ??
+            comentario['texto'] ??
+            '')
+            .toString();
+
+        final data =
+        comentario['created_at'];
 
         return Card(
           margin:
-          const EdgeInsets.only(bottom: 10),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () async {
-              if (obraId.isEmpty) return;
-
+          const EdgeInsets.only(
+            bottom: 10,
+          ),
+          child: ListTile(
+            leading:
+            const CircleAvatar(
+              child: Icon(
+                Icons.comment_outlined,
+              ),
+            ),
+            title: Text(
+              titulo,
+              maxLines: 2,
+              overflow:
+              TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
+              children: [
+                if (comentarioTexto
+                    .isNotEmpty)
+                  Text(
+                    comentarioTexto,
+                    maxLines: 3,
+                    overflow:
+                    TextOverflow.ellipsis,
+                  ),
+                if (data != null)
+                  Text(
+                    _formatarData(data),
+                  ),
+              ],
+            ),
+            onTap: obraId.isEmpty
+                ? null
+                : () async {
               try {
                 final obra =
                 await _obrasRepository
-                    .carregarPorId(obraId);
-
-                if (obra == null || !mounted) {
-                  return;
-                }
-
-                await _abrirDetalhesObra(obra);
-              } catch (e) {
-                if (!mounted) return;
-
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Não foi possível abrir a obra: $e',
-                    ),
-                  ),
+                    .carregarPorId(
+                  obraId,
                 );
-              }
+
+                if (obra != null &&
+                    mounted) {
+                  await _abrirDetalhesObra(
+                    obra,
+                  );
+                }
+              } catch (_) {}
             },
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                    children: [
-                      const CircleAvatar(
-                        child: Icon(
-                          Icons.comment_outlined,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              tituloObra,
-                              maxLines: 2,
-                              overflow:
-                              TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight:
-                                FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            if (data != null)
-                              Text(
-                                _formatarData(data),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors
-                                      .grey
-                                      .shade600,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 22,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    comentario,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         );
       }).toList(),
@@ -666,60 +1028,30 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     }
 
     return Column(
-      children: _historico.map((item) {
+      children:
+      _historico.map((item) {
         return Card(
           margin:
-          const EdgeInsets.only(bottom: 10),
+          const EdgeInsets.only(
+            bottom: 10,
+          ),
           child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.history),
+            leading:
+            const CircleAvatar(
+              child: Icon(
+                Icons.history,
+              ),
             ),
             title: Text(
               item.titulo,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              overflow:
+              TextOverflow.ellipsis,
             ),
-            subtitle:
-            item.dataConsulta != null
-                ? Text(
+            subtitle: Text(
               'Consultada em '
                   '${_formatarData(item.dataConsulta)}',
-            )
-                : null,
-            trailing: const Icon(
-              Icons.chevron_right,
             ),
-            onTap: () async {
-              final obraId = item.obraId;
-
-              if (obraId == null ||
-                  obraId.isEmpty) {
-                return;
-              }
-
-              try {
-                final obra =
-                await _obrasRepository
-                    .carregarPorId(obraId);
-
-                if (obra == null || !mounted) {
-                  return;
-                }
-
-                await _abrirDetalhesObra(obra);
-              } catch (e) {
-                if (!mounted) return;
-
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Não foi possível abrir a obra: $e',
-                    ),
-                  ),
-                );
-              }
-            },
           ),
         );
       }).toList(),
@@ -729,7 +1061,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   Widget _listaSolicitacoes() {
     if (_solicitacoes.isEmpty) {
       return _caixaVazia(
-        'Não existem solicitações de remoção.',
+        'Ainda não existem solicitações de remoção.',
         Icons.delete_outline,
       );
     }
@@ -743,63 +1075,106 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
             .toString();
 
         final motivo =
-        (solicitacao['motivo'] ?? '')
+        (solicitacao['motivo'] ??
+            '')
             .toString();
 
+        final obraDados =
+        solicitacao['obras'];
+
+        final obra =
+        obraDados is Map
+            ? Map<String, dynamic>.from(
+          obraDados,
+        )
+            : <String, dynamic>{};
+
         final titulo =
-        (solicitacao['obra_titulo'] ??
-            solicitacao['titulo'] ??
+        (obra['titulo'] ??
             'Obra')
             .toString();
 
-        final statusFormatado =
-        status.isEmpty
-            ? 'Pendente'
-            : '${status[0].toUpperCase()}'
-            '${status.substring(1)}';
+        IconData icone;
+
+        if (status == 'aprovada') {
+          icone =
+              Icons.check_circle_outline;
+        } else if (status ==
+            'rejeitada') {
+          icone =
+              Icons.cancel_outlined;
+        } else {
+          icone =
+              Icons.hourglass_empty;
+        }
 
         return Card(
           margin:
-          const EdgeInsets.only(bottom: 10),
+          const EdgeInsets.only(
+            bottom: 10,
+          ),
           child: ListTile(
-            leading: Icon(
-              status == 'aprovada'
-                  ? Icons.check_circle_outline
-                  : status == 'rejeitada'
-                  ? Icons.cancel_outlined
-                  : Icons.hourglass_empty,
+            leading: CircleAvatar(
+              child: Icon(icone),
             ),
             title: Text(
               titulo,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              overflow:
+              TextOverflow.ellipsis,
             ),
             subtitle: Column(
               crossAxisAlignment:
               CrossAxisAlignment.start,
               children: [
-                if (motivo.isNotEmpty)
-                  Text(motivo),
-                const SizedBox(height: 4),
                 Text(
-                  'Estado: $statusFormatado',
+                  'Estado: '
+                      '${_formatarStatusSolicitacao(status)}',
                 ),
+                if (motivo.isNotEmpty)
+                  Text(
+                    'Motivo: $motivo',
+                    maxLines: 2,
+                    overflow:
+                    TextOverflow.ellipsis,
+                  ),
               ],
             ),
-            isThreeLine: true,
           ),
         );
       }).toList(),
     );
   }
 
+  String _formatarStatusSolicitacao(
+      String status,
+      ) {
+    switch (status) {
+      case 'aprovada':
+        return 'Aprovada';
+
+      case 'rejeitada':
+        return 'Rejeitada';
+
+      case 'pendente':
+        return 'Pendente';
+
+      default:
+        return status;
+    }
+  }
+
   Widget _caixaVazia(
-      String texto,
+      String mensagem,
       IconData icone,
       ) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding:
+      const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 28,
+      ),
       decoration: BoxDecoration(
         border: Border.all(
           color: Colors.grey.shade300,
@@ -811,15 +1186,16 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         children: [
           Icon(
             icone,
-            size: 40,
+            size: 38,
             color: Colors.grey.shade500,
           ),
           const SizedBox(height: 10),
           Text(
-            texto,
+            mensagem,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.grey.shade700,
+              color:
+              Colors.grey.shade700,
             ),
           ),
         ],
@@ -827,138 +1203,547 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     );
   }
 
-  Widget _conteudo() {
-    return RefreshIndicator(
-      onRefresh: () async {
-        await _carregarDados();
-        await _carregarHistorico();
-      },
-      child: ListView(
-        padding: const EdgeInsets.all(20),
+  // ===============================================================
+  // APP BAR — IGUAL À HOME
+  // ===============================================================
+
+  PreferredSizeWidget _buildAppBar() {
+    final usuario =
+        _supabase.auth.currentUser;
+
+    final estaAutenticado =
+        usuario != null;
+
+    return AppBar(
+      backgroundColor:
+      const Color(0xFFEAF4FF),
+      elevation: 0,
+      surfaceTintColor:
+      const Color(0xFFEAF4FF),
+      automaticallyImplyLeading: false,
+      toolbarHeight: 60,
+      titleSpacing: 28,
+      bottom: const PreferredSize(
+        preferredSize:
+        Size.fromHeight(1),
+        child: Divider(
+          height: 1,
+          thickness: 1,
+          color: Color(0xFFD5E5F5),
+        ),
+      ),
+      title: Row(
+        mainAxisSize:
+        MainAxisSize.min,
         children: [
-          _cartaoPerfil(),
-
-          const SizedBox(height: 24),
-
-          _tituloSecao(
-            'Minhas publicações',
-            icone:
-            Icons.library_books_outlined,
-          ),
-
-          const SizedBox(height: 12),
-
-          _listaObras(),
-
-          const SizedBox(height: 28),
-
-          _tituloSecao(
-            'Comentários',
-            icone: Icons.comment_outlined,
-          ),
-
-          const SizedBox(height: 12),
-
-          _listaComentarios(),
-
-          const SizedBox(height: 28),
-
-          _tituloSecao(
-            'Solicitações de remoção',
-            icone: Icons.delete_outline,
-          ),
-
-          const SizedBox(height: 12),
-
-          _listaSolicitacoes(),
-
-          const SizedBox(height: 28),
-
-          _tituloSecao(
-            'Histórico',
-            icone: Icons.history,
-            trailing: TextButton(
-              onPressed: _abrirHistorico,
-              child: const Text('Ver tudo'),
+          GestureDetector(
+            onTap: () =>
+                context.go('/'),
+            child: const Text(
+              'Obra Livre',
+              style: TextStyle(
+                color:
+                Color(0xFF1F1F1F),
+                fontSize: 21,
+                fontWeight:
+                FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(width: 28),
 
-          _listaHistorico(),
+          _buildNavButton(
+            label: 'Plataforma',
+            onPressed: () {
+              context.go(
+                '/plataforma',
+              );
+            },
+          ),
 
-          const SizedBox(height: 28),
+          if (!estaAutenticado) ...[
+            const SizedBox(width: 2),
 
+            _buildNavButton(
+              label: 'Acervo',
+              onPressed: () {
+                context.go('/acervo');
+              },
+            ),
+          ],
+
+          if (estaAutenticado &&
+              !_ehAdmin) ...[
+            const SizedBox(width: 2),
+
+            _buildNavButton(
+              label: 'Acervo',
+              onPressed: () {
+                context.go('/acervo');
+              },
+            ),
+
+            const SizedBox(width: 2),
+
+            _buildNavButton(
+              label: 'Publicar',
+              onPressed: () {
+                context.go('/publicar');
+              },
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        if (estaAutenticado) ...[
+          const SizedBox(width: 12),
+
+          Padding(
+            padding:
+            const EdgeInsets.only(
+              right: 24,
+            ),
+            child:
+            PopupMenuButton<String>(
+              tooltip: 'Conta',
+              offset:
+              const Offset(0, 50),
+              elevation: 4,
+              shape:
+              RoundedRectangleBorder(
+                borderRadius:
+                BorderRadius.circular(
+                  10,
+                ),
+              ),
+              onSelected:
+                  (value) async {
+                switch (value) {
+                  case 'conta':
+                    _abrirConta();
+                    break;
+
+                  case 'configuracoes':
+                    context.go(
+                      '/minha-conta',
+                    );
+                    break;
+
+                  case 'sair':
+                    try {
+                      await _authService
+                          .sair();
+
+                      if (!mounted) return;
+
+                      context.go('/login');
+                    } catch (e) {
+                      debugPrint(
+                        'MINHA CONTA: erro ao sair: $e',
+                      );
+
+                      if (!mounted) return;
+
+                      _mostrarMensagem(
+                        'Não foi possível terminar a sessão.',
+                      );
+                    }
+
+                    break;
+                }
+              },
+              itemBuilder:
+                  (context) => [
+                PopupMenuItem<String>(
+                  value: 'conta',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons
+                            .person_outline,
+                        size: 19,
+                      ),
+                      const SizedBox(
+                        width: 10,
+                      ),
+                      Text(
+                        _ehAdmin
+                            ? 'Administração'
+                            : 'Minha conta',
+                        style:
+                        const TextStyle(
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const PopupMenuItem<String>(
+                  value:
+                  'configuracoes',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons
+                            .settings_outlined,
+                        size: 19,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Text(
+                        'Configurações',
+                        style:
+                        TextStyle(
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const PopupMenuDivider(),
+
+                const PopupMenuItem<String>(
+                  value: 'sair',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.logout,
+                        size: 19,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Text(
+                        'Sair',
+                        style:
+                        TextStyle(
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              child:
+              const AvatarUtilizador(
+                radius: 20,
+              ),
+            ),
+          ),
+        ] else ...[
           SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                await _supabase.auth.signOut();
-
-                if (!mounted) return;
-
+            height: 38,
+            child: TextButton(
+              onPressed: () {
                 context.go('/login');
               },
-              icon: const Icon(Icons.logout),
-              label: const Text('Sair'),
+              style:
+              TextButton.styleFrom(
+                backgroundColor:
+                const Color(
+                  0xFF222222,
+                ),
+                foregroundColor:
+                Colors.white,
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal: 18,
+                ),
+                shape:
+                RoundedRectangleBorder(
+                  borderRadius:
+                  BorderRadius.circular(
+                    8,
+                  ),
+                ),
+              ),
+              child: const Text(
+                'Entrar',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight:
+                  FontWeight.w600,
+                ),
+              ),
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(width: 8),
+
+          Padding(
+            padding:
+            const EdgeInsets.only(
+              right: 24,
+            ),
+            child: SizedBox(
+              height: 38,
+              child: TextButton(
+                onPressed: () {
+                  context.go(
+                    '/cadastro',
+                  );
+                },
+                style:
+                TextButton.styleFrom(
+                  backgroundColor:
+                  const Color(
+                    0xFFF7F7F7,
+                  ),
+                  foregroundColor:
+                  const Color(
+                    0xFF222222,
+                  ),
+                  padding:
+                  const EdgeInsets.symmetric(
+                    horizontal: 18,
+                  ),
+                  side:
+                  const BorderSide(
+                    color: Color(
+                      0xFFD8D8D8,
+                    ),
+                    width: 1,
+                  ),
+                  shape:
+                  RoundedRectangleBorder(
+                    borderRadius:
+                    BorderRadius.circular(
+                      8,
+                    ),
+                  ),
+                ),
+                child: const Text(
+                  'Criar conta',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight:
+                    FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildNavButton({
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return TextButton(
+      onPressed: onPressed,
+      style:
+      TextButton.styleFrom(
+        foregroundColor:
+        const Color(0xFF444444),
+        padding:
+        const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 8,
+        ),
+        shape:
+        RoundedRectangleBorder(
+          borderRadius:
+          BorderRadius.circular(7),
+        ),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight:
+          FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  void _abrirConta() {
+    if (_ehAdmin) {
+      context.go('/admin-obras');
+    } else {
+      context.go('/minha-conta');
+    }
+  }
+
+  void _mostrarMensagem(
+      String mensagem,
+      ) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          behavior:
+          SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  // ===============================================================
+  // CONTEÚDO
+  //
+  // IGUAL À HOME:
+  // maxWidth = 1100
+  // padding horizontal = 24
+  // ===============================================================
+
+  Widget _conteudo() {
+    return Center(
+      child: ConstrainedBox(
+        constraints:
+        const BoxConstraints(
+          maxWidth: 1100,
+        ),
+        child: Padding(
+          padding:
+          const EdgeInsets.fromLTRB(
+            24,
+            20,
+            24,
+            40,
+          ),
+          child: Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              _cartaoPerfil(),
+
+              _tituloSecao(
+                'Minhas publicações',
+                icone: Icons
+                    .library_books_outlined,
+              ),
+
+              _listaObras(),
+
+              _tituloSecao(
+                'Comentários',
+                icone:
+                Icons.comment_outlined,
+              ),
+
+              _listaComentarios(),
+
+              _tituloSecao(
+                'Solicitações de remoção',
+                icone:
+                Icons.delete_outline,
+              ),
+
+              _listaSolicitacoes(),
+
+              _tituloSecao(
+                'Histórico recente',
+                icone: Icons.history,
+                onVerTodos:
+                _abrirHistorico,
+              ),
+
+              _listaHistorico(),
+
+              const SizedBox(
+                height: 30,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_carregando) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (_erro != null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Minha conta'),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+  Widget build(
+      BuildContext context,
+      ) {
+    return Scaffold(
+      backgroundColor:
+      const Color(0xFFFCFCFC),
+      appBar: _buildAppBar(),
+      body: _carregando
+          ? const Center(
+        child:
+        CircularProgressIndicator(),
+      )
+          : _erro != null
+          ? Center(
+        child: Padding(
+          padding:
+          const EdgeInsets.all(
+            24,
+          ),
+          child: Column(
+            mainAxisSize:
+            MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+              ),
+              const SizedBox(
+                height: 12,
+              ),
+              const Text(
+                'Não foi possível carregar os dados.',
+                textAlign:
+                TextAlign.center,
+                style:
+                TextStyle(
+                  fontSize: 18,
+                  fontWeight:
+                  FontWeight.bold,
+                ),
+              ),
+              const SizedBox(
+                height: 8,
+              ),
+              Text(
+                _erro!,
+                textAlign:
+                TextAlign.center,
+              ),
+              const SizedBox(
+                height: 18,
+              ),
+              FilledButton.icon(
+                onPressed:
+                _carregarDados,
+                icon:
                 const Icon(
-                  Icons.error_outline,
-                  size: 48,
+                  Icons.refresh,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  _erro!,
-                  textAlign: TextAlign.center,
+                label:
+                const Text(
+                  'Tentar novamente',
                 ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: _carregarDados,
-                  child: const Text(
-                    'Tentar novamente',
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Minha conta'),
+      )
+          : RefreshIndicator(
+        color:
+        const Color(0xFF333333),
+        backgroundColor:
+        Colors.white,
+        onRefresh:
+        _carregarDados,
+        child:
+        SingleChildScrollView(
+          physics:
+          const AlwaysScrollableScrollPhysics(),
+          child: _conteudo(),
+        ),
       ),
-      body: _conteudo(),
     );
   }
 }

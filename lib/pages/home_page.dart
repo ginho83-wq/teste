@@ -414,7 +414,6 @@ class _HomePageState extends State<HomePage> {
       automaticallyImplyLeading: false,
       toolbarHeight: 60,
       titleSpacing: 28,
-
       bottom: const PreferredSize(
         preferredSize:
         Size.fromHeight(1),
@@ -424,7 +423,6 @@ class _HomePageState extends State<HomePage> {
           color: Color(0xFFD5E5F5),
         ),
       ),
-
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -444,7 +442,6 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(width: 28),
 
-          // Plataforma
           _buildNavButton(
             label: 'Plataforma',
             onPressed: () {
@@ -452,8 +449,6 @@ class _HomePageState extends State<HomePage> {
             },
           ),
 
-          // Visitante:
-          // Acervo fica no lado esquerdo.
           if (!estaAutenticado) ...[
             const SizedBox(width: 2),
 
@@ -465,8 +460,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
 
-          // Utilizador normal:
-          // Acervo e Publicar ficam no lado esquerdo.
           if (estaAutenticado &&
               !_ehAdmin) ...[
             const SizedBox(width: 2),
@@ -508,11 +501,8 @@ class _HomePageState extends State<HomePage> {
               shape:
               RoundedRectangleBorder(
                 borderRadius:
-                BorderRadius.circular(
-                  10,
-                ),
+                BorderRadius.circular(10),
               ),
-
               onSelected:
                   (value) async {
                 switch (value) {
@@ -549,7 +539,6 @@ class _HomePageState extends State<HomePage> {
                     break;
                 }
               },
-
               itemBuilder:
                   (context) => [
                 PopupMenuItem<String>(
@@ -581,8 +570,7 @@ class _HomePageState extends State<HomePage> {
                   child: Row(
                     children: [
                       Icon(
-                        Icons
-                            .settings_outlined,
+                        Icons.settings_outlined,
                         size: 19,
                       ),
                       SizedBox(width: 10),
@@ -619,7 +607,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
-
               child:
               const AvatarUtilizador(
                 radius: 20,
@@ -646,9 +633,7 @@ class _HomePageState extends State<HomePage> {
                 shape:
                 RoundedRectangleBorder(
                   borderRadius:
-                  BorderRadius.circular(
-                    8,
-                  ),
+                  BorderRadius.circular(8),
                 ),
               ),
               child: const Text(
@@ -694,9 +679,7 @@ class _HomePageState extends State<HomePage> {
                   shape:
                   RoundedRectangleBorder(
                     borderRadius:
-                    BorderRadius.circular(
-                      8,
-                    ),
+                    BorderRadius.circular(8),
                   ),
                 ),
                 child: const Text(
@@ -739,7 +722,8 @@ class _HomePageState extends State<HomePage> {
         label,
         style: const TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight:
+          FontWeight.w500,
         ),
       ),
     );
@@ -766,7 +750,7 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               children: [
                 const Text(
-                  'Encontre conhecimento. Encontre obras.',
+                  'Publique e encontre conhecimento.',
                   textAlign:
                   TextAlign.center,
                   style: TextStyle(
@@ -1136,8 +1120,7 @@ class _HomePageState extends State<HomePage> {
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
-                      _consultasRecentes[
-                      index];
+                      _consultasRecentes[index];
 
                       return HistoricoListaItem(
                         obra: consulta,
