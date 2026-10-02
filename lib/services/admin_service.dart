@@ -20,45 +20,44 @@ class AdminService {
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
 
+  // ==========================================================
+  // VERIFICAR ADMINISTRADOR
+  // ==========================================================
+
   Future<void> _exigirAdmin() async {
-    if (!_auth.estaAutenticado) {
+    final utilizador =
+        Supabase.instance.client.auth.currentUser;
+
+    if (utilizador == null) {
       throw Exception(
-        'É necessário iniciar sessão para continuar.',
+        'É necessário iniciar sessão.',
       );
     }
 
-    final administrador = await _auth.ehAdmin();
+    final ehAdmin = await _auth.ehAdmin();
 
-    if (!administrador) {
+    if (!ehAdmin) {
       throw Exception(
-        'Acesso reservado ao administrador.',
+        'Acesso permitido apenas a administradores.',
       );
     }
   }
 
-  Future<bool> verificarAcesso() async {
-    if (!_auth.estaAutenticado) {
-      return false;
-    }
-
-    try {
-      return await _auth.ehAdmin();
-    } catch (_) {
-      return false;
-    }
-  }
-
-  // ============================================================
-  // OBRAS PENDENTES
-  // ============================================================
+  // ==========================================================
+  // CARREGAR OBRAS PENDENTES
+  // ==========================================================
 
   Future<List<ObraPendente>> carregarObrasPendentes() async {
     await _exigirAdmin();
 
-    return await _repository.carregarTodas();
+    return _repository.carregarTodas();
   }
 
-  Future<ObraPendente?> carregarObraPendente(
+  // ==========================================================
+  // CARREGAR UMA OBRA PENDENTE
+  // ==========================================================
+
+  Future<ObraPendente> carregarObraPendente(
       String id,
       ) async {
     await _exigirAdmin();
@@ -69,22 +68,31 @@ class AdminService {
       );
     }
 
-    return await _repository.carregarPorId(id);
+    final obra =
+    await _repository.carregarPorId(id);
+
+    if (obra == null) {
+      throw Exception(
+        'Obra pendente não encontrada.',
+      );
+    }
+
+    return obra;
   }
 
-  // ============================================================
-  // OBRAS PUBLICADAS
-  // ============================================================
+  // ==========================================================
+  // CARREGAR OBRAS PUBLICADAS
+  // ==========================================================
 
   Future<List<Obra>> carregarObrasPublicadas() async {
     await _exigirAdmin();
 
-    return await _obrasRepository.carregarTodas();
+    return _obrasRepository.carregarTodas();
   }
 
-  // ============================================================
-  // APROVAR
-  // ============================================================
+  // ==========================================================
+  // APROVAR OBRA
+  // ==========================================================
 
   Future<Obra> aprovarObra(
       String id,
@@ -97,7 +105,16 @@ class AdminService {
       );
     }
 
-    final obra = await _repository.aprovar(id);
+    // --------------------------------------------------------
+    // 1. Aprovar e publicar a obra
+    // --------------------------------------------------------
+
+    final obra =
+    await _repository.aprovar(id);
+
+    // --------------------------------------------------------
+    // 2. Atualizar o site
+    // --------------------------------------------------------
 
     try {
       final resposta =
@@ -107,25 +124,70 @@ class AdminService {
 
       if (resposta.status < 200 ||
           resposta.status >= 300) {
-        throw Exception(
-          'A Edge Function respondeu com HTTP '
+        debugPrint(
+          'Aviso: atualizar-site respondeu HTTP '
               '${resposta.status}.',
         );
+      } else {
+        debugPrint(
+          'atualizar-site iniciado com sucesso.',
+        );
       }
-    } catch (_) {
-      throw Exception(
-        'A obra foi aprovada, mas a atualização automática '
-            'do site não pôde ser iniciada. Verifique a Edge '
-            'Function e o GitHub Actions.',
+    } catch (e) {
+      // A obra já foi publicada.
+      // Um erro no GitHub/site não deve desfazer a aprovação.
+      debugPrint(
+        'Aviso: não foi possível iniciar atualizar-site: $e',
       );
     }
+
+    // --------------------------------------------------------
+    // 3. Enviar e-mail ao proprietário da obra
+    // --------------------------------------------------------
+
+    try {
+      final resposta =
+      await Supabase.instance.client.functions.invoke(
+        'enviar-email-aprovacao',
+        body: {
+          'obra_id': obra.id,
+        },
+      );
+
+      if (resposta.status < 200 ||
+          resposta.status >= 300) {
+        debugPrint(
+          'Aviso: e-mail de aprovação não enviado. '
+              'HTTP ${resposta.status}.',
+        );
+
+        debugPrint(
+          'Resposta da Edge Function: '
+              '${resposta.data}',
+        );
+      } else {
+        debugPrint(
+          'E-mail de aprovação enviado com sucesso.',
+        );
+      }
+    } catch (e) {
+      // O e-mail é uma operação secundária.
+      // A obra continua aprovada/publicada.
+      debugPrint(
+        'Aviso: erro ao enviar e-mail de aprovação: $e',
+      );
+    }
+
+    // --------------------------------------------------------
+    // 4. Devolver a obra publicada
+    // --------------------------------------------------------
 
     return obra;
   }
 
-  // ============================================================
-  // REJEITAR
-  // ============================================================
+  // ==========================================================
+  // REJEITAR OBRA
+  // ==========================================================
 
   Future<void> rejeitarObra(
       String id,
@@ -141,9 +203,9 @@ class AdminService {
     await _repository.rejeitar(id);
   }
 
-  // ============================================================
-  // EXCLUIR PUBLICAÇÃO PENDENTE
-  // ============================================================
+  // ==========================================================
+  // EXCLUIR OBRA PENDENTE
+  // ==========================================================
 
   Future<void> excluirObra(
       String id,
@@ -159,48 +221,30 @@ class AdminService {
     await _repository.excluir(id);
   }
 
-  // ============================================================
-  // DELETAR OBRA PUBLICADA
-  // ============================================================
+  // ==========================================================
+  // ELIMINAR OBRA PUBLICADA
+  // ==========================================================
 
   Future<void> deletarObraPublicada(
       String id,
       ) async {
     await _exigirAdmin();
 
-    final idLimpo = id.trim();
-
-    if (idLimpo.isEmpty) {
+    if (id.trim().isEmpty) {
       throw Exception(
         'ID da obra inválido.',
       );
     }
 
-    // ----------------------------------------------------------
-    // 1. ELIMINAR A OBRA
-    //
-    // Remove:
-    // - PDF
-    // - capa
-    // - registo da tabela obras
-    //
-    // Se esta operação falhar, a eliminação é considerada
-    // realmente falhada e o erro será enviado para a página.
-    // ----------------------------------------------------------
+    // --------------------------------------------------------
+    // 1. Apagar a obra
+    // --------------------------------------------------------
 
-    await _obrasRepository.excluirPublicada(
-      idLimpo,
-    );
+    await _obrasRepository.excluirPublicada(id);
 
-    // ----------------------------------------------------------
-    // 2. ATUALIZAR O SITE
-    //
-    // Esta operação acontece DEPOIS da eliminação.
-    //
-    // Se a Edge Function falhar, a obra já foi removida
-    // do Supabase. Portanto, não devemos transformar esse
-    // problema secundário em erro de eliminação.
-    // ----------------------------------------------------------
+    // --------------------------------------------------------
+    // 2. Atualizar o site
+    // --------------------------------------------------------
 
     try {
       final resposta =
@@ -211,25 +255,17 @@ class AdminService {
       if (resposta.status < 200 ||
           resposta.status >= 300) {
         debugPrint(
-          'Aviso: atualizar-site respondeu '
-              'HTTP ${resposta.status}.',
+          'Aviso: atualizar-site respondeu HTTP '
+              '${resposta.status}.',
         );
       }
     } catch (e) {
+      // A obra já foi eliminada.
+      // O erro de atualização do site não desfaz a eliminação.
       debugPrint(
-        'Aviso: não foi possível executar '
-            'atualizar-site: $e',
+        'Aviso: não foi possível iniciar atualizar-site: $e',
       );
     }
-
-    // ----------------------------------------------------------
-    // IMPORTANTE:
-    //
-    // Não lançamos Exception aqui.
-    //
-    // A página receberá conclusão normal e apresentará:
-    //
-    // "Obra deletada com sucesso."
-    // ----------------------------------------------------------
   }
 }
+
