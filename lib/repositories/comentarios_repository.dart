@@ -8,10 +8,13 @@ class ComentariosRepository {
   static final ComentariosRepository instancia =
   ComentariosRepository._();
 
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
   /// Obtém todos os comentários de uma obra.
-  Future<List<Comentario>> obterComentarios(String obraId) async {
+  Future<List<Comentario>> obterComentarios(
+      String obraId,
+      ) async {
     final resposta = await _supabase
         .from('comentarios')
         .select()
@@ -27,11 +30,10 @@ class ComentariosRepository {
         .toList();
   }
 
-  /// Obtém os comentários feitos nas obras de um determinado utilizador.
-  ///
-  /// Retorna também o título da obra através da relação
-  /// entre comentarios e obras.
-  Future<List<Map<String, dynamic>>> obterComentariosDasMinhasObras(
+  /// Obtém os comentários feitos nas obras
+  /// de um determinado utilizador.
+  Future<List<Map<String, dynamic>>>
+  obterComentariosDasMinhasObras(
       String userId,
       ) async {
     final resposta = await _supabase
@@ -50,7 +52,10 @@ class ComentariosRepository {
           )
         ''')
         .eq('obras.user_id', userId)
-        .order('created_at', ascending: false);
+        .order(
+      'created_at',
+      ascending: false,
+    );
 
     return List<Map<String, dynamic>>.from(
       (resposta as List).map(
@@ -60,18 +65,16 @@ class ComentariosRepository {
   }
 
   /// Cria um novo comentário.
+  ///
+  /// Utilizador autenticado:
+  /// guarda o user_id.
+  ///
+  /// Visitante:
+  /// guarda user_id como NULL.
   Future<Comentario> criarComentario({
     required String obraId,
     required String comentario,
   }) async {
-    final utilizador = _supabase.auth.currentUser;
-
-    if (utilizador == null) {
-      throw Exception(
-        'É necessário iniciar sessão para comentar.',
-      );
-    }
-
     final texto = comentario.trim();
 
     if (texto.isEmpty) {
@@ -80,13 +83,18 @@ class ComentariosRepository {
       );
     }
 
+    final utilizador =
+        _supabase.auth.currentUser;
+
+    final dados = <String, dynamic>{
+      'obra_id': obraId,
+      'user_id': utilizador?.id,
+      'comentario': texto,
+    };
+
     final resposta = await _supabase
         .from('comentarios')
-        .insert({
-      'obra_id': obraId,
-      'user_id': utilizador.id,
-      'comentario': texto,
-    })
+        .insert(dados)
         .select()
         .single();
 
@@ -95,11 +103,23 @@ class ComentariosRepository {
     );
   }
 
-  /// Atualiza um comentário existente.
+  /// Atualiza um comentário.
+  ///
+  /// Apenas o utilizador autenticado
+  /// que criou o comentário pode editá-lo.
   Future<Comentario> atualizarComentario({
     required String comentarioId,
     required String comentario,
   }) async {
+    final utilizador =
+        _supabase.auth.currentUser;
+
+    if (utilizador == null) {
+      throw Exception(
+        'É necessário iniciar sessão para editar o comentário.',
+      );
+    }
+
     final texto = comentario.trim();
 
     if (texto.isEmpty) {
@@ -112,9 +132,11 @@ class ComentariosRepository {
         .from('comentarios')
         .update({
       'comentario': texto,
-      'updated_at': DateTime.now().toIso8601String(),
+      'updated_at':
+      DateTime.now().toIso8601String(),
     })
         .eq('id', comentarioId)
+        .eq('user_id', utilizador.id)
         .select()
         .single();
 
@@ -124,11 +146,31 @@ class ComentariosRepository {
   }
 
   /// Elimina um comentário.
-  Future<void> eliminarComentario(String comentarioId) async {
-    await _supabase
-        .from('comentarios')
-        .delete()
-        .eq('id', comentarioId);
+  ///
+  /// O próprio utilizador pode eliminar
+  /// o seu comentário.
+  ///
+  /// O administrador pode eliminar
+  /// qualquer comentário, incluindo
+  /// comentários de visitantes.
+  Future<void> eliminarComentario(
+      String comentarioId,
+      ) async {
+    final utilizador =
+        _supabase.auth.currentUser;
+
+    if (utilizador == null) {
+      throw Exception(
+        'É necessário iniciar sessão para eliminar o comentário.',
+      );
+    }
+
+    await _supabase.rpc(
+      'eliminar_comentario',
+      params: {
+        'p_comentario_id': comentarioId,
+      },
+    );
   }
 }
 

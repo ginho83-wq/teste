@@ -769,7 +769,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(
                   width: 620,
                   child: Text(
-                    'Pesquise e consulte trabalhos académicos, científicos e literários.',
+                    'Pesquise e consulte obras académicas, científicas e literários.',
                     textAlign:
                     TextAlign.center,
                     style: TextStyle(

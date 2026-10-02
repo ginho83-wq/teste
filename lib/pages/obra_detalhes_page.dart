@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
 import '../repositories/obras_repository.dart';
+import '../repositories/solicitacoes_remocao_repository.dart';
+import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
 import '../widgets/comentarios_section.dart';
 
@@ -19,14 +21,29 @@ class ObraDetalhesPage extends StatefulWidget {
 }
 
 class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
-  final ObrasRepository _repository =
-      ObrasRepository.instancia;
+  final ObrasRepository _repository = ObrasRepository.instancia;
 
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
+  final SolicitacoesRemocaoRepository _solicitacoesRepository =
+      SolicitacoesRemocaoRepository.instancia;
+
+  final AuthService _authService = AuthService.instancia;
+
   Obra? _obra;
+
   bool _carregando = true;
+  bool _carregandoSolicitacao = false;
+  bool _enviandoSolicitacao = false;
+
+  bool _estaAutenticado = false;
+  bool _ehAdmin = false;
+
+  // Mantém o estado da solicitação apenas para impedir
+  // uma nova solicitação enquanto existir uma pendente.
+  Map<String, dynamic>? _solicitacaoPendente;
+
   String? _erro;
 
   @override
@@ -46,18 +63,19 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         _carregando = false;
       });
 
-      // Regista a consulta quando a página de detalhes é aberta.
-      if (obra != null) {
-        try {
-          await _historicoService.registrarConsulta(
-            obraId: obra.id,
-          );
-        } catch (e) {
-          debugPrint(
-            'OBRA DETALHES: erro ao registrar consulta: $e',
-          );
-        }
+      if (obra == null) return;
+
+      try {
+        await _historicoService.registrarConsulta(
+          obraId: obra.id,
+        );
+      } catch (e) {
+        debugPrint(
+          'OBRA DETALHES: erro ao registrar consulta: $e',
+        );
       }
+
+      await _carregarEstadoRemocao(obra.id);
     } catch (e) {
       if (!mounted) return;
 
@@ -69,6 +87,77 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       debugPrint(
         'OBRA DETALHES: erro ao carregar obra: $e',
       );
+    }
+  }
+
+  Future<void> _carregarEstadoRemocao(
+      String obraId,
+      ) async {
+    if (!mounted) return;
+
+    setState(() {
+      _carregandoSolicitacao = true;
+    });
+
+    try {
+      final usuario = _authService.usuarioAtual;
+
+      if (usuario == null) {
+        if (!mounted) return;
+
+        setState(() {
+          _estaAutenticado = false;
+          _ehAdmin = false;
+          _solicitacaoPendente = null;
+          _carregandoSolicitacao = false;
+        });
+
+        return;
+      }
+
+      bool ehAdmin = false;
+
+      try {
+        ehAdmin = await _authService.ehAdmin();
+      } catch (e) {
+        debugPrint(
+          'OBRA DETALHES: erro ao verificar administrador: $e',
+        );
+      }
+
+      Map<String, dynamic>? solicitacao;
+
+      if (!ehAdmin) {
+        try {
+          solicitacao = await _solicitacoesRepository
+              .obterSolicitacaoPendente(
+            obraId,
+          );
+        } catch (e) {
+          debugPrint(
+            'OBRA DETALHES: erro ao verificar solicitação: $e',
+          );
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _estaAutenticado = true;
+        _ehAdmin = ehAdmin;
+        _solicitacaoPendente = solicitacao;
+        _carregandoSolicitacao = false;
+      });
+    } catch (e) {
+      debugPrint(
+        'OBRA DETALHES: erro no estado de remoção: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _carregandoSolicitacao = false;
+      });
     }
   }
 
@@ -143,12 +232,232 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     }
   }
 
+  Future<void> _solicitarRemocao() async {
+    final obra = _obra;
+
+    if (obra == null) return;
+
+    // Apenas utilizadores autenticados e não administradores
+    // podem solicitar remoção.
+    if (!_estaAutenticado || _ehAdmin) {
+      return;
+    }
+
+    // Se já existe uma solicitação pendente, não permite
+    // enviar outra. Porém, o link continua visualmente
+    // como "Solicitar remoção".
+    if (_solicitacaoPendente != null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Já existe uma solicitação de remoção pendente para esta obra.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    final controller = TextEditingController();
+
+    final motivo = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'Solicitar remoção',
+          ),
+          content: SizedBox(
+            width: 500,
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 5,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                labelText: 'Motivo da remoção',
+                hintText:
+                'Explique por que esta obra deve ser removida.',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Cancelar',
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                final texto =
+                controller.text.trim();
+
+                if (texto.isEmpty) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Informe o motivo da remoção.',
+                      ),
+                    ),
+                  );
+
+                  return;
+                }
+
+                Navigator.of(context).pop(texto);
+              },
+              icon: const Icon(
+                Icons.send,
+              ),
+              label: const Text(
+                'Enviar solicitação',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (motivo == null ||
+        motivo.trim().isEmpty ||
+        !mounted) {
+      return;
+    }
+
+    setState(() {
+      _enviandoSolicitacao = true;
+    });
+
+    try {
+      await _solicitacoesRepository.criarSolicitacao(
+        obraId: obra.id,
+        motivo: motivo,
+      );
+
+      final solicitacao =
+      await _solicitacoesRepository
+          .obterSolicitacaoPendente(
+        obra.id,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        // Guardamos a solicitação para impedir outra.
+        _solicitacaoPendente = solicitacao;
+
+        // O link volta ao estado normal.
+        _enviandoSolicitacao = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Solicitação de remoção enviada com sucesso.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _enviandoSolicitacao = false;
+      });
+
+      String mensagem = e
+          .toString()
+          .replaceFirst('Exception: ', '')
+          .trim();
+
+      if (mensagem.isEmpty) {
+        mensagem =
+        'Não foi possível enviar a solicitação.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+        ),
+      );
+    }
+  }
+
   String _formatarData(DateTime data) {
-    final dia = data.day.toString().padLeft(2, '0');
-    final mes = data.month.toString().padLeft(2, '0');
+    final dia =
+    data.day.toString().padLeft(2, '0');
+
+    final mes =
+    data.month.toString().padLeft(2, '0');
+
     final ano = data.year.toString();
 
     return '$dia/$mes/$ano';
+  }
+
+  Widget _buildRemocaoSection() {
+    // Visitante: não mostra nada.
+    if (!_estaAutenticado) {
+      return const SizedBox.shrink();
+    }
+
+    // Administrador: não solicita remoção.
+    if (_ehAdmin) {
+      return const SizedBox.shrink();
+    }
+
+    if (_carregandoSolicitacao) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
+    // IMPORTANTE:
+    // Mesmo que exista uma solicitação pendente,
+    // não mostramos o painel "Solicitação de remoção pendente".
+    //
+    // O link "Solicitar remoção" permanece visível normalmente.
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        onTap: _enviandoSolicitacao
+            ? null
+            : _solicitarRemocao,
+        child: Text(
+          'Solicitar remoção',
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(
+            color: _enviandoSolicitacao
+                ? Colors.grey
+                : Colors.red,
+            decoration:
+            _enviandoSolicitacao
+                ? TextDecoration.none
+                : TextDecoration.underline,
+            decorationColor: Colors.red,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -168,7 +477,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding:
+            const EdgeInsets.all(24),
             child: Text(
               _erro!,
               textAlign: TextAlign.center,
@@ -183,11 +493,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     if (obra == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Obra não encontrada'),
+          title:
+          const Text('Obra não encontrada'),
         ),
         body: const Center(
           child: Padding(
-            padding: EdgeInsets.all(24),
+            padding:
+            EdgeInsets.all(24),
             child: Text(
               'A obra que procura não foi encontrada.',
               textAlign: TextAlign.center,
@@ -206,15 +518,18 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         ),
         body: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding:
+            const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
+              constraints:
+              const BoxConstraints(
                 maxWidth: 900,
               ),
               child: Card(
                 elevation: 2,
                 child: Padding(
-                  padding: const EdgeInsets.all(28),
+                  padding:
+                  const EdgeInsets.all(28),
                   child: Column(
                     crossAxisAlignment:
                     CrossAxisAlignment.start,
@@ -225,18 +540,23 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                             .textTheme
                             .headlineMedium
                             ?.copyWith(
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                          FontWeight.bold,
                         ),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(
+                        height: 24,
+                      ),
 
                       _Informacao(
                         titulo: 'Autor',
                         valor: obra.autor,
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(
+                        height: 16,
+                      ),
 
                       _Informacao(
                         titulo: 'Categoria',
@@ -244,38 +564,49 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                       ),
 
                       if (obra.anoObra != null) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(
+                          height: 16,
+                        ),
                         _Informacao(
                           titulo: 'Ano da obra',
-                          valor: obra.anoObra.toString(),
+                          valor: obra.anoObra
+                              .toString(),
                         ),
                       ],
 
-                      const SizedBox(height: 16),
+                      const SizedBox(
+                        height: 16,
+                      ),
 
                       _Informacao(
-                        titulo: 'Data de publicação',
-                        valor: _formatarData(
+                        titulo:
+                        'Data de publicação',
+                        valor:
+                        _formatarData(
                           obra.dataPublicacao,
                         ),
                       ),
 
                       if (obra.descricao != null &&
-                          obra.descricao!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 28),
-
+                          obra.descricao!
+                              .trim()
+                              .isNotEmpty) ...[
+                        const SizedBox(
+                          height: 28,
+                        ),
                         Text(
                           'Descrição',
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
                               ?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight:
+                            FontWeight.bold,
                           ),
                         ),
-
-                        const SizedBox(height: 8),
-
+                        const SizedBox(
+                          height: 8,
+                        ),
                         Text(
                           obra.descricao!,
                           style: Theme.of(context)
@@ -284,29 +615,65 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                         ),
                       ],
 
-                      const SizedBox(height: 32),
+                      const SizedBox(
+                        height: 32,
+                      ),
 
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed:
-                          obra.urlDocumento.trim().isEmpty
+                      // Solicitar remoção
+                      //
+                      // Aparece apenas para utilizadores
+                      // autenticados que não sejam admin.
+                      //
+                      // Mesmo depois de solicitar,
+                      // o texto continua:
+                      // "Solicitar remoção".
+                      _buildRemocaoSection(),
+
+                      const SizedBox(
+                        height: 20,
+                      ),
+
+                      // Abrir documento
+                      //
+                      // Botão com altura aumentada.
+                      Align(
+                        alignment:
+                        Alignment.centerLeft,
+                        child:
+                        ElevatedButton.icon(
+                          onPressed: obra
+                              .urlDocumento
+                              .trim()
+                              .isEmpty
                               ? null
                               : _abrirDocumento,
                           icon: const Icon(
                             Icons.open_in_new,
+                            size: 18,
                           ),
                           label: const Text(
                             'Abrir documento',
                           ),
+                          style: ElevatedButton
+                              .styleFrom(
+                            padding:
+                            const EdgeInsets
+                                .symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            minimumSize:
+                            Size.zero,
+                            tapTargetSize:
+                            MaterialTapTargetSize
+                                .shrinkWrap,
+                          ),
                         ),
                       ),
 
-                      // ------------------------------------------------
-                      // COMENTÁRIOS
-                      // ------------------------------------------------
-
-                      const SizedBox(height: 32),
+                      const SizedBox(
+                        height: 32,
+                      ),
 
                       ComentariosSection(
                         obraId: obra.id,
@@ -333,7 +700,8 @@ class _Informacao extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context) {
     return Column(
       crossAxisAlignment:
       CrossAxisAlignment.start,
@@ -344,10 +712,13 @@ class _Informacao extends StatelessWidget {
               .textTheme
               .labelLarge
               ?.copyWith(
-            fontWeight: FontWeight.bold,
+            fontWeight:
+            FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(
+          height: 4,
+        ),
         Text(
           valor,
           style: Theme.of(context)

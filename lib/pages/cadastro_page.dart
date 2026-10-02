@@ -350,7 +350,7 @@ class _CadastroPageState extends State<CadastroPage> {
               child: Row(
                 children: [
                   const Text(
-                    'Teste',
+                    'Obra Livre',
                     style: TextStyle(
                       fontSize: 21,
                       fontWeight: FontWeight.w700,

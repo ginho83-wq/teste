@@ -1,7 +1,7 @@
 class Comentario {
   final String id;
   final String obraId;
-  final String userId;
+  final String? userId;
   final String comentario;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9,7 +9,7 @@ class Comentario {
   const Comentario({
     required this.id,
     required this.obraId,
-    required this.userId,
+    this.userId,
     required this.comentario,
     required this.createdAt,
     required this.updatedAt,
@@ -17,15 +17,15 @@ class Comentario {
 
   factory Comentario.fromMap(Map<String, dynamic> map) {
     return Comentario(
-      id: map['id'] as String,
-      obraId: map['obra_id'] as String,
-      userId: map['user_id'] as String,
-      comentario: map['comentario'] as String,
+      id: map['id'].toString(),
+      obraId: map['obra_id'].toString(),
+      userId: map['user_id']?.toString(),
+      comentario: map['comentario']?.toString() ?? '',
       createdAt: DateTime.parse(
-        map['created_at'] as String,
+        map['created_at'].toString(),
       ),
       updatedAt: DateTime.parse(
-        map['updated_at'] as String,
+        map['updated_at'].toString(),
       ),
     );
   }

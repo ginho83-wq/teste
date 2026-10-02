@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/obra.dart';
+import '../services/storage_service.dart';
 
 class ObrasRepository {
   ObrasRepository._();
@@ -10,6 +11,9 @@ class ObrasRepository {
 
   final SupabaseClient _supabase =
       Supabase.instance.client;
+
+  final StorageService _storage =
+      StorageService.instancia;
 
   static const String _campos = '''
     id,
@@ -29,8 +33,7 @@ class ObrasRepository {
     updated_at
   ''';
 
-  Future<List<Obra>>
-  carregarObras({
+  Future<List<Obra>> carregarObras({
     int pagina = 1,
     int limite = 10,
   }) async {
@@ -45,6 +48,28 @@ class ObrasRepository {
       ascending: false,
     )
         .range(inicio, fim);
+
+    return (resposta as List)
+        .map(
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
+    )
+        .toList();
+  }
+
+  // ============================================================
+  // CARREGAR TODAS AS OBRAS PUBLICADAS
+  // ============================================================
+
+  Future<List<Obra>> carregarTodas() async {
+    final resposta = await _supabase
+        .from('obras')
+        .select(_campos)
+        .order(
+      'data_publicacao',
+      ascending: false,
+    );
 
     return (resposta as List)
         .map(
@@ -71,8 +96,7 @@ class ObrasRepository {
     );
   }
 
-  Future<List<Obra>>
-  pesquisar(
+  Future<List<Obra>> pesquisar(
       String termo, {
         int limite = 50,
       }) async {
@@ -109,8 +133,7 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>>
-  carregarPorCategoria(
+  Future<List<Obra>> carregarPorCategoria(
       String categoria, {
         int limite = 50,
       }) async {
@@ -133,8 +156,7 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>>
-  carregarPorAutor(
+  Future<List<Obra>> carregarPorAutor(
       String autor, {
         int limite = 50,
       }) async {
@@ -160,8 +182,7 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>>
-  carregarPorAno(
+  Future<List<Obra>> carregarPorAno(
       int ano, {
         int limite = 50,
       }) async {
@@ -184,8 +205,7 @@ class ObrasRepository {
         .toList();
   }
 
-  Future<List<Obra>>
-  carregarMinhasObras(
+  Future<List<Obra>> carregarMinhasObras(
       String userId, {
         int pagina = 1,
         int limite = 10,
@@ -228,10 +248,6 @@ class ObrasRepository {
     _nomeArquivo(nomeArquivo);
     final hashLimpo = hashPdf?.trim() ?? '';
 
-    // ----------------------------------------------------------
-    // 1. VERIFICAR HASH DO PDF
-    // ----------------------------------------------------------
-
     if (hashLimpo.isNotEmpty) {
       final respostaHash = await _supabase
           .from('obras')
@@ -243,10 +259,6 @@ class ObrasRepository {
         return true;
       }
     }
-
-    // ----------------------------------------------------------
-    // 2. VERIFICAR TÍTULO + AUTOR
-    // ----------------------------------------------------------
 
     if (tituloLimpo.isNotEmpty &&
         autorLimpo.isNotEmpty) {
@@ -269,10 +281,6 @@ class ObrasRepository {
         return true;
       }
     }
-
-    // ----------------------------------------------------------
-    // 3. VERIFICAR NOME DO PDF
-    // ----------------------------------------------------------
 
     if (nomeArquivoLimpo.isNotEmpty) {
       final respostaArquivo =
@@ -337,7 +345,86 @@ class ObrasRepository {
     );
   }
 
+  // ============================================================
+  // EXCLUIR REGISTO DA OBRA
+  // ============================================================
+
   Future<void> excluir(String id) async {
+    await _supabase
+        .from('obras')
+        .delete()
+        .eq('id', id);
+  }
+
+  // ============================================================
+  // EXCLUIR OBRA PUBLICADA COMPLETAMENTE
+  //
+  // Remove:
+  // 1. PDF do bucket obras
+  // 2. capa do bucket capas-obras
+  // 3. registo da tabela obras
+  // ============================================================
+
+  Future<void> excluirPublicada(String id) async {
+    if (id.trim().isEmpty) {
+      throw Exception(
+        'ID da obra inválido.',
+      );
+    }
+
+    final obra = await carregarPorId(id);
+
+    if (obra == null) {
+      throw Exception(
+        'Obra publicada não encontrada.',
+      );
+    }
+
+    // ----------------------------------------------------------
+    // 1. REMOVER PDF PUBLICADO
+    // ----------------------------------------------------------
+
+    if (obra.urlDocumento.trim().isNotEmpty) {
+      final caminhoPdf =
+      _extrairCaminhoStorage(
+        obra.urlDocumento,
+        StorageService.bucketObras,
+      );
+
+      try {
+        await _storage.removerDocumentoPublicado(
+          caminhoPdf,
+        );
+      } catch (_) {
+        // O registo continuará a ser removido.
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 2. REMOVER CAPA PUBLICADA
+    // ----------------------------------------------------------
+
+    if (obra.urlCapa != null &&
+        obra.urlCapa!.trim().isNotEmpty) {
+      final caminhoCapa =
+      _extrairCaminhoStorage(
+        obra.urlCapa!,
+        StorageService.bucketCapasObras,
+      );
+
+      try {
+        await _storage.removerCapaPublicada(
+          caminhoCapa,
+        );
+      } catch (_) {
+        // O registo continuará a ser removido.
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 3. REMOVER REGISTO DA TABELA
+    // ----------------------------------------------------------
+
     await _supabase
         .from('obras')
         .delete()
@@ -361,6 +448,67 @@ class ObrasRepository {
         .eq('user_id', userId);
 
     return (resposta as List).length;
+  }
+
+  // ============================================================
+  // OBTER CAMINHO REAL DO STORAGE A PARTIR DA URL PÚBLICA
+  // ============================================================
+
+  String _extrairCaminhoStorage(
+      String valor,
+      String bucket,
+      ) {
+    final valorLimpo = valor.trim();
+
+    if (valorLimpo.isEmpty) {
+      return '';
+    }
+
+    // Caso já seja um caminho interno do bucket.
+    if (!valorLimpo.startsWith('http://') &&
+        !valorLimpo.startsWith('https://')) {
+      return valorLimpo;
+    }
+
+    final marcador =
+        '/storage/v1/object/public/$bucket/';
+
+    final indice =
+    valorLimpo.indexOf(marcador);
+
+    if (indice != -1) {
+      return Uri.decodeComponent(
+        valorLimpo.substring(
+          indice + marcador.length,
+        ),
+      );
+    }
+
+    // Fallback para URLs assinadas/públicas
+    // que possam ter outro formato.
+    final marcadorAlternativo =
+        '/storage/v1/object/$bucket/';
+
+    final indiceAlternativo =
+    valorLimpo.indexOf(marcadorAlternativo);
+
+    if (indiceAlternativo != -1) {
+      var caminho = valorLimpo.substring(
+        indiceAlternativo +
+            marcadorAlternativo.length,
+      );
+
+      final indiceQuery = caminho.indexOf('?');
+
+      if (indiceQuery != -1) {
+        caminho =
+            caminho.substring(0, indiceQuery);
+      }
+
+      return Uri.decodeComponent(caminho);
+    }
+
+    return valorLimpo;
   }
 
   String _nomeArquivo(String caminho) {
