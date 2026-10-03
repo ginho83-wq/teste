@@ -7,8 +7,7 @@ import 'supabase_service.dart';
 class StorageService {
   StorageService._();
 
-  static final StorageService instancia =
-  StorageService._();
+  static final StorageService instancia = StorageService._();
 
   final SupabaseClient _supabase =
       SupabaseService.instancia.client;
@@ -17,20 +16,16 @@ class StorageService {
   // BUCKETS
   // ============================================================
 
+  /// Bucket dos documentos PDF que aguardam aprovação.
   static const String bucketObrasPendentes =
       'obras_pendentes';
 
+  /// Bucket dos documentos PDF publicados.
   static const String bucketObras =
       'obras';
 
-  static const String bucketCapasPendentes =
-      'capas-pendentes';
-
-  static const String bucketCapasObras =
-      'capas-obras';
-
   // ============================================================
-  // DOCUMENTO PDF — PENDENTES
+  // DOCUMENTO PDF — PENDENTE
   // ============================================================
 
   Future<String> enviarDocumentoPendente({
@@ -46,8 +41,7 @@ class StorageService {
       throw Exception('O arquivo está vazio.');
     }
 
-    final nomeSeguro =
-    _normalizarNomeArquivo(nomeArquivo);
+    final nomeSeguro = _normalizarNomeArquivo(nomeArquivo);
 
     final caminho =
         '$userId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
@@ -127,11 +121,13 @@ class StorageService {
 
     await _supabase.storage
         .from(bucketObrasPendentes)
-        .remove([caminho]);
+        .remove([
+      caminho,
+    ]);
   }
 
   // ============================================================
-  // DOCUMENTO PUBLICADO
+  // DOCUMENTO PDF — PUBLICADO
   // ============================================================
 
   Future<String> enviarDocumentoPublicado({
@@ -147,8 +143,7 @@ class StorageService {
       throw Exception('O arquivo está vazio.');
     }
 
-    final nomeSeguro =
-    _normalizarNomeArquivo(nomeArquivo);
+    final nomeSeguro = _normalizarNomeArquivo(nomeArquivo);
 
     final caminho =
         '$userId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
@@ -168,7 +163,7 @@ class StorageService {
   }
 
   // ============================================================
-  // URL PÚBLICA DO PDF
+  // URL PÚBLICA — DOCUMENTO PUBLICADO
   // ============================================================
 
   String obterUrlPublica(
@@ -186,7 +181,7 @@ class StorageService {
   }
 
   // ============================================================
-  // COPIAR PDF PARA PUBLICADAS
+  // COPIAR PDF PENDENTE → PUBLICADO
   // ============================================================
 
   Future<String> copiarDocumentoParaPublicadas({
@@ -194,8 +189,7 @@ class StorageService {
     required String userId,
     required String nomeArquivo,
   }) async {
-    final bytes =
-    await baixarDocumentoPendente(
+    final bytes = await baixarDocumentoPendente(
       caminhoPendente,
     );
 
@@ -219,189 +213,13 @@ class StorageService {
 
     await _supabase.storage
         .from(bucketObras)
-        .remove([caminho]);
-  }
-
-  // ============================================================
-  // CAPA — PENDENTES
-  // ============================================================
-
-  Future<String> enviarCapaPendente({
-    required String userId,
-    required String nomeArquivo,
-    required Uint8List bytes,
-  }) async {
-    if (userId.trim().isEmpty) {
-      throw Exception('Utilizador inválido.');
-    }
-
-    if (bytes.isEmpty) {
-      throw Exception(
-        'A imagem da capa está vazia.',
-      );
-    }
-
-    final nomeBase =
-    _nomeBaseSemExtensao(nomeArquivo);
-
-    final nomeCapa =
-        '${nomeBase}_capa.png';
-
-    final caminho =
-        '$userId/${DateTime.now().millisecondsSinceEpoch}_$nomeCapa';
-
-    await _supabase.storage
-        .from(bucketCapasPendentes)
-        .uploadBinary(
+        .remove([
       caminho,
-      bytes,
-      fileOptions: const FileOptions(
-        contentType: 'image/png',
-        upsert: false,
-      ),
-    );
-
-    return caminho;
+    ]);
   }
 
   // ============================================================
-  // BAIXAR CAPA PENDENTE
-  // ============================================================
-
-  Future<Uint8List> baixarCapaPendente(
-      String caminho,
-      ) async {
-    if (caminho.trim().isEmpty) {
-      throw Exception(
-        'Caminho da capa inválido.',
-      );
-    }
-
-    final bytes = await _supabase.storage
-        .from(bucketCapasPendentes)
-        .download(caminho);
-
-    if (bytes.isEmpty) {
-      throw Exception(
-        'A capa pendente está vazia.',
-      );
-    }
-
-    return bytes;
-  }
-
-  // ============================================================
-  // REMOVER CAPA PENDENTE
-  // ============================================================
-
-  Future<void> removerCapaPendente(
-      String caminho,
-      ) async {
-    if (caminho.trim().isEmpty) {
-      return;
-    }
-
-    await _supabase.storage
-        .from(bucketCapasPendentes)
-        .remove([caminho]);
-  }
-
-  // ============================================================
-  // ENVIAR CAPA PUBLICADA
-  // ============================================================
-
-  Future<String> enviarCapaPublicada({
-    required String userId,
-    required String nomeArquivo,
-    required Uint8List bytes,
-  }) async {
-    if (userId.trim().isEmpty) {
-      throw Exception('Utilizador inválido.');
-    }
-
-    if (bytes.isEmpty) {
-      throw Exception(
-        'A imagem da capa está vazia.',
-      );
-    }
-
-    final nomeSeguro =
-    _normalizarNomeCapa(nomeArquivo);
-
-    final caminho =
-        '$userId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
-
-    await _supabase.storage
-        .from(bucketCapasObras)
-        .uploadBinary(
-      caminho,
-      bytes,
-      fileOptions: const FileOptions(
-        contentType: 'image/png',
-        upsert: false,
-      ),
-    );
-
-    return caminho;
-  }
-
-  // ============================================================
-  // URL PÚBLICA DA CAPA
-  // ============================================================
-
-  String obterUrlCapaPublica(
-      String caminho,
-      ) {
-    if (caminho.trim().isEmpty) {
-      throw Exception(
-        'Caminho da capa inválido.',
-      );
-    }
-
-    return _supabase.storage
-        .from(bucketCapasObras)
-        .getPublicUrl(caminho);
-  }
-
-  // ============================================================
-  // COPIAR CAPA PARA PUBLICADAS
-  // ============================================================
-
-  Future<String> copiarCapaParaPublicadas({
-    required String caminhoPendente,
-    required String userId,
-    required String nomeArquivo,
-  }) async {
-    final bytes =
-    await baixarCapaPendente(
-      caminhoPendente,
-    );
-
-    return await enviarCapaPublicada(
-      userId: userId,
-      nomeArquivo: nomeArquivo,
-      bytes: bytes,
-    );
-  }
-
-  // ============================================================
-  // REMOVER CAPA PUBLICADA
-  // ============================================================
-
-  Future<void> removerCapaPublicada(
-      String caminho,
-      ) async {
-    if (caminho.trim().isEmpty) {
-      return;
-    }
-
-    await _supabase.storage
-        .from(bucketCapasObras)
-        .remove([caminho]);
-  }
-
-  // ============================================================
-  // NORMALIZAÇÃO DE ARQUIVOS
+  // NORMALIZAR NOME DO PDF
   // ============================================================
 
   String _normalizarNomeArquivo(
@@ -423,48 +241,10 @@ class StorageService {
       '_',
     );
 
-    if (!resultado
-        .toLowerCase()
-        .endsWith('.pdf')) {
+    if (!resultado.toLowerCase().endsWith('.pdf')) {
       resultado = '$resultado.pdf';
     }
 
     return resultado;
-  }
-
-  String _nomeBaseSemExtensao(
-      String nome,
-      ) {
-    var resultado = nome.trim();
-
-    final indice =
-    resultado.lastIndexOf('.');
-
-    if (indice > 0) {
-      resultado =
-          resultado.substring(0, indice);
-    }
-
-    resultado = resultado.replaceAll(
-      RegExp(r'[^\w\-.]'),
-      '_',
-    );
-
-    resultado = resultado.replaceAll(
-      RegExp(r'_+'),
-      '_',
-    );
-
-    if (resultado.isEmpty) {
-      resultado = 'documento';
-    }
-
-    return resultado;
-  }
-
-  String _normalizarNomeCapa(
-      String nome,
-      ) {
-    return '${_nomeBaseSemExtensao(nome)}_capa.png';
   }
 }

@@ -8,10 +8,6 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req: Request) => {
-  // ==========================================================
-  // CORS
-  // ==========================================================
-
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: corsHeaders,
@@ -19,12 +15,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // ========================================================
+    // ============================================================
     // 1. VERIFICAR AUTENTICAÇÃO
-    // ========================================================
+    // ============================================================
 
-    const authorization =
-      req.headers.get("Authorization");
+    const authorization = req.headers.get("Authorization");
 
     if (!authorization) {
       return new Response(
@@ -40,6 +35,10 @@ Deno.serve(async (req: Request) => {
         },
       );
     }
+
+    // ============================================================
+    // 2. VARIÁVEIS DO SUPABASE
+    // ============================================================
 
     const supabaseUrl =
       Deno.env.get("SUPABASE_URL");
@@ -74,9 +73,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 2. CLIENTE COM A SESSÃO DO UTILIZADOR
-    // ========================================================
+    // ============================================================
+    // 3. CLIENTE SUPABASE DO UTILIZADOR
+    // ============================================================
 
     const supabaseUser = createClient(
       supabaseUrl,
@@ -116,18 +115,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 3. CLIENTE ADMINISTRATIVO
-    // ========================================================
+    // ============================================================
+    // 4. CLIENTE ADMINISTRADOR
+    // ============================================================
 
     const supabaseAdmin = createClient(
       supabaseUrl,
       serviceRoleKey,
     );
 
-    // ========================================================
-    // 4. CONFIRMAR ADMINISTRADOR
-    // ========================================================
+    // ============================================================
+    // 5. VERIFICAR SE O UTILIZADOR É ADMIN
+    // ============================================================
 
     const {
       data: perfilAdmin,
@@ -163,6 +162,11 @@ Deno.serve(async (req: Request) => {
       !perfilAdmin ||
       perfilAdmin.role !== "admin"
     ) {
+      console.error(
+        "Tentativa de envio por utilizador que não é administrador:",
+        user.id,
+      );
+
       return new Response(
         JSON.stringify({
           error:
@@ -178,9 +182,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 5. LER O ID DA OBRA
-    // ========================================================
+    // ============================================================
+    // 6. LER O BODY
+    // ============================================================
 
     let body;
 
@@ -221,9 +225,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 6. PROCURAR A OBRA PUBLICADA
-    // ========================================================
+    console.log(
+      "Início do envio de e-mail de aprovação:",
+      {
+        obra_id: obraId,
+        admin_id: user.id,
+      },
+    );
+
+    // ============================================================
+    // 7. PROCURAR A OBRA PUBLICADA
+    // ============================================================
 
     const {
       data: obra,
@@ -258,6 +270,11 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!obra) {
+      console.error(
+        "Obra publicada não encontrada:",
+        obraId,
+      );
+
       return new Response(
         JSON.stringify({
           error:
@@ -273,9 +290,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 7. CONFIRMAR PROPRIETÁRIO
-    // ========================================================
+    console.log(
+      "Obra encontrada:",
+      {
+        obra_id: obra.id,
+        titulo: obra.titulo,
+        user_id: obra.user_id,
+      },
+    );
+
+    // ============================================================
+    // 8. VERIFICAR UTILIZADOR DA OBRA
+    // ============================================================
 
     if (!obra.user_id) {
       return new Response(
@@ -293,9 +319,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 8. PROCURAR PERFIL DO PROPRIETÁRIO
-    // ========================================================
+    // ============================================================
+    // 9. PROCURAR PERFIL DO PROPRIETÁRIO
+    // ============================================================
 
     const {
       data: perfil,
@@ -328,6 +354,11 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!perfil) {
+      console.error(
+        "Perfil do proprietário não encontrado:",
+        obra.user_id,
+      );
+
       return new Response(
         JSON.stringify({
           error:
@@ -343,10 +374,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ============================================================
+    // 10. VERIFICAR E-MAIL
+    // ============================================================
+
     if (
       !perfil.email ||
       perfil.email.trim().length === 0
     ) {
+      console.error(
+        "O proprietário não possui e-mail:",
+        obra.user_id,
+      );
+
       return new Response(
         JSON.stringify({
           error:
@@ -362,9 +402,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 9. CONFIGURAÇÕES DO RESEND
-    // ========================================================
+    console.log(
+      "Destinatário encontrado:",
+      {
+        email: perfil.email,
+        nome: perfil.nome,
+      },
+    );
+
+    // ============================================================
+    // 11. CONFIGURAÇÃO DO RESEND
+    // ============================================================
 
     const resendApiKey =
       Deno.env.get("RESEND_API_KEY");
@@ -399,9 +447,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 10. PREPARAR LINK DA OBRA
-    // ========================================================
+    console.log(
+      "Configuração de e-mail encontrada.",
+      {
+        email_from: emailFrom,
+        app_base_url: appBaseUrl,
+      },
+    );
+
+    // ============================================================
+    // 12. URL DA OBRA
+    // ============================================================
 
     const urlObra =
       `${appBaseUrl}/obra/${obra.id}`;
@@ -410,15 +466,16 @@ Deno.serve(async (req: Request) => {
       perfil.nome?.trim() ||
       "Utilizador";
 
-    // ========================================================
-    // 11. PREPARAR HTML DO E-MAIL
-    // ========================================================
+    // ============================================================
+    // 13. HTML DO E-MAIL
+    // ============================================================
 
     const html = `
       <!DOCTYPE html>
       <html lang="pt">
       <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>A sua obra foi aprovada</title>
       </head>
 
@@ -520,9 +577,18 @@ Deno.serve(async (req: Request) => {
       </html>
     `;
 
-    // ========================================================
-    // 12. ENVIAR ATRAVÉS DO RESEND
-    // ========================================================
+    // ============================================================
+    // 14. ENVIAR PARA O RESEND
+    // ============================================================
+
+    console.log(
+      "A enviar e-mail para o Resend...",
+      {
+        to: perfil.email,
+        from: emailFrom,
+        obra_id: obra.id,
+      },
+    );
 
     const resendResponse =
       await fetch(
@@ -553,17 +619,37 @@ Deno.serve(async (req: Request) => {
         },
       );
 
+    // ============================================================
+    // 15. LER RESPOSTA DO RESEND
+    // ============================================================
+
     const resendData =
       await resendResponse.json();
 
-    // ========================================================
-    // 13. VERIFICAR RESPOSTA DO RESEND
-    // ========================================================
+    // ============================================================
+    // 16. LOG COMPLETO DO RESEND
+    // ============================================================
+
+    console.log(
+      "Resposta completa do Resend:",
+      {
+        http_status: resendResponse.status,
+        ok: resendResponse.ok,
+        data: resendData,
+      },
+    );
+
+    // ============================================================
+    // 17. RESEND RECUSOU
+    // ============================================================
 
     if (!resendResponse.ok) {
       console.error(
         "Resend recusou o envio:",
-        resendData,
+        {
+          status: resendResponse.status,
+          data: resendData,
+        },
       );
 
       return new Response(
@@ -582,40 +668,50 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ========================================================
-    // 14. SUCESSO
-    // ========================================================
+    // ============================================================
+    // 18. RESEND ACEITOU O E-MAIL
+    // ============================================================
 
     console.log(
-      "E-mail de aprovação enviado:",
+      "E-mail de aprovação aceite pelo Resend:",
       {
         obra_id: obra.id,
         email: perfil.email,
+        resend: resendData,
       },
     );
+
+    // ============================================================
+    // 19. RESPOSTA FINAL
+    // ============================================================
 
     return new Response(
       JSON.stringify({
         success: true,
+
         obra_id: obra.id,
+
         email: perfil.email,
+
         resend: resendData,
       }),
       {
         status: 200,
+
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
       },
     );
   } catch (error) {
-    // ========================================================
-    // ERRO GERAL
-    // ========================================================
+    // ============================================================
+    // 20. ERRO INESPERADO
+    // ============================================================
 
     console.error(
-      "Erro inesperado:",
+      "Erro inesperado ao enviar e-mail:",
       error,
     );
 
@@ -628,10 +724,10 @@ Deno.serve(async (req: Request) => {
         status: 500,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
       },
     );
   }
 });
-

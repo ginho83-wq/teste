@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -6,7 +7,9 @@ import 'package:pdfx/pdfx.dart';
 import '../models/obra_pendente.dart';
 import '../repositories/obras_pendentes_repository.dart';
 import '../repositories/obras_repository.dart';
+import 'arquivo_service.dart';
 import 'auth_service.dart';
+import 'imagens_storage_service.dart';
 import 'storage_service.dart';
 
 class PublicacaoService {
@@ -15,17 +18,26 @@ class PublicacaoService {
   static final PublicacaoService instancia =
   PublicacaoService._();
 
-  final ObrasPendentesRepository _repository =
+  final AuthService _authService =
+      AuthService.instancia;
+
+  final StorageService _storageService =
+      StorageService.instancia;
+
+  final ImagensStorageService
+  _imagensStorageService =
+      ImagensStorageService.instancia;
+
+  final ObrasPendentesRepository
+  _pendentesRepository =
       ObrasPendentesRepository.instancia;
 
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
 
-  final StorageService _storage =
-      StorageService.instancia;
-
-  final AuthService _auth =
-      AuthService.instancia;
+  // ============================================================
+  // PUBLICAR
+  // ============================================================
 
   Future<ObraPendente> publicar({
     required String titulo,
@@ -35,13 +47,17 @@ class PublicacaoService {
     required Uint8List arquivoPdf,
     required String nomeArquivo,
     int? anoObra,
+    List<Map<String, dynamic>> secoes =
+    const [],
+    List<ArquivoSelecionado> imagens =
+    const [],
   }) async {
     final usuario =
-        _auth.usuarioAtual;
+        _authService.usuarioAtual;
 
     if (usuario == null) {
       throw Exception(
-        'É necessário estar autenticado para publicar.',
+        'É necessário iniciar sessão para publicar.',
       );
     }
 
@@ -53,9 +69,6 @@ class PublicacaoService {
 
     final categoriaLimpa =
     categoria.trim();
-
-    final nomeArquivoLimpo =
-    nomeArquivo.trim();
 
     if (tituloLimpo.isEmpty) {
       throw Exception(
@@ -71,270 +84,329 @@ class PublicacaoService {
 
     if (categoriaLimpa.isEmpty) {
       throw Exception(
-        'Selecione a categoria da obra.',
+        'Informe a categoria da obra.',
       );
     }
 
     if (arquivoPdf.isEmpty) {
       throw Exception(
-        'O arquivo PDF está vazio.',
+        'Selecione um ficheiro PDF.',
       );
     }
 
-    if (!nomeArquivoLimpo
-        .toLowerCase()
-        .endsWith('.pdf')) {
+    if (nomeArquivo.trim().isEmpty) {
       throw Exception(
-        'O arquivo selecionado deve estar no formato PDF.',
+        'O nome do ficheiro PDF é obrigatório.',
       );
     }
 
     // ==========================================================
-    // CALCULAR SHA-256 DO PDF
+    // LIMPAR SECÇÕES
+    // ==========================================================
+
+    final secoesLimpa =
+    <Map<String, dynamic>>[];
+
+    for (var i = 0;
+    i < secoes.length;
+    i++) {
+      final secao =
+      secoes[i];
+
+      final tituloSecao =
+          secao['titulo']
+              ?.toString()
+              .trim() ??
+              '';
+
+      final conteudoSecao =
+          secao['conteudo']
+              ?.toString()
+              .trim() ??
+              '';
+
+      if (tituloSecao.isEmpty &&
+          conteudoSecao.isEmpty) {
+        continue;
+      }
+
+      final ordem =
+          int.tryParse(
+            secao['ordem']
+                ?.toString() ??
+                '',
+          ) ??
+              (i + 1);
+
+      final nivel =
+          int.tryParse(
+            secao['nivel']
+                ?.toString() ??
+                '',
+          ) ??
+              1;
+
+      secoesLimpa.add({
+        'titulo':
+        tituloSecao,
+        'conteudo':
+        conteudoSecao,
+        'ordem':
+        ordem,
+        'nivel':
+        nivel,
+      });
+    }
+
+    // ==========================================================
+    // VALIDAR IMAGENS
+    // ==========================================================
+
+    for (final imagem
+    in imagens) {
+      if (imagem.bytes.isEmpty) {
+        throw Exception(
+          'Uma das imagens selecionadas está vazia.',
+        );
+      }
+
+      if (!_ehImagem(imagem.nome)) {
+        throw Exception(
+          'O arquivo "${imagem.nome}" não é uma imagem válida.',
+        );
+      }
+    }
+
+    // ==========================================================
+    // HASH DO PDF
     // ==========================================================
 
     final hashPdf =
-    sha256.convert(arquivoPdf).toString();
+    sha256
+        .convert(arquivoPdf)
+        .toString();
 
     // ==========================================================
-    // VERIFICAR DUPLICADO NAS OBRAS PUBLICADAS
+    // DUPLICADO PUBLICADO
     // ==========================================================
 
-    final existePublicado =
+    final existePublicada =
     await _obrasRepository
         .existeDuplicado(
-      titulo: tituloLimpo,
-      autor: autorLimpo,
+      titulo:
+      tituloLimpo,
+      autor:
+      autorLimpo,
       nomeArquivo:
-      nomeArquivoLimpo,
-      hashPdf: hashPdf,
+      nomeArquivo,
+      hashPdf:
+      hashPdf,
     );
 
-    if (existePublicado) {
+    if (existePublicada) {
       throw Exception(
-        'Este PDF já existe na Obra Livre. '
-            'A mesma obra não pode ser publicada novamente.',
+        'Esta obra já foi publicada na plataforma.',
       );
     }
 
     // ==========================================================
-    // VERIFICAR DUPLICADO NAS OBRAS PENDENTES
+    // DUPLICADO PENDENTE
     // ==========================================================
 
     final existePendente =
-    await _repository
+    await _pendentesRepository
         .existeDuplicado(
-      titulo: tituloLimpo,
-      autor: autorLimpo,
+      titulo:
+      tituloLimpo,
+      autor:
+      autorLimpo,
       nomeArquivo:
-      nomeArquivoLimpo,
-      hashPdf: hashPdf,
+      nomeArquivo,
+      hashPdf:
+      hashPdf,
     );
 
     if (existePendente) {
       throw Exception(
-        'Este PDF já foi enviado e encontra-se '
-            'pendente de análise.',
+        'Esta obra já está aguardando aprovação.',
       );
     }
+
+    // ==========================================================
+    // DATA
+    // ==========================================================
+
+    final dataPublicacao =
+    DateTime.now();
+
+    // ==========================================================
+    // ENVIAR PDF
+    // ==========================================================
+
+    final caminhoPendente =
+    await _storageService
+        .enviarDocumentoPendente(
+      userId:
+      usuario.id,
+      nomeArquivo:
+      nomeArquivo,
+      bytes:
+      arquivoPdf,
+    );
+
+    // ==========================================================
+    // PÁGINAS
+    // ==========================================================
+
+    int? numeroPaginas;
+
+    try {
+      final documento =
+      await PdfDocument.openData(
+        arquivoPdf,
+      );
+
+      numeroPaginas =
+          documento.pagesCount;
+
+      await documento.close();
+    } catch (_) {
+      numeroPaginas = null;
+    }
+
+    // ==========================================================
+    // TAMANHO
+    // ==========================================================
 
     final tamanhoArquivoBytes =
         arquivoPdf.length;
 
-    String? caminhoPendente;
-    String? caminhoCapaPendente;
+    // ==========================================================
+    // SECÇÕES
+    // ==========================================================
+
+    String? conteudoTexto;
+
+    if (secoesLimpa.isNotEmpty) {
+      conteudoTexto =
+          jsonEncode(
+            secoesLimpa,
+          );
+    }
+
+    // ==========================================================
+    // CRIAR OBRA PENDENTE
+    // ==========================================================
+
+    final obra =
+    ObraPendente(
+      titulo:
+      tituloLimpo,
+      descricao:
+      descricao?.trim().isEmpty == true
+          ? null
+          : descricao?.trim(),
+      autor:
+      autorLimpo,
+      categoria:
+      categoriaLimpa,
+      urlDocumento:
+      caminhoPendente,
+      anoObra:
+      anoObra,
+      dataPublicacao:
+      dataPublicacao,
+      userId:
+      usuario.id,
+      numeroPaginas:
+      numeroPaginas,
+      tamanhoArquivoBytes:
+      tamanhoArquivoBytes,
+      conteudoTexto:
+      conteudoTexto,
+    );
+
+    final obraPendente =
+    await _pendentesRepository.inserir(
+      obra,
+      hashPdf:
+      hashPdf,
+    );
+
+    // ==========================================================
+    // GARANTIR ID DA OBRA PENDENTE
+    // ==========================================================
+
+    final obraPendenteId =
+        obraPendente.id;
+
+    if (obraPendenteId == null ||
+        obraPendenteId.trim().isEmpty) {
+      throw Exception(
+        'Não foi possível obter o ID da obra pendente.',
+      );
+    }
+
+    // ==========================================================
+    // GUARDAR IMAGENS PENDENTES
+    // ==========================================================
 
     try {
-      // ========================================================
-      // 1. ENVIAR PDF PARA PENDENTES
-      // ========================================================
+      for (var i = 0;
+      i < imagens.length;
+      i++) {
+        final imagem =
+        imagens[i];
 
-      caminhoPendente =
-      await _storage
-          .enviarDocumentoPendente(
-        userId: usuario.id,
-        nomeArquivo:
-        nomeArquivoLimpo,
-        bytes: arquivoPdf,
-      );
+        final caminho =
+        await _imagensStorageService
+            .enviarImagemPendente(
+          obraPendenteId:
+          obraPendenteId,
+          nomeArquivo:
+          imagem.nome,
+          bytes:
+          imagem.bytes,
+        );
 
-      // ========================================================
-      // 2. GERAR CAPA E OBTER NÚMERO DE PÁGINAS
-      // ========================================================
-
-      final resultadoCapa =
-      await _gerarCapa(
-        arquivoPdf,
-      );
-
-      final bytesCapa =
-          resultadoCapa.bytes;
-
-      final numeroPaginas =
-          resultadoCapa.numeroPaginas;
-
-      // ========================================================
-      // 3. ENVIAR CAPA
-      // ========================================================
-
-      caminhoCapaPendente =
-      await _storage
-          .enviarCapaPendente(
-        userId: usuario.id,
-        nomeArquivo:
-        nomeArquivoLimpo,
-        bytes: bytesCapa,
-      );
-
-      // ========================================================
-      // 4. CRIAR REGISTRO PENDENTE
-      // ========================================================
-
-      final dataPublicacao =
-      DateTime.now();
-
-      final obra = ObraPendente(
-        titulo:
-        tituloLimpo,
-
-        descricao:
-        descricao?.trim().isEmpty == true
-            ? null
-            : descricao?.trim(),
-
-        autor:
-        autorLimpo,
-
-        categoria:
-        categoriaLimpa,
-
-        urlDocumento:
-        caminhoPendente,
-
-        urlCapa:
-        caminhoCapaPendente,
-
-        anoObra:
-        anoObra,
-
-        dataPublicacao:
-        dataPublicacao,
-
-        userId:
-        usuario.id,
-
-        numeroPaginas:
-        numeroPaginas,
-
-        tamanhoArquivoBytes:
-        tamanhoArquivoBytes,
-      );
-
-      return await _repository.inserir(
-        obra,
-        hashPdf: hashPdf,
-      );
+        await _pendentesRepository
+            .inserirImagemPendente(
+          obraPendenteId:
+          obraPendenteId,
+          caminhoImagem:
+          caminho,
+          ordem:
+          i + 1,
+        );
+      }
     } catch (e) {
-      // ========================================================
-      // LIMPEZA DO PDF SE HOUVER ERRO
-      // ========================================================
-
-      if (caminhoPendente != null) {
-        try {
-          await _storage
-              .removerDocumentoPendente(
-            caminhoPendente,
-          );
-        } catch (_) {}
-      }
-
-      // ========================================================
-      // LIMPEZA DA CAPA SE HOUVER ERRO
-      // ========================================================
-
-      if (caminhoCapaPendente != null) {
-        try {
-          await _storage
-              .removerCapaPendente(
-            caminhoCapaPendente,
-          );
-        } catch (_) {}
-      }
+      try {
+        await _pendentesRepository
+            .rejeitar(
+          obraPendenteId,
+        );
+      } catch (_) {}
 
       rethrow;
     }
+
+    return obraPendente;
   }
 
   // ============================================================
-  // GERAR CAPA A PARTIR DA PRIMEIRA PÁGINA
-  // E OBTER NÚMERO TOTAL DE PÁGINAS
+  // VERIFICAR IMAGEM
   // ============================================================
 
-  Future<_ResultadoCapa> _gerarCapa(
-      Uint8List pdfBytes,
-      ) async {
-    PdfDocument? documento;
-    PdfPage? pagina;
+  bool _ehImagem(
+      String nomeArquivo,
+      ) {
+    final nome =
+    nomeArquivo.toLowerCase();
 
-    try {
-      documento =
-      await PdfDocument.openData(
-        pdfBytes,
-      );
-
-      final numeroPaginas =
-          documento.pagesCount;
-
-      if (numeroPaginas < 1) {
-        throw Exception(
-          'O PDF não possui nenhuma página.',
-        );
-      }
-
-      pagina =
-      await documento.getPage(1);
-
-      final imagem =
-      await pagina.render(
-        width:
-        pagina.width * 2,
-        height:
-        pagina.height * 2,
-        format:
-        PdfPageImageFormat.png,
-        backgroundColor:
-        '#FFFFFF',
-      );
-
-      if (imagem == null ||
-          imagem.bytes.isEmpty) {
-        throw Exception(
-          'Não foi possível gerar a capa do PDF.',
-        );
-      }
-
-      return _ResultadoCapa(
-        bytes: imagem.bytes,
-        numeroPaginas:
-        numeroPaginas,
-      );
-    } finally {
-      await pagina?.close();
-      await documento?.close();
-    }
+    return nome.endsWith('.jpg') ||
+        nome.endsWith('.jpeg') ||
+        nome.endsWith('.png') ||
+        nome.endsWith('.webp') ||
+        nome.endsWith('.gif');
   }
-}
-
-// ============================================================
-// RESULTADO DA GERAÇÃO DA CAPA
-// ============================================================
-
-class _ResultadoCapa {
-  final Uint8List bytes;
-  final int numeroPaginas;
-
-  const _ResultadoCapa({
-    required this.bytes,
-    required this.numeroPaginas,
-  });
 }

@@ -1,8 +1,14 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/obra.dart';
+import '../models/obra_imagem.dart';
 import '../models/obra_pendente.dart';
+import '../services/imagens_storage_service.dart';
 import '../services/storage_service.dart';
+import 'obras_imagens_repository.dart';
 
 class ObrasPendentesRepository {
   ObrasPendentesRepository._();
@@ -16,14 +22,20 @@ class ObrasPendentesRepository {
   final StorageService _storage =
       StorageService.instancia;
 
+  final ImagensStorageService _imagensStorage =
+      ImagensStorageService.instancia;
+
+  final ObrasImagensRepository _imagensRepository =
+      ObrasImagensRepository.instancia;
+
   static const String _campos = '''
     id,
     titulo,
     descricao,
+    conteudo_texto,
     autor,
     categoria,
     url_documento,
-    url_capa,
     ano_obra,
     data_publicacao,
     numero_paginas,
@@ -34,8 +46,11 @@ class ObrasPendentesRepository {
     updated_at
   ''';
 
-  Future<List<ObraPendente>>
-  carregarTodas() async {
+  // ============================================================
+  // CARREGAR TODAS
+  // ============================================================
+
+  Future<List<ObraPendente>> carregarTodas() async {
     final resposta = await _supabase
         .from('obras_pendentes')
         .select(_campos)
@@ -52,6 +67,10 @@ class ObrasPendentesRepository {
     )
         .toList();
   }
+
+  // ============================================================
+  // CARREGAR POR ID
+  // ============================================================
 
   Future<ObraPendente?> carregarPorId(
       String id,
@@ -71,14 +90,20 @@ class ObrasPendentesRepository {
     );
   }
 
-  Future<List<ObraPendente>>
-  carregarDoUsuario(
+  // ============================================================
+  // CARREGAR DO UTILIZADOR
+  // ============================================================
+
+  Future<List<ObraPendente>> carregarDoUsuario(
       String userId,
       ) async {
     final resposta = await _supabase
         .from('obras_pendentes')
         .select(_campos)
-        .eq('user_id', userId)
+        .eq(
+      'user_id',
+      userId,
+    )
         .order(
       'data_publicacao',
       ascending: false,
@@ -105,36 +130,27 @@ class ObrasPendentesRepository {
   }) async {
     final tituloLimpo = titulo.trim();
     final autorLimpo = autor.trim();
-    final nomeArquivoLimpo =
-    _nomeArquivo(nomeArquivo);
+    final nomeArquivoLimpo = _nomeArquivo(nomeArquivo);
     final hashLimpo = hashPdf?.trim() ?? '';
 
-    // ----------------------------------------------------------
-    // 1. VERIFICAR HASH DO PDF
-    // ----------------------------------------------------------
-
     if (hashLimpo.isNotEmpty) {
-      final respostaHash =
-      await _supabase
+      final respostaHash = await _supabase
           .from('obras_pendentes')
           .select('id, hash_pdf')
-          .eq('hash_pdf', hashLimpo)
+          .eq(
+        'hash_pdf',
+        hashLimpo,
+      )
           .limit(1);
 
-      if ((respostaHash as List)
-          .isNotEmpty) {
+      if ((respostaHash as List).isNotEmpty) {
         return true;
       }
     }
 
-    // ----------------------------------------------------------
-    // 2. VERIFICAR TÍTULO + AUTOR
-    // ----------------------------------------------------------
-
     if (tituloLimpo.isNotEmpty &&
         autorLimpo.isNotEmpty) {
-      final respostaTituloAutor =
-      await _supabase
+      final respostaTituloAutor = await _supabase
           .from('obras_pendentes')
           .select('id, titulo, autor')
           .ilike(
@@ -147,19 +163,13 @@ class ObrasPendentesRepository {
       )
           .limit(20);
 
-      if ((respostaTituloAutor as List)
-          .isNotEmpty) {
+      if ((respostaTituloAutor as List).isNotEmpty) {
         return true;
       }
     }
 
-    // ----------------------------------------------------------
-    // 3. VERIFICAR NOME DO PDF
-    // ----------------------------------------------------------
-
     if (nomeArquivoLimpo.isNotEmpty) {
-      final respostaArquivo =
-      await _supabase
+      final respostaArquivo = await _supabase
           .from('obras_pendentes')
           .select('id, url_documento')
           .ilike(
@@ -168,8 +178,7 @@ class ObrasPendentesRepository {
       )
           .limit(20);
 
-      if ((respostaArquivo as List)
-          .isNotEmpty) {
+      if ((respostaArquivo as List).isNotEmpty) {
         return true;
       }
     }
@@ -208,14 +217,139 @@ class ObrasPendentesRepository {
   }
 
   // ============================================================
+  // INSERIR IMAGEM PENDENTE
+  // ============================================================
+
+  Future<void> inserirImagemPendente({
+    required String obraPendenteId,
+    required String caminhoImagem,
+    String? legenda,
+    int ordem = 1,
+  }) async {
+    if (obraPendenteId.trim().isEmpty) {
+      throw Exception(
+        'ID da obra pendente inválido.',
+      );
+    }
+
+    if (caminhoImagem.trim().isEmpty) {
+      throw Exception(
+        'Caminho da imagem pendente inválido.',
+      );
+    }
+
+    await _supabase
+        .from('obras_pendentes_imagens')
+        .insert({
+      'obra_pendente_id': obraPendenteId,
+      'caminho_imagem': caminhoImagem,
+      'legenda': legenda,
+      'posicao': 'depois_conteudo',
+      'ordem': ordem,
+    });
+  }
+
+  // ============================================================
+  // CARREGAR IMAGENS PENDENTES
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>>
+  carregarImagensPendentes(
+      String obraPendenteId,
+      ) async {
+    if (obraPendenteId.trim().isEmpty) {
+      return [];
+    }
+
+    final resposta = await _supabase
+        .from('obras_pendentes_imagens')
+        .select('''
+          id,
+          obra_pendente_id,
+          caminho_imagem,
+          legenda,
+          posicao,
+          ordem,
+          created_at
+        ''')
+        .eq(
+      'obra_pendente_id',
+      obraPendenteId,
+    )
+        .order(
+      'ordem',
+      ascending: true,
+    );
+
+    return (resposta as List)
+        .map(
+          (item) => Map<String, dynamic>.from(item),
+    )
+        .toList();
+  }
+
+  // ============================================================
+  // ELIMINAR IMAGENS PENDENTES
+  // ============================================================
+
+  Future<void> eliminarImagensPendentes(
+      String obraPendenteId,
+      ) async {
+    if (obraPendenteId.trim().isEmpty) {
+      return;
+    }
+
+    final imagens =
+    await carregarImagensPendentes(
+      obraPendenteId,
+    );
+
+    // Primeiro remover os ficheiros do Storage.
+    for (final imagem in imagens) {
+      final caminho =
+          imagem['caminho_imagem']?.toString() ?? '';
+
+      if (caminho.isEmpty) {
+        continue;
+      }
+
+      try {
+        await _imagensStorage
+            .removerImagemPendente(caminho);
+      } catch (_) {}
+    }
+
+    // Depois remover os registos da tabela.
+    await _supabase
+        .from('obras_pendentes_imagens')
+        .delete()
+        .eq(
+      'obra_pendente_id',
+      obraPendenteId,
+    );
+  }
+
+  // ============================================================
   // APROVAR OBRA
   // ============================================================
 
   Future<Obra> aprovar(
       String id,
       ) async {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
+      throw Exception(
+        'ID da obra pendente inválido.',
+      );
+    }
+
+    // ----------------------------------------------------------
+    // 1. CARREGAR OBRA PENDENTE
+    // ----------------------------------------------------------
+
     final pendente =
-    await carregarPorId(id);
+    await carregarPorId(idLimpo);
 
     if (pendente == null) {
       throw Exception(
@@ -232,23 +366,32 @@ class ObrasPendentesRepository {
       );
     }
 
-    // ==========================================================
-    // OBTER HASH DA OBRA PENDENTE
-    // ==========================================================
+    // ----------------------------------------------------------
+    // 2. HASH
+    // ----------------------------------------------------------
 
-    final respostaHash =
-    await _supabase
+    final respostaHash = await _supabase
         .from('obras_pendentes')
         .select('hash_pdf')
-        .eq('id', id)
+        .eq(
+      'id',
+      idLimpo,
+    )
         .maybeSingle();
 
     final hashPdf =
     respostaHash?['hash_pdf']?.toString();
 
-    // ==========================================================
-    // COPIAR PDF
-    // ==========================================================
+    // ----------------------------------------------------------
+    // 3. CARREGAR IMAGENS PENDENTES
+    // ----------------------------------------------------------
+
+    final imagensPendentes =
+    await carregarImagensPendentes(idLimpo);
+
+    // ----------------------------------------------------------
+    // 4. COPIAR PDF PARA O BUCKET PUBLICADO
+    // ----------------------------------------------------------
 
     final caminhoPdfPendente =
         pendente.urlDocumento;
@@ -256,12 +399,9 @@ class ObrasPendentesRepository {
     final caminhoPdfPublicado =
     await _storage
         .copiarDocumentoParaPublicadas(
-      caminhoPendente:
-      caminhoPdfPendente,
-      userId:
-      pendente.userId,
-      nomeArquivo:
-      _nomeArquivo(
+      caminhoPendente: caminhoPdfPendente,
+      userId: pendente.userId,
+      nomeArquivo: _nomeArquivo(
         caminhoPdfPendente,
       ),
     );
@@ -271,101 +411,248 @@ class ObrasPendentesRepository {
       caminhoPdfPublicado,
     );
 
-    // ==========================================================
-    // COPIAR CAPA
-    // ==========================================================
-
-    String? urlCapaPublica;
-
-    if (pendente.urlCapa != null &&
-        pendente.urlCapa!
-            .trim()
-            .isNotEmpty) {
-      final caminhoCapaPendente =
-      pendente.urlCapa!;
-
-      final caminhoCapaPublicado =
-      await _storage
-          .copiarCapaParaPublicadas(
-        caminhoPendente:
-        caminhoCapaPendente,
-        userId:
-        pendente.userId,
-        nomeArquivo:
-        _nomeArquivo(
-          caminhoCapaPendente,
-        ),
-      );
-
-      urlCapaPublica =
-          _storage.obterUrlCapaPublica(
-            caminhoCapaPublicado,
-          );
-    }
-
-    // ==========================================================
-    // CRIAR OBRA PUBLICADA
-    // ==========================================================
+    // ----------------------------------------------------------
+    // 5. CRIAR OBRA PUBLICADA
+    // ----------------------------------------------------------
 
     final dadosObra =
     <String, dynamic>{
-      'titulo':
-      pendente.titulo,
-
-      'descricao':
-      pendente.descricao,
-
-      'autor':
-      pendente.autor,
-
-      'categoria':
-      pendente.categoria,
-
-      'url_documento':
-      urlPdfPublica,
-
-      'url_capa':
-      urlCapaPublica,
-
-      'ano_obra':
-      pendente.anoObra,
-
+      'titulo': pendente.titulo,
+      'descricao': pendente.descricao,
+      'conteudo_texto':
+      pendente.conteudoTexto,
+      'autor': pendente.autor,
+      'categoria': pendente.categoria,
+      'url_documento': urlPdfPublica,
+      'ano_obra': pendente.anoObra,
       'data_publicacao':
       pendente.dataPublicacao
           .toIso8601String(),
-
       'numero_paginas':
       pendente.numeroPaginas,
-
-      'user_id':
-      pendente.userId,
-
+      'user_id': pendente.userId,
       'tamanho_arquivo_bytes':
       pendente.tamanhoArquivoBytes,
-
-      'hash_pdf':
-      hashPdf,
+      'hash_pdf': hashPdf,
     };
 
     final resposta =
     await _supabase
         .from('obras')
         .insert(dadosObra)
-        .select(_campos)
+        .select('''
+              id,
+              titulo,
+              descricao,
+              autor,
+              categoria,
+              url_documento,
+              ano_obra,
+              data_publicacao,
+              numero_paginas,
+              tamanho_arquivo_bytes,
+              conteudo_texto,
+              hash_pdf,
+              user_id,
+              created_at,
+              updated_at
+            ''')
         .single();
 
+    final obraPublicada =
+    Obra.fromMap(
+      Map<String, dynamic>.from(
+        resposta,
+      ),
+    );
+
+    // Lista dos caminhos das imagens já copiadas
+    // para podermos eliminá-las se alguma etapa falhar.
+    final imagensPublicadas =
+    <String>[];
+
+    try {
+      // --------------------------------------------------------
+      // 6. TRANSFERIR SECÇÕES
+      // --------------------------------------------------------
+
+      await _transferirSecoes(
+        obraId: obraPublicada.id,
+        conteudoTexto:
+        pendente.conteudoTexto,
+      );
+
+      // --------------------------------------------------------
+      // 7. TRANSFERIR IMAGENS
+      // --------------------------------------------------------
+
+      for (final imagem
+      in imagensPendentes) {
+        final caminhoPendente =
+            imagem['caminho_imagem']
+                ?.toString() ??
+                '';
+
+        if (caminhoPendente.isEmpty) {
+          continue;
+        }
+
+        final caminhoPublicado =
+        await _imagensStorage
+            .copiarImagemParaPublicada(
+          caminhoPendente:
+          caminhoPendente,
+          obraId:
+          obraPublicada.id,
+          nomeArquivo:
+          _nomeArquivo(
+            caminhoPendente,
+          ),
+        );
+
+        // Guardar para limpeza em caso de erro.
+        imagensPublicadas.add(
+          caminhoPublicado,
+        );
+
+        final urlImagem =
+        _imagensStorage
+            .obterUrlPublica(
+          caminhoPublicado,
+        );
+
+        final legenda =
+        imagem['legenda']
+            ?.toString();
+
+        final posicao =
+            imagem['posicao']
+                ?.toString() ??
+                'depois_conteudo';
+
+        final ordem =
+            int.tryParse(
+              imagem['ordem']
+                  ?.toString() ??
+                  '',
+            ) ??
+                1;
+
+        await _imagensRepository
+            .inserir(
+          ObraImagem(
+            obraId:
+            obraPublicada.id,
+            urlImagem:
+            urlImagem,
+            legenda:
+            legenda,
+            posicao:
+            posicao,
+            ordem:
+            ordem,
+          ),
+        );
+      }
+    } catch (e) {
+      // ========================================================
+      // LIMPEZA COMPLETA EM CASO DE FALHA
+      // ========================================================
+
+      // --------------------------------------------------------
+      // A. Remover registos das imagens publicadas
+      // --------------------------------------------------------
+
+      try {
+        await _imagensRepository
+            .eliminarPorObra(
+          obraPublicada.id,
+        );
+      } catch (_) {}
+
+      // --------------------------------------------------------
+      // B. Remover ficheiros das imagens publicadas
+      // --------------------------------------------------------
+
+      for (final caminho
+      in imagensPublicadas) {
+        try {
+          await _imagensStorage
+              .removerImagem(
+            caminho,
+          );
+        } catch (_) {}
+      }
+
+      // --------------------------------------------------------
+      // C. Remover secções
+      // --------------------------------------------------------
+
+      try {
+        await _supabase
+            .from('teste_secoes')
+            .delete()
+            .eq(
+          'obra_id',
+          obraPublicada.id,
+        );
+      } catch (_) {}
+
+      // --------------------------------------------------------
+      // D. Remover obra publicada
+      // --------------------------------------------------------
+
+      try {
+        await _supabase
+            .from('obras')
+            .delete()
+            .eq(
+          'id',
+          obraPublicada.id,
+        );
+      } catch (_) {}
+
+      // --------------------------------------------------------
+      // E. Remover PDF publicado
+      // --------------------------------------------------------
+
+      try {
+        await _storage
+            .removerDocumentoPublicado(
+          caminhoPdfPublicado,
+        );
+      } catch (_) {}
+
+      rethrow;
+    }
+
     // ==========================================================
-    // REMOVER REGISTO PENDENTE
+    // 8. LIMPAR DADOS PENDENTES
+    //
+    // IMPORTANTE:
+    // Primeiro apagamos imagens pendentes.
+    // Só depois apagamos a obra pendente.
     // ==========================================================
+
+    await eliminarImagensPendentes(
+      idLimpo,
+    );
+
+    // ----------------------------------------------------------
+    // 9. REMOVER REGISTO DA OBRA PENDENTE
+    // ----------------------------------------------------------
 
     await _supabase
         .from('obras_pendentes')
         .delete()
-        .eq('id', id);
+        .eq(
+      'id',
+      idLimpo,
+    );
 
-    // ==========================================================
-    // REMOVER PDF PENDENTE
-    // ==========================================================
+    // ----------------------------------------------------------
+    // 10. REMOVER PDF PENDENTE
+    // ----------------------------------------------------------
 
     try {
       await _storage
@@ -374,27 +661,128 @@ class ObrasPendentesRepository {
       );
     } catch (_) {}
 
-    // ==========================================================
-    // REMOVER CAPA PENDENTE
-    // ==========================================================
+    return obraPublicada;
+  }
 
-    if (pendente.urlCapa != null &&
-        pendente.urlCapa!
-            .trim()
-            .isNotEmpty) {
-      try {
-        await _storage
-            .removerCapaPendente(
-          pendente.urlCapa!,
-        );
-      } catch (_) {}
+  // ============================================================
+  // TRANSFERIR SECÇÕES
+  // ============================================================
+
+  Future<void> _transferirSecoes({
+    required String obraId,
+    required String? conteudoTexto,
+  }) async {
+    if (conteudoTexto == null ||
+        conteudoTexto.trim().isEmpty) {
+      return;
     }
 
-    return Obra.fromMap(
+    dynamic dados;
+
+    try {
+      dados = jsonDecode(
+        conteudoTexto.trim(),
+      );
+    } catch (_) {
+      throw Exception(
+        'Não foi possível interpretar as secções da obra. '
+            'O conteúdo das secções não está num formato JSON válido.',
+      );
+    }
+
+    if (dados is! List) {
+      throw Exception(
+        'O conteúdo das secções da obra possui um formato inválido.',
+      );
+    }
+
+    if (dados.isEmpty) {
+      return;
+    }
+
+    final secoes =
+    <Map<String, dynamic>>[];
+
+    for (var i = 0;
+    i < dados.length;
+    i++) {
+      final item = dados[i];
+
+      if (item is! Map) {
+        continue;
+      }
+
+      final mapa =
       Map<String, dynamic>.from(
-        resposta,
-      ),
+        item,
+      );
+
+      final titulo =
+          mapa['titulo']
+              ?.toString()
+              .trim() ??
+              '';
+
+      final conteudo =
+          mapa['conteudo']
+              ?.toString()
+              .trim() ??
+              '';
+
+      if (titulo.isEmpty &&
+          conteudo.isEmpty) {
+        continue;
+      }
+
+      final ordem =
+          int.tryParse(
+            mapa['ordem']
+                ?.toString() ??
+                '',
+          ) ??
+              (secoes.length + 1);
+
+      final nivel =
+          int.tryParse(
+            mapa['nivel']
+                ?.toString() ??
+                '',
+          ) ??
+              1;
+
+      secoes.add({
+        'id': _gerarIdSecao(),
+        'obra_id': obraId,
+        'titulo': titulo,
+        'conteudo': conteudo,
+        'ordem': ordem,
+        'nivel': nivel,
+      });
+    }
+
+    if (secoes.isEmpty) {
+      return;
+    }
+
+    secoes.sort(
+          (a, b) =>
+          (a['ordem'] as int)
+              .compareTo(
+            b['ordem'] as int,
+          ),
     );
+
+    await _supabase
+        .from('teste_secoes')
+        .insert(secoes);
+  }
+
+  // ============================================================
+  // GERAR ID DA SECÇÃO
+  // ============================================================
+
+  String _gerarIdSecao() {
+    return const Uuid().v4();
   }
 
   // ============================================================
@@ -404,8 +792,16 @@ class ObrasPendentesRepository {
   Future<void> rejeitar(
       String id,
       ) async {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
+      throw Exception(
+        'ID da obra pendente inválido.',
+      );
+    }
+
     final pendente =
-    await carregarPorId(id);
+    await carregarPorId(idLimpo);
 
     if (pendente == null) {
       throw Exception(
@@ -413,11 +809,12 @@ class ObrasPendentesRepository {
       );
     }
 
-    await _supabase
-        .from('obras_pendentes')
-        .delete()
-        .eq('id', id);
+    // Primeiro eliminar imagens pendentes.
+    await eliminarImagensPendentes(
+      idLimpo,
+    );
 
+    // Depois eliminar o PDF pendente.
     if (pendente.urlDocumento
         .trim()
         .isNotEmpty) {
@@ -429,24 +826,29 @@ class ObrasPendentesRepository {
       } catch (_) {}
     }
 
-    if (pendente.urlCapa != null &&
-        pendente.urlCapa!
-            .trim()
-            .isNotEmpty) {
-      try {
-        await _storage
-            .removerCapaPendente(
-          pendente.urlCapa!,
-        );
-      } catch (_) {}
-    }
+    // Por último eliminar a obra pendente.
+    await _supabase
+        .from('obras_pendentes')
+        .delete()
+        .eq(
+      'id',
+      idLimpo,
+    );
   }
+
+  // ============================================================
+  // EXCLUIR
+  // ============================================================
 
   Future<void> excluir(
       String id,
       ) async {
     await rejeitar(id);
   }
+
+  // ============================================================
+  // NOME DO ARQUIVO
+  // ============================================================
 
   String _nomeArquivo(
       String caminho,

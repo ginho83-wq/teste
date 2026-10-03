@@ -34,9 +34,7 @@ class ObraListaItem extends StatelessWidget {
       );
     }
 
-    if ((obra.descricao ?? '')
-        .trim()
-        .isNotEmpty) {
+    if ((obra.descricao ?? '').trim().isNotEmpty) {
       segundaLinha.add(
         obra.descricao!.trim(),
       );
@@ -48,9 +46,7 @@ class ObraListaItem extends StatelessWidget {
 
     final List<String> terceiraLinha = [];
 
-    if (obra.categoria
-        .trim()
-        .isNotEmpty) {
+    if (obra.categoria.trim().isNotEmpty) {
       terceiraLinha.add(
         obra.categoria.trim(),
       );
@@ -64,20 +60,12 @@ class ObraListaItem extends StatelessWidget {
       'PDF',
     );
 
-    // ===============================================================
-    // NÚMERO DE PÁGINAS
-    // ===============================================================
-
     if (obra.numeroPaginas != null &&
         obra.numeroPaginas! > 0) {
       terceiraLinha.add(
         '${obra.numeroPaginas} páginas',
       );
     }
-
-    // ===============================================================
-    // TAMANHO DO PDF
-    // ===============================================================
 
     if (obra.tamanhoArquivoBytes != null &&
         obra.tamanhoArquivoBytes! > 0) {
@@ -94,37 +82,21 @@ class ObraListaItem extends StatelessWidget {
     final String textoTerceiraLinha =
     terceiraLinha.join(', ');
 
-    final bool possuiCapa =
-        obra.urlCapa != null &&
-            obra.urlCapa!
-                .trim()
-                .isNotEmpty;
-
     // ===============================================================
-    // DIMENSÕES DA CAPA
+    // ITEM DA OBRA — SEM CAPA
     // ===============================================================
-
-    final double larguraCapa =
-    mobile ? 62 : 72;
-
-    final double alturaCapa =
-    mobile ? 82 : 88;
 
     return Material(
       type: MaterialType.transparency,
       color: Colors.transparent,
       elevation: 0,
       shadowColor: Colors.transparent,
-      surfaceTintColor:
-      Colors.transparent,
+      surfaceTintColor: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        hoverColor:
-        const Color(0xfff8f9fa),
-        splashColor:
-        const Color(0xfff1f3f4),
-        highlightColor:
-        Colors.transparent,
+        hoverColor: const Color(0xfff8f9fa),
+        splashColor: const Color(0xfff1f3f4),
+        highlightColor: Colors.transparent,
         child: Container(
           width: double.infinity,
           color: Colors.transparent,
@@ -134,129 +106,61 @@ class ObraListaItem extends StatelessWidget {
             top: 14,
             bottom: 14,
           ),
-          child: Row(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // =====================================================
-              // CAPA
+              // 1. TÍTULO
               // =====================================================
 
-              SizedBox(
-                width: larguraCapa,
-                height: alturaCapa,
-                child: possuiCapa
-                    ? ClipRRect(
-                  borderRadius:
-                  BorderRadius.circular(4),
-                  child: Image.network(
-                    obra.urlCapa!,
-                    fit: BoxFit.cover,
-                    filterQuality:
-                    FilterQuality.medium,
-                    errorBuilder: (
-                        context,
-                        error,
-                        stackTrace,
-                        ) {
-                      return _placeholderCapa();
-                    },
+              Text(
+                obra.titulo,
+                softWrap: true,
+                style: const TextStyle(
+                  fontSize: 17,
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xff1a73e8),
+                  decoration: TextDecoration.underline,
+                  decorationColor: Color(0xff1a73e8),
+                  decorationThickness: 1.2,
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              // =====================================================
+              // 2. AUTOR + ANO + DESCRIÇÃO
+              // =====================================================
+
+              if (textoSegundaLinha.isNotEmpty)
+                Text(
+                  textoSegundaLinha,
+                  softWrap: true,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xff5f6368),
                   ),
-                )
-                    : _placeholderCapa(),
-              ),
+                ),
 
-              const SizedBox(
-                width: 14,
-              ),
+              const SizedBox(height: 4),
 
               // =====================================================
-              // INFORMAÇÕES DA OBRA
+              // 3. CATEGORIA + DATA + PDF + PÁGINAS + TAMANHO
               // =====================================================
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  mainAxisSize:
-                  MainAxisSize.min,
-                  children: [
-                    // =================================================
-                    // 1. TÍTULO
-                    // =================================================
-
-                    Text(
-                      obra.titulo,
-                      softWrap: true,
-                      style:
-                      const TextStyle(
-                        fontSize: 17,
-                        height: 1.4,
-                        fontWeight:
-                        FontWeight.w700,
-                        color:
-                        Color(0xff1a73e8),
-                        decoration:
-                        TextDecoration
-                            .underline,
-                        decorationColor:
-                        Color(0xff1a73e8),
-                        decorationThickness:
-                        1.2,
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 5,
-                    ),
-
-                    // =================================================
-                    // 2. AUTOR + ANO + RESUMO
-                    // =================================================
-
-                    if (textoSegundaLinha
-                        .isNotEmpty)
-                      Text(
-                        textoSegundaLinha,
-                        softWrap: true,
-                        maxLines: 3,
-                        overflow:
-                        TextOverflow
-                            .ellipsis,
-                        style:
-                        const TextStyle(
-                          fontSize: 13,
-                          height: 1.5,
-                          fontWeight:
-                          FontWeight.w400,
-                          color:
-                          Color(0xff5f6368),
-                        ),
-                      ),
-
-                    const SizedBox(
-                      height: 4,
-                    ),
-
-                    // =================================================
-                    // 3. CATEGORIA + DATA + PDF
-                    //    + PÁGINAS + TAMANHO
-                    // =================================================
-
-                    Text(
-                      textoTerceiraLinha,
-                      softWrap: true,
-                      style:
-                      const TextStyle(
-                        fontSize: 12.5,
-                        height: 1.5,
-                        fontWeight:
-                        FontWeight.w400,
-                        color:
-                        Color(0xff5f6368),
-                      ),
-                    ),
-                  ],
+              Text(
+                textoTerceiraLinha,
+                softWrap: true,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  height: 1.5,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xff5f6368),
                 ),
               ),
             ],
@@ -267,40 +171,10 @@ class ObraListaItem extends StatelessWidget {
   }
 
   // ===============================================================
-  // PLACEHOLDER QUANDO NÃO EXISTE CAPA
-  // ===============================================================
-
-  Widget _placeholderCapa() {
-    return Container(
-      decoration: BoxDecoration(
-        color:
-        const Color(0xfff1f3f4),
-        borderRadius:
-        BorderRadius.circular(4),
-        border: Border.all(
-          color:
-          const Color(0xffdadce0),
-          width: 1,
-        ),
-      ),
-      child: const Center(
-        child: Icon(
-          Icons.picture_as_pdf_outlined,
-          size: 28,
-          color:
-          Color(0xff5f6368),
-        ),
-      ),
-    );
-  }
-
-  // ===============================================================
   // FORMATAÇÃO DO TAMANHO DO PDF
   // ===============================================================
 
-  static String _formatarTamanho(
-      int bytes,
-      ) {
+  static String _formatarTamanho(int bytes) {
     const unidades = [
       'B',
       'KB',
@@ -309,14 +183,12 @@ class ObraListaItem extends StatelessWidget {
       'TB',
     ];
 
-    double tamanho =
-    bytes.toDouble();
+    double tamanho = bytes.toDouble();
 
     int indice = 0;
 
     while (tamanho >= 1024 &&
-        indice <
-            unidades.length - 1) {
+        indice < unidades.length - 1) {
       tamanho /= 1024;
       indice++;
     }
@@ -330,3 +202,4 @@ class ObraListaItem extends StatelessWidget {
         '${unidades[indice]}';
   }
 }
+

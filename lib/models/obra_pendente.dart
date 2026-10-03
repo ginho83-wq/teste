@@ -5,20 +5,12 @@ class ObraPendente {
   final String autor;
   final String categoria;
   final String urlDocumento;
-
-  // Caminho da capa gerada a partir da primeira página do PDF.
-  final String? urlCapa;
-
   final int? anoObra;
   final DateTime dataPublicacao;
   final String userId;
-
-  // Número total de páginas do PDF.
   final int? numeroPaginas;
-
-  // Tamanho real do PDF em bytes.
   final int? tamanhoArquivoBytes;
-
+  final String? conteudoTexto;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -29,12 +21,12 @@ class ObraPendente {
     required this.autor,
     required this.categoria,
     required this.urlDocumento,
-    this.urlCapa,
     this.anoObra,
     required this.dataPublicacao,
     required this.userId,
     this.numeroPaginas,
     this.tamanhoArquivoBytes,
+    this.conteudoTexto,
     this.createdAt,
     this.updatedAt,
   });
@@ -46,49 +38,71 @@ class ObraPendente {
       id: map['id']?.toString(),
 
       titulo:
-      map['titulo']?.toString() ?? '',
+      map['titulo'] as String,
 
       descricao:
-      map['descricao']?.toString(),
+      map['descricao'] as String?,
 
       autor:
-      map['autor']?.toString() ?? '',
+      map['autor'] as String,
 
       categoria:
-      map['categoria']?.toString() ?? '',
+      map['categoria'] as String,
 
       urlDocumento:
-      map['url_documento']?.toString() ?? '',
-
-      // Caminho da capa no bucket de capas pendentes.
-      urlCapa:
-      map['url_capa']?.toString(),
+      map['url_documento'] as String,
 
       anoObra:
-      _parseInt(map['ano_obra']),
+      map['ano_obra'] != null
+          ? int.tryParse(
+        map['ano_obra'].toString(),
+      )
+          : null,
 
       dataPublicacao:
-      _parseDate(map['data_publicacao']) ??
-          DateTime.now(),
-
-      userId:
-      map['user_id']?.toString() ?? '',
-
-      // Número total de páginas do PDF.
-      numeroPaginas:
-      _parseInt(map['numero_paginas']),
-
-      // Tamanho real armazenado no banco.
-      tamanhoArquivoBytes:
-      _parseInt(
-        map['tamanho_arquivo_bytes'],
+      DateTime.parse(
+        map['data_publicacao']
+            .toString(),
       ),
 
+      userId:
+      map['user_id'] as String,
+
+      numeroPaginas:
+      map['numero_paginas'] != null
+          ? int.tryParse(
+        map['numero_paginas']
+            .toString(),
+      )
+          : null,
+
+      tamanhoArquivoBytes:
+      map['tamanho_arquivo_bytes'] != null
+          ? int.tryParse(
+        map['tamanho_arquivo_bytes']
+            .toString(),
+      )
+          : null,
+
+      conteudoTexto:
+      map['conteudo_texto']
+          ?.toString(),
+
       createdAt:
-      _parseDate(map['created_at']),
+      map['created_at'] != null
+          ? DateTime.parse(
+        map['created_at']
+            .toString(),
+      )
+          : null,
 
       updatedAt:
-      _parseDate(map['updated_at']),
+      map['updated_at'] != null
+          ? DateTime.parse(
+        map['updated_at']
+            .toString(),
+      )
+          : null,
     );
   }
 
@@ -97,38 +111,49 @@ class ObraPendente {
       if (id != null)
         'id': id,
 
-      'titulo': titulo,
+      'titulo':
+      titulo,
 
-      'descricao': descricao,
+      'descricao':
+      descricao,
 
-      'autor': autor,
+      'autor':
+      autor,
 
-      'categoria': categoria,
+      'categoria':
+      categoria,
 
-      'url_documento': urlDocumento,
+      'url_documento':
+      urlDocumento,
 
-      // Caminho da capa no Storage.
-      'url_capa': urlCapa,
-
-      'ano_obra': anoObra,
+      'ano_obra':
+      anoObra,
 
       'data_publicacao':
-      dataPublicacao.toIso8601String(),
+      dataPublicacao
+          .toIso8601String(),
 
-      'user_id': userId,
+      'user_id':
+      userId,
 
-      // Número total de páginas.
-      'numero_paginas': numeroPaginas,
+      'numero_paginas':
+      numeroPaginas,
 
-      // Guarda o tamanho real do PDF.
       'tamanho_arquivo_bytes':
       tamanhoArquivoBytes,
 
-      'created_at':
-      createdAt?.toIso8601String(),
+      'conteudo_texto':
+      conteudoTexto,
 
-      'updated_at':
-      updatedAt?.toIso8601String(),
+      if (createdAt != null)
+        'created_at':
+        createdAt!
+            .toIso8601String(),
+
+      if (updatedAt != null)
+        'updated_at':
+        updatedAt!
+            .toIso8601String(),
     };
   }
 
@@ -139,17 +164,18 @@ class ObraPendente {
     String? autor,
     String? categoria,
     String? urlDocumento,
-    String? urlCapa,
     int? anoObra,
     DateTime? dataPublicacao,
     String? userId,
     int? numeroPaginas,
     int? tamanhoArquivoBytes,
+    String? conteudoTexto,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return ObraPendente(
-      id: id ?? this.id,
+      id:
+      id ?? this.id,
 
       titulo:
       titulo ?? this.titulo,
@@ -164,62 +190,38 @@ class ObraPendente {
       categoria ?? this.categoria,
 
       urlDocumento:
-      urlDocumento ?? this.urlDocumento,
-
-      urlCapa:
-      urlCapa ?? this.urlCapa,
+      urlDocumento ??
+          this.urlDocumento,
 
       anoObra:
       anoObra ?? this.anoObra,
 
       dataPublicacao:
-      dataPublicacao ?? this.dataPublicacao,
+      dataPublicacao ??
+          this.dataPublicacao,
 
       userId:
       userId ?? this.userId,
 
       numeroPaginas:
-      numeroPaginas ?? this.numeroPaginas,
+      numeroPaginas ??
+          this.numeroPaginas,
 
       tamanhoArquivoBytes:
       tamanhoArquivoBytes ??
           this.tamanhoArquivoBytes,
 
+      conteudoTexto:
+      conteudoTexto ??
+          this.conteudoTexto,
+
       createdAt:
-      createdAt ?? this.createdAt,
+      createdAt ??
+          this.createdAt,
 
       updatedAt:
-      updatedAt ?? this.updatedAt,
-    );
-  }
-
-  static int? _parseInt(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is int) {
-      return value;
-    }
-
-    return int.tryParse(
-      value.toString(),
-    );
-  }
-
-  static DateTime? _parseDate(
-      dynamic value,
-      ) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is DateTime) {
-      return value;
-    }
-
-    return DateTime.tryParse(
-      value.toString(),
+      updatedAt ??
+          this.updatedAt,
     );
   }
 }

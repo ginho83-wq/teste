@@ -10,9 +10,11 @@ import 'auth_service.dart';
 class AdminService {
   AdminService._();
 
-  static final AdminService instancia = AdminService._();
+  static final AdminService instancia =
+  AdminService._();
 
-  final AuthService _auth = AuthService.instancia;
+  final AuthService _auth =
+      AuthService.instancia;
 
   final ObrasPendentesRepository _repository =
       ObrasPendentesRepository.instancia;
@@ -20,13 +22,16 @@ class AdminService {
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
 
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
+
   // ==========================================================
   // VERIFICAR ADMINISTRADOR
   // ==========================================================
 
   Future<void> _exigirAdmin() async {
     final utilizador =
-        Supabase.instance.client.auth.currentUser;
+        _supabase.auth.currentUser;
 
     if (utilizador == null) {
       throw Exception(
@@ -34,7 +39,8 @@ class AdminService {
       );
     }
 
-    final ehAdmin = await _auth.ehAdmin();
+    final ehAdmin =
+    await _auth.ehAdmin();
 
     if (!ehAdmin) {
       throw Exception(
@@ -47,7 +53,8 @@ class AdminService {
   // CARREGAR OBRAS PENDENTES
   // ==========================================================
 
-  Future<List<ObraPendente>> carregarObrasPendentes() async {
+  Future<List<ObraPendente>>
+  carregarObrasPendentes() async {
     await _exigirAdmin();
 
     return _repository.carregarTodas();
@@ -62,14 +69,18 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
-    if (id.trim().isEmpty) {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
       throw Exception(
         'ID da obra inválido.',
       );
     }
 
     final obra =
-    await _repository.carregarPorId(id);
+    await _repository.carregarPorId(
+      idLimpo,
+    );
 
     if (obra == null) {
       throw Exception(
@@ -84,7 +95,8 @@ class AdminService {
   // CARREGAR OBRAS PUBLICADAS
   // ==========================================================
 
-  Future<List<Obra>> carregarObrasPublicadas() async {
+  Future<List<Obra>>
+  carregarObrasPublicadas() async {
     await _exigirAdmin();
 
     return _obrasRepository.carregarTodas();
@@ -99,26 +111,38 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
-    if (id.trim().isEmpty) {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
       throw Exception(
         'ID da obra inválido.',
       );
     }
 
     // --------------------------------------------------------
-    // 1. Aprovar e publicar a obra
+    // APROVAR A OBRA
+    //
+    // O ObrasPendentesRepository é responsável por:
+    //
+    // 1. Carregar a obra pendente
+    // 2. Transferir o PDF
+    // 3. Criar a obra em public.obras
+    // 4. Criar as secções em public.teste_secoes
+    // 5. Remover a obra pendente
     // --------------------------------------------------------
 
     final obra =
-    await _repository.aprovar(id);
+    await _repository.aprovar(
+      idLimpo,
+    );
 
     // --------------------------------------------------------
-    // 2. Atualizar o site
+    // ATUALIZAR O SITE
     // --------------------------------------------------------
 
     try {
       final resposta =
-      await Supabase.instance.client.functions.invoke(
+      await _supabase.functions.invoke(
         'atualizar-site',
       );
 
@@ -134,20 +158,19 @@ class AdminService {
         );
       }
     } catch (e) {
-      // A obra já foi publicada.
-      // Um erro no GitHub/site não deve desfazer a aprovação.
       debugPrint(
-        'Aviso: não foi possível iniciar atualizar-site: $e',
+        'Aviso: não foi possível iniciar '
+            'atualizar-site: $e',
       );
     }
 
     // --------------------------------------------------------
-    // 3. Enviar e-mail ao proprietário da obra
+    // ENVIAR E-MAIL AO PROPRIETÁRIO
     // --------------------------------------------------------
 
     try {
       final resposta =
-      await Supabase.instance.client.functions.invoke(
+      await _supabase.functions.invoke(
         'enviar-email-aprovacao',
         body: {
           'obra_id': obra.id,
@@ -171,15 +194,13 @@ class AdminService {
         );
       }
     } catch (e) {
-      // O e-mail é uma operação secundária.
-      // A obra continua aprovada/publicada.
       debugPrint(
         'Aviso: erro ao enviar e-mail de aprovação: $e',
       );
     }
 
     // --------------------------------------------------------
-    // 4. Devolver a obra publicada
+    // DEVOLVER OBRA PUBLICADA
     // --------------------------------------------------------
 
     return obra;
@@ -194,13 +215,17 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
-    if (id.trim().isEmpty) {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
       throw Exception(
         'ID da obra inválido.',
       );
     }
 
-    await _repository.rejeitar(id);
+    await _repository.rejeitar(
+      idLimpo,
+    );
   }
 
   // ==========================================================
@@ -212,13 +237,17 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
-    if (id.trim().isEmpty) {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
       throw Exception(
         'ID da obra inválido.',
       );
     }
 
-    await _repository.excluir(id);
+    await _repository.excluir(
+      idLimpo,
+    );
   }
 
   // ==========================================================
@@ -230,25 +259,52 @@ class AdminService {
       ) async {
     await _exigirAdmin();
 
-    if (id.trim().isEmpty) {
+    final idLimpo = id.trim();
+
+    if (idLimpo.isEmpty) {
       throw Exception(
         'ID da obra inválido.',
       );
     }
 
     // --------------------------------------------------------
-    // 1. Apagar a obra
+    // 1. APAGAR AS SECÇÕES DA OBRA
     // --------------------------------------------------------
 
-    await _obrasRepository.excluirPublicada(id);
+    try {
+      await _supabase
+          .from('teste_secoes')
+          .delete()
+          .eq(
+        'obra_id',
+        idLimpo,
+      );
+
+      debugPrint(
+        'Secções da obra eliminadas.',
+      );
+    } catch (e) {
+      debugPrint(
+        'Aviso: não foi possível eliminar '
+            'as secções da obra: $e',
+      );
+    }
 
     // --------------------------------------------------------
-    // 2. Atualizar o site
+    // 2. APAGAR A OBRA
+    // --------------------------------------------------------
+
+    await _obrasRepository.excluirPublicada(
+      idLimpo,
+    );
+
+    // --------------------------------------------------------
+    // 3. ATUALIZAR O SITE
     // --------------------------------------------------------
 
     try {
       final resposta =
-      await Supabase.instance.client.functions.invoke(
+      await _supabase.functions.invoke(
         'atualizar-site',
       );
 
@@ -260,10 +316,9 @@ class AdminService {
         );
       }
     } catch (e) {
-      // A obra já foi eliminada.
-      // O erro de atualização do site não desfaz a eliminação.
       debugPrint(
-        'Aviso: não foi possível iniciar atualizar-site: $e',
+        'Aviso: não foi possível iniciar '
+            'atualizar-site: $e',
       );
     }
   }

@@ -13,10 +13,7 @@ class ArquivoSelecionado {
     required this.tamanho,
   });
 
-  /// Tamanho real do PDF em MB.
-  ///
-  /// O cálculo é feito diretamente sobre os bytes
-  /// que serão enviados para o Supabase.
+  /// Tamanho real do arquivo em MB.
   double get tamanhoMb {
     return bytes.length / (1024 * 1024);
   }
@@ -25,7 +22,12 @@ class ArquivoSelecionado {
 class ArquivoService {
   ArquivoService._();
 
-  static final ArquivoService instancia = ArquivoService._();
+  static final ArquivoService instancia =
+  ArquivoService._();
+
+  // ============================================================
+  // SELECIONAR PDF
+  // ============================================================
 
   Future<ArquivoSelecionado?> selecionarPdf() async {
     final resultado = await FilePicker.pickFiles(
@@ -35,13 +37,15 @@ class ArquivoService {
       withData: true,
     );
 
-    if (resultado == null || resultado.files.isEmpty) {
+    if (resultado == null ||
+        resultado.files.isEmpty) {
       return null;
     }
 
     final arquivo = resultado.files.first;
 
-    if (arquivo.bytes == null || arquivo.bytes!.isEmpty) {
+    if (arquivo.bytes == null ||
+        arquivo.bytes!.isEmpty) {
       throw Exception(
         'Não foi possível ler o conteúdo do arquivo selecionado.',
       );
@@ -59,20 +63,95 @@ class ArquivoService {
     return ArquivoSelecionado(
       nome: nome,
       bytes: bytes,
-
-      // IMPORTANTE:
-      // usamos os bytes reais que serão enviados.
       tamanho: bytes.length,
     );
   }
 
-  bool ehPdf(String nomeArquivo) {
-    return nomeArquivo.toLowerCase().endsWith('.pdf');
+  // ============================================================
+  // SELECIONAR IMAGENS
+  // ============================================================
+
+  Future<List<ArquivoSelecionado>> selecionarImagens() async {
+    final resultado = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+      ],
+      allowMultiple: true,
+      withData: true,
+    );
+
+    if (resultado == null ||
+        resultado.files.isEmpty) {
+      return [];
+    }
+
+    final imagens = <ArquivoSelecionado>[];
+
+    for (final arquivo in resultado.files) {
+      if (arquivo.bytes == null ||
+          arquivo.bytes!.isEmpty) {
+        continue;
+      }
+
+      final nome = arquivo.name;
+      final bytes = arquivo.bytes!;
+
+      if (!ehImagem(nome)) {
+        continue;
+      }
+
+      imagens.add(
+        ArquivoSelecionado(
+          nome: nome,
+          bytes: bytes,
+          tamanho: bytes.length,
+        ),
+      );
+    }
+
+    return imagens;
   }
+
+  // ============================================================
+  // VERIFICAR PDF
+  // ============================================================
+
+  bool ehPdf(String nomeArquivo) {
+    return nomeArquivo
+        .toLowerCase()
+        .endsWith('.pdf');
+  }
+
+  // ============================================================
+  // VERIFICAR IMAGEM
+  // ============================================================
+
+  bool ehImagem(String nomeArquivo) {
+    final nome = nomeArquivo.toLowerCase();
+
+    return nome.endsWith('.jpg') ||
+        nome.endsWith('.jpeg') ||
+        nome.endsWith('.png') ||
+        nome.endsWith('.webp') ||
+        nome.endsWith('.gif');
+  }
+
+  // ============================================================
+  // TAMANHO EM MB
+  // ============================================================
 
   double tamanhoMb(int tamanhoBytes) {
     return tamanhoBytes / (1024 * 1024);
   }
+
+  // ============================================================
+  // FORMATAR TAMANHO
+  // ============================================================
 
   String formatarTamanho(int tamanhoBytes) {
     if (tamanhoBytes < 1024) {
@@ -89,6 +168,10 @@ class ArquivoService {
 
     return '${mb.toStringAsFixed(2)} MB';
   }
+
+  // ============================================================
+  // LIMPAR NOME DO ARQUIVO
+  // ============================================================
 
   String limparNomeArquivo(String nomeArquivo) {
     var nome = nomeArquivo.trim();
