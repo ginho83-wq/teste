@@ -185,7 +185,7 @@ jobs:
             -w "%{http_code}" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,data_publicacao,numero_paginas,tamanho_arquivo_bytes,url_documento,url_capa")
+            "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,data_publicacao,numero_paginas,tamanho_arquivo_bytes,url_documento")
 
           echo "Resposta HTTP do Supabase: ${HTTP_STATUS}"
 
@@ -207,7 +207,6 @@ jobs:
           import os
           import html
           import re
-          from datetime import datetime
           from xml.sax.saxutils import escape
 
           # ======================================================
@@ -362,10 +361,6 @@ jobs:
                   obra.get("url_documento")
               )
 
-              url_capa = limpar_texto(
-                  obra.get("url_capa")
-              )
-
               if not titulo:
                   titulo = "Obra sem título"
 
@@ -379,16 +374,13 @@ jobs:
               )
 
               # ==================================================
-              # IMAGEM
+              # IMAGEM PADRÃO
               # ==================================================
 
-              og_image = url_capa
-
-              if not og_image:
-                  og_image = (
-                      "https://ginho83-wq.github.io"
-                      "/teste/OL.png"
-                  )
+              og_image = (
+                  "https://ginho83-wq.github.io"
+                  "/teste/OL.png"
+              )
 
               # ==================================================
               # JSON-LD
@@ -435,9 +427,7 @@ jobs:
 
                       pass
 
-              if url_capa:
-
-                  schema["image"] = url_capa
+              schema["image"] = og_image
 
               if url_documento:
 
@@ -589,12 +579,6 @@ jobs:
                 margin-top: 24px;
               }
 
-              #seo-content img {
-                max-width: 240px;
-                height: auto;
-                margin-bottom: 20px;
-              }
-
               #seo-content a {
                 display: inline-block;
                 margin-top: 20px;
@@ -611,8 +595,6 @@ jobs:
           <body>
 
             <main id="seo-content">
-
-              __CAPA_HTML__
 
               <h1>__TITULO__</h1>
 
@@ -703,24 +685,6 @@ jobs:
               # ==================================================
               # CONTEÚDO HTML
               # ==================================================
-
-              capa_html = ""
-
-              if url_capa:
-
-                  capa_html = (
-                      '<img src="'
-                      + html.escape(
-                          url_capa,
-                          quote=True
-                      )
-                      + '" alt="'
-                      + html.escape(
-                          titulo,
-                          quote=True
-                      )
-                      + '">'
-                  )
 
               autor_html = ""
 
@@ -852,11 +816,6 @@ jobs:
               html_final = html_final.replace(
                   "__SCHEMA_JSON__",
                   schema_json
-              )
-
-              html_final = html_final.replace(
-                  "__CAPA_HTML__",
-                  capa_html
               )
 
               html_final = html_final.replace(
@@ -1111,3 +1070,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
