@@ -20,11 +20,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # ============================================================
       # 1. Checkout
       # ============================================================
       - name: Checkout
         uses: actions/checkout@v4
+
 
       # ============================================================
       # 2. Flutter
@@ -39,11 +41,13 @@ jobs:
       - name: Verificar Flutter
         run: flutter --version
 
+
       # ============================================================
       # 3. Dependências
       # ============================================================
       - name: Flutter Pub Get
         run: flutter pub get
+
 
       # ============================================================
       # 4. Build Flutter Web
@@ -53,6 +57,7 @@ jobs:
           flutter build web \
             --release \
             --base-href /teste/
+
 
       # ============================================================
       # 5. Preparar rotas estáticas principais
@@ -77,6 +82,7 @@ jobs:
           cp build/web/index.html build/web/cookies/index.html
           cp build/web/index.html build/web/contacto/index.html
           cp build/web/index.html build/web/ajuda/index.html
+
 
       # ============================================================
       # 6. Preparar rotas das categorias
@@ -119,9 +125,12 @@ jobs:
             echo "Criando rota: /categoria/$rota/"
 
             mkdir -p "build/web/categoria/$rota"
-            cp build/web/index.html "build/web/categoria/$rota/index.html"
+
+            cp build/web/index.html \
+              "build/web/categoria/$rota/index.html"
 
           done
+
 
       # ============================================================
       # 7. Configurar Supabase CLI
@@ -131,8 +140,13 @@ jobs:
         with:
           version: latest
 
+
       # ============================================================
       # 8. Deploy das Supabase Edge Functions
+      #
+      # IMPORTANTE:
+      # Não usamos "supabase link".
+      # O deploy usa diretamente o project-ref.
       # ============================================================
       - name: Deploy Supabase Edge Functions
         env:
@@ -141,13 +155,13 @@ jobs:
         run: |
           set -e
 
-          echo "Ligando ao projeto Supabase..."
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
-
           echo "A fazer deploy das Edge Functions..."
-          supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
+
+          supabase functions deploy \
+            --project-ref "$SUPABASE_PROJECT_REF"
 
           echo "Edge Functions publicadas com sucesso."
+
 
       # ============================================================
       # 9. Preparar rotas individuais das obras
@@ -209,10 +223,13 @@ jobs:
           def escape(value):
               if value is None:
                   return ""
+
               return html.escape(str(value))
 
           for obra in obras:
+
               obra_id = str(obra.get("id", "")).strip()
+
               titulo = obra.get("titulo") or "Obra Livre"
               descricao = obra.get("descricao") or ""
               autor = obra.get("autor") or ""
@@ -238,6 +255,7 @@ jobs:
               html_content = f"""<!DOCTYPE html>
           <html lang="pt">
           <head>
+
             <meta charset="UTF-8">
 
             <title>{titulo_html} — Obra Livre</title>
@@ -247,7 +265,10 @@ jobs:
               content="{descricao_html}"
             >
 
-            <meta name="author" content="{autor_html}">
+            <meta
+              name="author"
+              content="{autor_html}"
+            >
 
             <meta
               name="viewport"
@@ -299,14 +320,24 @@ jobs:
               "url": f"https://ginho83-wq.github.io/teste/obra/{obra_id}/"
           }, ensure_ascii=False, indent=2)}
             </script>
+
           </head>
 
           <body>
+
             <h1>{titulo_html}</h1>
 
-            <p><strong>Autor:</strong> {autor_html}</p>
-            <p><strong>Categoria:</strong> {categoria_html}</p>
-            <p><strong>Ano:</strong> {ano_html}</p>
+            <p>
+              <strong>Autor:</strong> {autor_html}
+            </p>
+
+            <p>
+              <strong>Categoria:</strong> {categoria_html}
+            </p>
+
+            <p>
+              <strong>Ano:</strong> {ano_html}
+            </p>
 
             <p>{descricao_html}</p>
 
@@ -315,6 +346,7 @@ jobs:
                 Obra Livre
               </a>
             </p>
+
           </body>
           </html>
           """
@@ -328,6 +360,7 @@ jobs:
 
           print(f"{len(obras)} obras processadas.")
           PY
+
 
       # ============================================================
       # 10. Gerar sitemap.xml
@@ -383,6 +416,7 @@ jobs:
 
           for categoria in categorias:
               slug = slugify(categoria)
+
               urls.append(
                   f"{BASE_URL}/categoria/{slug}/"
               )
@@ -395,7 +429,10 @@ jobs:
               obras = json.load(f)
 
           for obra in obras:
-              obra_id = str(obra.get("id", "")).strip()
+
+              obra_id = str(
+                  obra.get("id", "")
+              ).strip()
 
               if obra_id:
                   urls.append(
@@ -408,7 +445,9 @@ jobs:
 
           urls = list(dict.fromkeys(urls))
 
-          hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+          hoje = datetime.now(
+              timezone.utc
+          ).strftime("%Y-%m-%d")
 
           linhas = [
               '<?xml version="1.0" encoding="UTF-8"?>',
@@ -416,9 +455,14 @@ jobs:
           ]
 
           for url in urls:
+
               linhas.append("  <url>")
-              linhas.append(f"    <loc>{url}</loc>")
-              linhas.append(f"    <lastmod>{hoje}</lastmod>")
+              linhas.append(
+                  f"    <loc>{url}</loc>"
+              )
+              linhas.append(
+                  f"    <lastmod>{hoje}</lastmod>"
+              )
               linhas.append("  </url>")
 
           linhas.append("</urlset>")
@@ -430,14 +474,18 @@ jobs:
           ) as f:
               f.write("\n".join(linhas))
 
-          print(f"Sitemap gerado com {len(urls)} URLs.")
+          print(
+              f"Sitemap gerado com {len(urls)} URLs."
+          )
           PY
+
 
       # ============================================================
       # 11. Configurar GitHub Pages
       # ============================================================
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
 
       # ============================================================
       # 12. Upload do site
@@ -446,6 +494,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
+
 
   # ================================================================
   # 13. Deploy no GitHub Pages
@@ -460,6 +509,8 @@ jobs:
     needs: build
 
     steps:
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
