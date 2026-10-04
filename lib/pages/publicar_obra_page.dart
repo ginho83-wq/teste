@@ -49,7 +49,6 @@ class _PublicarObraPageState
   final List<String> _categorias = const [
     'Tese de Doutoramento',
     'Dissertação de Mestrado',
-    'Dissertação de Licenciatura',
     'Monografia',
     'Artigos Científicos',
     'Comunicações Científicas',

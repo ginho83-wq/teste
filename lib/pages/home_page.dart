@@ -811,7 +811,6 @@ class _HomePageState extends State<HomePage> {
     const categorias = [
       'Tese de Doutoramento',
       'Dissertação de Mestrado',
-      'Dissertação de Licenciatura',
       'Monografia',
       'Artigos Científicos',
       'Comunicações Científicas',

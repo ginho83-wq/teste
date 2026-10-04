@@ -110,8 +110,7 @@ class PublicacaoService {
     for (var i = 0;
     i < secoes.length;
     i++) {
-      final secao =
-      secoes[i];
+      final secao = secoes[i];
 
       final tituloSecao =
           secao['titulo']
@@ -130,31 +129,23 @@ class PublicacaoService {
         continue;
       }
 
-      final ordem =
-          int.tryParse(
-            secao['ordem']
-                ?.toString() ??
-                '',
-          ) ??
-              (i + 1);
+      final ordem = int.tryParse(
+        secao['ordem']?.toString() ??
+            '',
+      ) ??
+          (i + 1);
 
-      final nivel =
-          int.tryParse(
-            secao['nivel']
-                ?.toString() ??
-                '',
-          ) ??
-              1;
+      final nivel = int.tryParse(
+        secao['nivel']?.toString() ??
+            '',
+      ) ??
+          1;
 
       secoesLimpa.add({
-        'titulo':
-        tituloSecao,
-        'conteudo':
-        conteudoSecao,
-        'ordem':
-        ordem,
-        'nivel':
-        nivel,
+        'titulo': tituloSecao,
+        'conteudo': conteudoSecao,
+        'ordem': ordem,
+        'nivel': nivel,
       });
     }
 
@@ -162,8 +153,7 @@ class PublicacaoService {
     // VALIDAR IMAGENS
     // ==========================================================
 
-    for (final imagem
-    in imagens) {
+    for (final imagem in imagens) {
       if (imagem.bytes.isEmpty) {
         throw Exception(
           'Uma das imagens selecionadas está vazia.',
@@ -182,25 +172,18 @@ class PublicacaoService {
     // ==========================================================
 
     final hashPdf =
-    sha256
-        .convert(arquivoPdf)
-        .toString();
+    sha256.convert(arquivoPdf).toString();
 
     // ==========================================================
     // DUPLICADO PUBLICADO
     // ==========================================================
 
     final existePublicada =
-    await _obrasRepository
-        .existeDuplicado(
-      titulo:
-      tituloLimpo,
-      autor:
-      autorLimpo,
-      nomeArquivo:
-      nomeArquivo,
-      hashPdf:
-      hashPdf,
+    await _obrasRepository.existeDuplicado(
+      titulo: tituloLimpo,
+      autor: autorLimpo,
+      nomeArquivo: nomeArquivo,
+      hashPdf: hashPdf,
     );
 
     if (existePublicada) {
@@ -214,16 +197,11 @@ class PublicacaoService {
     // ==========================================================
 
     final existePendente =
-    await _pendentesRepository
-        .existeDuplicado(
-      titulo:
-      tituloLimpo,
-      autor:
-      autorLimpo,
-      nomeArquivo:
-      nomeArquivo,
-      hashPdf:
-      hashPdf,
+    await _pendentesRepository.existeDuplicado(
+      titulo: tituloLimpo,
+      autor: autorLimpo,
+      nomeArquivo: nomeArquivo,
+      hashPdf: hashPdf,
     );
 
     if (existePendente) {
@@ -246,12 +224,9 @@ class PublicacaoService {
     final caminhoPendente =
     await _storageService
         .enviarDocumentoPendente(
-      userId:
-      usuario.id,
-      nomeArquivo:
-      nomeArquivo,
-      bytes:
-      arquivoPdf,
+      userId: usuario.id,
+      nomeArquivo: nomeArquivo,
+      bytes: arquivoPdf,
     );
 
     // ==========================================================
@@ -289,35 +264,26 @@ class PublicacaoService {
 
     if (secoesLimpa.isNotEmpty) {
       conteudoTexto =
-          jsonEncode(
-            secoesLimpa,
-          );
+          jsonEncode(secoesLimpa);
     }
 
     // ==========================================================
     // CRIAR OBRA PENDENTE
     // ==========================================================
 
-    final obra =
-    ObraPendente(
-      titulo:
-      tituloLimpo,
+    final obra = ObraPendente(
+      titulo: tituloLimpo,
       descricao:
       descricao?.trim().isEmpty == true
           ? null
           : descricao?.trim(),
-      autor:
-      autorLimpo,
-      categoria:
-      categoriaLimpa,
-      urlDocumento:
-      caminhoPendente,
-      anoObra:
-      anoObra,
+      autor: autorLimpo,
+      categoria: categoriaLimpa,
+      urlDocumento: caminhoPendente,
+      anoObra: anoObra,
       dataPublicacao:
       dataPublicacao,
-      userId:
-      usuario.id,
+      userId: usuario.id,
       numeroPaginas:
       numeroPaginas,
       tamanhoArquivoBytes:
@@ -329,8 +295,7 @@ class PublicacaoService {
     final obraPendente =
     await _pendentesRepository.inserir(
       obra,
-      hashPdf:
-      hashPdf,
+      hashPdf: hashPdf,
     );
 
     // ==========================================================
@@ -349,14 +314,26 @@ class PublicacaoService {
 
     // ==========================================================
     // GUARDAR IMAGENS PENDENTES
+    //
+    // IMPORTANTE:
+    // Guardamos cada caminho logo depois do upload.
+    //
+    // Se o INSERT na tabela falhar, conseguimos remover
+    // diretamente o ficheiro do Bucket.
     // ==========================================================
+
+    final caminhosImagensEnviadas =
+    <String>[];
 
     try {
       for (var i = 0;
       i < imagens.length;
       i++) {
-        final imagem =
-        imagens[i];
+        final imagem = imagens[i];
+
+        // ------------------------------------------------------
+        // 1. ENVIAR PARA STORAGE
+        // ------------------------------------------------------
 
         final caminho =
         await _imagensStorageService
@@ -369,6 +346,15 @@ class PublicacaoService {
           imagem.bytes,
         );
 
+        // Guardar imediatamente o caminho.
+        caminhosImagensEnviadas.add(
+          caminho,
+        );
+
+        // ------------------------------------------------------
+        // 2. INSERIR NA TABELA
+        // ------------------------------------------------------
+
         await _pendentesRepository
             .inserirImagemPendente(
           obraPendenteId:
@@ -380,13 +366,36 @@ class PublicacaoService {
         );
       }
     } catch (e) {
+      // ========================================================
+      // LIMPAR OBRA PENDENTE E IMAGENS
+      // ========================================================
+
+      // Primeiro tenta limpar tudo o que já foi registado
+      // normalmente.
       try {
-        await _pendentesRepository
-            .rejeitar(
+        await _pendentesRepository.rejeitar(
           obraPendenteId,
         );
       } catch (_) {}
 
+      // Depois removemos diretamente todos os caminhos que
+      // foram enviados para o Storage.
+      //
+      // Isto é importante porque uma imagem pode ter sido
+      // enviada para o Bucket mas o INSERT da tabela ter
+      // falhado.
+      for (final caminho
+      in caminhosImagensEnviadas) {
+        try {
+          await _imagensStorageService
+              .removerImagemPendente(
+            caminho,
+          );
+        } catch (_) {}
+      }
+
+      // Mantém o erro original para a interface mostrar
+      // a causa real.
       rethrow;
     }
 

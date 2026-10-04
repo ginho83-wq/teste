@@ -20,43 +20,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # ==========================================================
-      # CHECKOUT
-      # ==========================================================
-
+      # ============================================================
+      # 1. Checkout
+      # ============================================================
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ==========================================================
-      # FLUTTER
-      # ==========================================================
-
+      # ============================================================
+      # 2. Flutter
+      # ============================================================
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.3'
+          flutter-version: "3.41.3"
           channel: stable
           cache: true
 
-      - name: Check Flutter
+      - name: Verificar Flutter
         run: flutter --version
 
-      - name: Get dependencies
+      # ============================================================
+      # 3. Dependências
+      # ============================================================
+      - name: Flutter Pub Get
         run: flutter pub get
 
-      # ==========================================================
-      # BUILD FLUTTER WEB
-      # ==========================================================
-
+      # ============================================================
+      # 4. Build Flutter Web
+      # ============================================================
       - name: Build Flutter Web
-        run: flutter build web --release --base-href /teste/
+        run: |
+          flutter build web \
+            --release \
+            --base-href /teste/
 
-      # ==========================================================
-      # PREPARAR ROTAS PÚBLICAS
-      # ==========================================================
-
-      - name: Prepare public routes
+      # ============================================================
+      # 5. Preparar rotas estáticas principais
+      # ============================================================
+      - name: Preparar rotas principais
         run: |
           set -e
 
@@ -77,26 +78,23 @@ jobs:
           cp build/web/index.html build/web/contacto/index.html
           cp build/web/index.html build/web/ajuda/index.html
 
-          echo "Rotas públicas preparadas."
-
-      # ==========================================================
-      # PREPARAR ROTAS DAS CATEGORIAS
-      # ==========================================================
-
-      - name: Prepare category routes automatically
+      # ============================================================
+      # 6. Preparar rotas das categorias
+      # ============================================================
+      - name: Preparar rotas das categorias
         run: |
           set -e
 
-          INDEX="build/web/index.html"
-
-          echo "A preparar rotas das categorias..."
-
           categorias=(
             "Tese Doutoramento"
-            "Dissertação de Mestrado"
+            "Dissertação Mestrado"
             "Monografia"
             "Artigos Científicos"
-            "Literatura"
+            "Comunicações Científicas"
+            "Posters"
+            "Resumos"
+            "Relatórios Académicos"
+            "Trabalhos Académicos"
           )
 
           for categoria in "${categorias[@]}"; do
@@ -106,386 +104,165 @@ jobs:
           import unicodedata
           import re
 
-          categoria = sys.argv[1]
+          texto = sys.argv[1]
 
-          texto = unicodedata.normalize(
-              "NFKD",
-              categoria
-          ).encode(
-              "ascii",
-              "ignore"
-          ).decode(
-              "ascii"
-          ).lower()
-
-          texto = re.sub(
-              r"[^a-z0-9]+",
-              "-",
-              texto
-          ).strip("-")
-
-          # Manter a rota oficial já utilizada pelo sitemap
-          if texto == "dissertacao-de-mestrado":
-              texto = "dissertacao-mestrado"
+          texto = unicodedata.normalize("NFKD", texto)
+          texto = texto.encode("ascii", "ignore").decode("ascii")
+          texto = texto.lower()
+          texto = re.sub(r"[^a-z0-9]+", "-", texto)
+          texto = texto.strip("-")
 
           print(texto)
           PY
             )
 
-            destino="build/web/categoria/$rota"
+            echo "Criando rota: /categoria/$rota/"
 
-            mkdir -p "$destino"
-
-            cp "$INDEX" "$destino/index.html"
-
-            echo "Rota criada: /categoria/$rota/"
+            mkdir -p "build/web/categoria/$rota"
+            cp build/web/index.html "build/web/categoria/$rota/index.html"
 
           done
 
-          echo "Todas as categorias foram preparadas."
+      # ============================================================
+      # 7. Configurar Supabase CLI
+      # ============================================================
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
-      # ==========================================================
-      # PREPARAR ROTAS INDIVIDUAIS DAS OBRAS
-      # SEO + SITEMAP
-      # ==========================================================
-
-      - name: Prepare individual obra routes automatically
+      # ============================================================
+      # 8. Deploy das Supabase Edge Functions
+      # ============================================================
+      - name: Deploy Supabase Edge Functions
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           set -e
 
-          echo "A verificar configuração do Supabase..."
+          echo "Ligando ao projeto Supabase..."
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-          if [ -z "$SUPABASE_URL" ]; then
-            echo "ERRO: O Secret SUPABASE_URL não está configurado."
-            exit 1
-          fi
+          echo "A fazer deploy das Edge Functions..."
+          supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
 
-          if [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "ERRO: O Secret SUPABASE_ANON_KEY não está configurado."
-            exit 1
-          fi
+          echo "Edge Functions publicadas com sucesso."
 
-          echo "SUPABASE_URL configurado."
+      # ============================================================
+      # 9. Preparar rotas individuais das obras
+      # ============================================================
+      - name: Preparar rotas individuais das obras
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -e
 
-          if [[ "$SUPABASE_URL" != http://* && "$SUPABASE_URL" != https://* ]]; then
-            echo "ERRO: SUPABASE_URL não contém http:// ou https://"
-            exit 1
-          fi
+          echo "A obter obras publicadas do Supabase..."
 
-          SUPABASE_URL="${SUPABASE_URL%/}"
-
-          echo "A consultar obras publicadas no Supabase..."
-
-          HTTP_STATUS=$(curl -sS \
-            -o /tmp/obras.json \
-            -w "%{http_code}" \
+          RESPONSE=$(curl -sS \
+            -w "\n%{http_code}" \
+            -X GET \
+            "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,data_publicacao,numero_paginas,tamanho_arquivo_bytes,url_documento" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${SUPABASE_URL}/rest/v1/obras?select=id,titulo,descricao,autor,categoria,ano_obra,data_publicacao,numero_paginas,tamanho_arquivo_bytes,url_documento")
+            -H "Accept: application/json")
 
-          echo "Resposta HTTP do Supabase: ${HTTP_STATUS}"
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
 
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "ERRO: Não foi possível consultar a tabela obras."
-            echo "Resposta:"
-            cat /tmp/obras.json
+          echo "HTTP Supabase: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Erro ao consultar obras no Supabase:"
+            echo "$BODY"
             exit 1
           fi
 
-          echo "Resposta recebida do Supabase."
+          echo "$BODY" > /tmp/obras.json
 
-          # ======================================================
-          # PYTHON
-          # ======================================================
-
-          python3 - <<'PY'
+          python3 <<'PY'
           import json
-          import os
           import html
+          import os
           import re
-          from xml.sax.saxutils import escape
+          import unicodedata
 
-          # ======================================================
-          # LER OBRAS
-          # ======================================================
+          with open("/tmp/obras.json", "r", encoding="utf-8") as f:
+              obras = json.load(f)
 
-          with open(
-              "/tmp/obras.json",
-              "r",
-              encoding="utf-8"
-          ) as f:
-              data = json.load(f)
+          base_dir = "build/web/obra"
 
-          if not isinstance(data, list):
-              raise RuntimeError(
-                  f"Resposta inesperada do Supabase: {data}"
-              )
+          def slugify(text):
+              if not text:
+                  return "obra"
 
-          print(
-              f"Obras encontradas: {len(data)}"
-          )
+              text = unicodedata.normalize("NFKD", text)
+              text = text.encode("ascii", "ignore").decode("ascii")
+              text = text.lower()
+              text = re.sub(r"[^a-z0-9]+", "-", text)
+              text = text.strip("-")
 
-          # ======================================================
-          # LIMPAR TEXTO
-          # ======================================================
+              return text or "obra"
 
-          def limpar_texto(valor):
-
-              if valor is None:
+          def escape(value):
+              if value is None:
                   return ""
+              return html.escape(str(value))
 
-              texto = str(valor)
+          for obra in obras:
+              obra_id = str(obra.get("id", "")).strip()
+              titulo = obra.get("titulo") or "Obra Livre"
+              descricao = obra.get("descricao") or ""
+              autor = obra.get("autor") or ""
+              categoria = obra.get("categoria") or ""
+              ano = obra.get("ano_obra") or ""
 
-              texto = re.sub(
-                  r"\s+",
-                  " ",
-                  texto
-              )
+              if not obra_id:
+                  continue
 
-              return texto.strip()
+              slug = slugify(titulo)
 
-          # ======================================================
-          # DESCRIÇÃO SEO
-          # ======================================================
+              # O ID continua a identificar a obra de forma única.
+              pasta = f"{base_dir}/{obra_id}"
 
-          def gerar_descricao(obra):
+              os.makedirs(pasta, exist_ok=True)
 
-              descricao = limpar_texto(
-                  obra.get("descricao")
-              )
+              titulo_html = escape(titulo)
+              descricao_html = escape(descricao)
+              autor_html = escape(autor)
+              categoria_html = escape(categoria)
+              ano_html = escape(ano)
 
-              autor = limpar_texto(
-                  obra.get("autor")
-              )
-
-              categoria = limpar_texto(
-                  obra.get("categoria")
-              )
-
-              partes = []
-
-              if descricao:
-                  partes.append(descricao)
-
-              if autor:
-                  partes.append(
-                      f"Autor: {autor}"
-                  )
-
-              if categoria:
-                  partes.append(
-                      f"Categoria: {categoria}"
-                  )
-
-              if not partes:
-                  partes.append(
-                      "Obra disponível no acervo digital Obra Livre."
-                  )
-
-              texto = " — ".join(partes)
-
-              return texto[:300]
-
-          # ======================================================
-          # DATA
-          # ======================================================
-
-          def extrair_data(valor):
-
-              if not valor:
-                  return ""
-
-              texto = limpar_texto(valor)
-
-              return texto[:10]
-
-          # ======================================================
-          # NÚMERO DE PÁGINAS
-          # ======================================================
-
-          def extrair_paginas(valor):
-
-              if valor is None:
-                  return ""
-
-              texto = limpar_texto(valor)
-
-              if not texto:
-                  return ""
-
-              return texto
-
-          # ======================================================
-          # GERAR HTML DA OBRA
-          # ======================================================
-
-          def gerar_html_obra(obra):
-
-              obra_id = limpar_texto(
-                  obra.get("id")
-              )
-
-              titulo = limpar_texto(
-                  obra.get("titulo")
-              )
-
-              autor = limpar_texto(
-                  obra.get("autor")
-              )
-
-              categoria = limpar_texto(
-                  obra.get("categoria")
-              )
-
-              descricao = gerar_descricao(
-                  obra
-              )
-
-              ano = limpar_texto(
-                  obra.get("ano_obra")
-              )
-
-              data_publicacao = extrair_data(
-                  obra.get("data_publicacao")
-              )
-
-              numero_paginas = extrair_paginas(
-                  obra.get("numero_paginas")
-              )
-
-              url_documento = limpar_texto(
-                  obra.get("url_documento")
-              )
-
-              if not titulo:
-                  titulo = "Obra sem título"
-
-              titulo_seo = (
-                  f"{titulo} — Obra Livre"
-              )
-
-              url = (
-                  "https://ginho83-wq.github.io"
-                  f"/teste/obra/{obra_id}/"
-              )
-
-              # ==================================================
-              # IMAGEM PADRÃO
-              # ==================================================
-
-              og_image = (
-                  "https://ginho83-wq.github.io"
-                  "/teste/OL.png"
-              )
-
-              # ==================================================
-              # JSON-LD
-              # ==================================================
-
-              schema = {
-                  "@context": "https://schema.org",
-                  "@type": "CreativeWork",
-                  "name": titulo,
-                  "url": url,
-                  "description": descricao
-              }
-
-              if autor:
-
-                  schema["author"] = {
-                      "@type": "Person",
-                      "name": autor
-                  }
-
-              if categoria:
-
-                  schema["genre"] = categoria
-
-              if ano:
-
-                  schema["dateCreated"] = ano
-
-              if data_publicacao:
-
-                  schema["datePublished"] = (
-                      data_publicacao
-                  )
-
-              if numero_paginas:
-
-                  try:
-
-                      schema["numberOfPages"] = int(
-                          numero_paginas
-                      )
-
-                  except Exception:
-
-                      pass
-
-              schema["image"] = og_image
-
-              if url_documento:
-
-                  schema["encoding"] = {
-                      "@type": "MediaObject",
-                      "contentUrl": url_documento,
-                      "encodingFormat": "application/pdf"
-                  }
-
-              schema_json = json.dumps(
-                  schema,
-                  ensure_ascii=False
-              )
-
-              schema_json = schema_json.replace(
-                  "</",
-                  "<\\/"
-              )
-
-              # ==================================================
-              # HTML
-              # ==================================================
-
-              html_modelo = """<!DOCTYPE html>
+              html_content = f"""<!DOCTYPE html>
           <html lang="pt">
           <head>
-
             <meta charset="UTF-8">
+
+            <title>{titulo_html} — Obra Livre</title>
+
+            <meta
+              name="description"
+              content="{descricao_html}"
+            >
+
+            <meta name="author" content="{autor_html}">
 
             <meta
               name="viewport"
               content="width=device-width, initial-scale=1.0"
             >
 
-            <title>__TITULO_SEO__</title>
-
             <meta
-              name="description"
-              content="__DESCRICAO_SEO__"
+              property="og:title"
+              content="{titulo_html} — Obra Livre"
             >
 
             <meta
-              name="robots"
-              content="index, follow"
+              property="og:description"
+              content="{descricao_html}"
             >
-
-            <link
-              rel="canonical"
-              href="__URL__"
-            >
-
-            <link
-              rel="icon"
-              type="image/png"
-              href="/teste/OL.png"
-            >
-
-            <!-- Open Graph -->
 
             <meta
               property="og:type"
@@ -493,568 +270,186 @@ jobs:
             >
 
             <meta
-              property="og:title"
-              content="__TITULO_SEO__"
-            >
-
-            <meta
-              property="og:description"
-              content="__DESCRICAO_SEO__"
+              property="og:image"
+              content="https://ginho83-wq.github.io/teste/OL.png"
             >
 
             <meta
               property="og:url"
-              content="__URL__"
+              content="https://ginho83-wq.github.io/teste/obra/{obra_id}/"
             >
-
-            <meta
-              property="og:site_name"
-              content="Obra Livre"
-            >
-
-            <meta
-              property="og:image"
-              content="__OG_IMAGE__"
-            >
-
-            <meta
-              property="og:image:alt"
-              content="__TITULO_SEO__"
-            >
-
-            <!-- Twitter -->
-
-            <meta
-              name="twitter:card"
-              content="summary_large_image"
-            >
-
-            <meta
-              name="twitter:title"
-              content="__TITULO_SEO__"
-            >
-
-            <meta
-              name="twitter:description"
-              content="__DESCRICAO_SEO__"
-            >
-
-            <meta
-              name="twitter:image"
-              content="__OG_IMAGE__"
-            >
-
-            <!-- Dados estruturados -->
-
-            <script type="application/ld+json">
-          __SCHEMA_JSON__
-            </script>
-
-            <base href="/teste/">
 
             <link
-              rel="manifest"
-              href="/teste/manifest.json"
+              rel="canonical"
+              href="https://ginho83-wq.github.io/teste/obra/{obra_id}/"
             >
 
-            <style>
-
-              #seo-content {
-                max-width: 900px;
-                margin: 30px auto;
-                padding: 24px;
-                font-family: Arial, sans-serif;
-                line-height: 1.6;
-              }
-
-              #seo-content h1 {
-                margin-bottom: 20px;
-              }
-
-              #seo-content .info {
-                margin: 8px 0;
-              }
-
-              #seo-content .descricao {
-                margin-top: 24px;
-              }
-
-              #seo-content a {
-                display: inline-block;
-                margin-top: 20px;
-                padding: 10px 16px;
-                border-radius: 8px;
-                text-decoration: none;
-                border: 1px solid currentColor;
-              }
-
-            </style>
-
+            <script type="application/ld+json">
+          {json.dumps({
+              "@context": "https://schema.org",
+              "@type": "ScholarlyArticle",
+              "name": titulo,
+              "author": {
+                  "@type": "Person",
+                  "name": autor
+              },
+              "description": descricao,
+              "genre": categoria,
+              "datePublished": str(ano) if ano else None,
+              "url": f"https://ginho83-wq.github.io/teste/obra/{obra_id}/"
+          }, ensure_ascii=False, indent=2)}
+            </script>
           </head>
 
           <body>
+            <h1>{titulo_html}</h1>
 
-            <main id="seo-content">
+            <p><strong>Autor:</strong> {autor_html}</p>
+            <p><strong>Categoria:</strong> {categoria_html}</p>
+            <p><strong>Ano:</strong> {ano_html}</p>
 
-              <h1>__TITULO__</h1>
+            <p>{descricao_html}</p>
 
-              __AUTOR_HTML__
-
-              __CATEGORIA_HTML__
-
-              __ANO_HTML__
-
-              __DATA_HTML__
-
-              __PAGINAS_HTML__
-
-              <section class="descricao">
-
-                <h2>Descrição</h2>
-
-                <p>__DESCRICAO_BODY__</p>
-
-              </section>
-
-              __PDF_HTML__
-
-            </main>
-
-            <script>
-
-              var redirect =
-                sessionStorage.getItem(
-                  'flutter_redirect'
-                );
-
-              if (redirect) {
-
-                sessionStorage.removeItem(
-                  'flutter_redirect'
-                );
-
-                history.replaceState(
-                  null,
-                  '',
-                  redirect
-                );
-
-              }
-
-            </script>
-
-            <!-- PDF.js -->
-
-            <script
-              src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs"
-              type="module">
-            </script>
-
-            <script type="module">
-
-              var { pdfjsLib } = globalThis;
-
-              if (pdfjsLib) {
-
-                pdfjsLib.GlobalWorkerOptions.workerSrc =
-                  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
-
-              }
-
-              var pdfRenderOptions = {
-
-                cMapUrl:
-                  'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
-
-                cMapPacked: true,
-
-              }
-
-            </script>
-
-            <script
-              src="/teste/flutter_bootstrap.js"
-              async>
-            </script>
-
+            <p>
+              <a href="https://ginho83-wq.github.io/teste/">
+                Obra Livre
+              </a>
+            </p>
           </body>
-
           </html>
           """
 
-              # ==================================================
-              # CONTEÚDO HTML
-              # ==================================================
-
-              autor_html = ""
-
-              if autor:
-
-                  autor_html = (
-                      '<p class="info"><strong>'
-                      'Autor:</strong> '
-                      + html.escape(autor)
-                      + '</p>'
-                  )
-
-              categoria_html = ""
-
-              if categoria:
-
-                  categoria_html = (
-                      '<p class="info"><strong>'
-                      'Categoria:</strong> '
-                      + html.escape(categoria)
-                      + '</p>'
-                  )
-
-              ano_html = ""
-
-              if ano:
-
-                  ano_html = (
-                      '<p class="info"><strong>'
-                      'Ano da obra:</strong> '
-                      + html.escape(ano)
-                      + '</p>'
-                  )
-
-              data_html = ""
-
-              if data_publicacao:
-
-                  data_html = (
-                      '<p class="info"><strong>'
-                      'Data de publicação:</strong> '
-                      + html.escape(
-                          data_publicacao
-                      )
-                      + '</p>'
-                  )
-
-              paginas_html = ""
-
-              if numero_paginas:
-
-                  paginas_html = (
-                      '<p class="info"><strong>'
-                      'Número de páginas:</strong> '
-                      + html.escape(
-                          numero_paginas
-                      )
-                      + '</p>'
-                  )
-
-              pdf_html = ""
-
-              if url_documento:
-
-                  pdf_html = (
-                      '<a href="'
-                      + html.escape(
-                          url_documento,
-                          quote=True
-                      )
-                      + '" target="_blank" '
-                      'rel="noopener">'
-                      'Consultar documento PDF'
-                      '</a>'
-                  )
-
-              # ==================================================
-              # SUBSTITUIÇÕES
-              # ==================================================
-
-              html_final = html_modelo
-
-              html_final = html_final.replace(
-                  "__TITULO_SEO__",
-                  html.escape(
-                      titulo_seo,
-                      quote=True
-                  )
-              )
-
-              html_final = html_final.replace(
-                  "__TITULO__",
-                  html.escape(titulo)
-              )
-
-              html_final = html_final.replace(
-                  "__DESCRICAO_SEO__",
-                  html.escape(
-                      descricao,
-                      quote=True
-                  )
-              )
-
-              html_final = html_final.replace(
-                  "__DESCRICAO_BODY__",
-                  html.escape(
-                      limpar_texto(
-                          obra.get("descricao")
-                      ) or descricao
-                  )
-              )
-
-              html_final = html_final.replace(
-                  "__URL__",
-                  html.escape(
-                      url,
-                      quote=True
-                  )
-              )
-
-              html_final = html_final.replace(
-                  "__OG_IMAGE__",
-                  html.escape(
-                      og_image,
-                      quote=True
-                  )
-              )
-
-              html_final = html_final.replace(
-                  "__SCHEMA_JSON__",
-                  schema_json
-              )
-
-              html_final = html_final.replace(
-                  "__AUTOR_HTML__",
-                  autor_html
-              )
-
-              html_final = html_final.replace(
-                  "__CATEGORIA_HTML__",
-                  categoria_html
-              )
-
-              html_final = html_final.replace(
-                  "__ANO_HTML__",
-                  ano_html
-              )
-
-              html_final = html_final.replace(
-                  "__DATA_HTML__",
-                  data_html
-              )
-
-              html_final = html_final.replace(
-                  "__PAGINAS_HTML__",
-                  paginas_html
-              )
-
-              html_final = html_final.replace(
-                  "__PDF_HTML__",
-                  pdf_html
-              )
-
-              return html_final
-
-          # ======================================================
-          # CRIAR ROTAS INDIVIDUAIS
-          # ======================================================
-
-          obras_sitemap = []
-
-          for obra in data:
-
-              obra_id = limpar_texto(
-                  obra.get("id")
-              )
-
-              if not obra_id:
-                  continue
-
-              destino_dir = os.path.join(
-                  "build",
-                  "web",
-                  "obra",
-                  obra_id
-              )
-
-              destino = os.path.join(
-                  destino_dir,
-                  "index.html"
-              )
-
-              os.makedirs(
-                  destino_dir,
-                  exist_ok=True
-              )
-
-              html_obra = gerar_html_obra(
-                  obra
-              )
-
               with open(
-                  destino,
+                  f"{pasta}/index.html",
                   "w",
                   encoding="utf-8"
               ) as f:
+                  f.write(html_content)
 
-                  f.write(html_obra)
+          print(f"{len(obras)} obras processadas.")
+          PY
 
-              data_publicacao = extrair_data(
-                  obra.get("data_publicacao")
-              )
+      # ============================================================
+      # 10. Gerar sitemap.xml
+      # ============================================================
+      - name: Gerar sitemap
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -e
 
-              obras_sitemap.append(
-                  {
-                      "id": obra_id,
-                      "lastmod": data_publicacao
-                  }
-              )
+          python3 <<'PY'
+          import json
+          import re
+          import unicodedata
+          from datetime import datetime, timezone
 
-              print(
-                  f"Rota SEO criada: "
-                  f"/obra/{obra_id}/"
-              )
+          BASE_URL = "https://ginho83-wq.github.io/teste"
 
-          print(
-              "Todas as rotas individuais "
-              "foram preparadas."
-          )
-
-          # ======================================================
-          # GERAR SITEMAP
-          # ======================================================
-
-          base_url = (
-              "https://ginho83-wq.github.io/teste"
-          )
-
-          sitemap_path = (
-              "build/web/sitemap.xml"
-          )
-
-          fixed_urls = [
-
-              f"{base_url}/",
-
-              f"{base_url}/acervo/",
-
-              f"{base_url}/categorias/",
-
-              f"{base_url}/categoria/tese-doutoramento/",
-
-              f"{base_url}/categoria/dissertacao-mestrado/",
-
-              f"{base_url}/categoria/monografia/",
-
-              f"{base_url}/categoria/artigos-cientificos/",
-
-              f"{base_url}/categoria/literatura/"
-
+          categorias = [
+              "Tese Doutoramento",
+              "Dissertação Mestrado",
+              "Monografia",
+              "Artigos Científicos",
+              "Comunicações Científicas",
+              "Posters",
+              "Resumos",
+              "Relatórios Académicos",
+              "Trabalhos Académicos",
           ]
 
+          def slugify(text):
+              text = unicodedata.normalize("NFKD", text)
+              text = text.encode("ascii", "ignore").decode("ascii")
+              text = text.lower()
+              text = re.sub(r"[^a-z0-9]+", "-", text)
+              return text.strip("-")
+
+          urls = [
+              f"{BASE_URL}/",
+              f"{BASE_URL}/acervo/",
+              f"{BASE_URL}/categorias/",
+              f"{BASE_URL}/termos/",
+              f"{BASE_URL}/politica-privacidade/",
+              f"{BASE_URL}/cookies/",
+              f"{BASE_URL}/contacto/",
+              f"{BASE_URL}/ajuda/",
+          ]
+
+          # ----------------------------------------------------------
+          # Categorias
+          # ----------------------------------------------------------
+
+          for categoria in categorias:
+              slug = slugify(categoria)
+              urls.append(
+                  f"{BASE_URL}/categoria/{slug}/"
+              )
+
+          # ----------------------------------------------------------
+          # Obras
+          # ----------------------------------------------------------
+
+          with open("/tmp/obras.json", "r", encoding="utf-8") as f:
+              obras = json.load(f)
+
+          for obra in obras:
+              obra_id = str(obra.get("id", "")).strip()
+
+              if obra_id:
+                  urls.append(
+                      f"{BASE_URL}/obra/{obra_id}/"
+                  )
+
+          # ----------------------------------------------------------
+          # Remover duplicados mantendo a ordem
+          # ----------------------------------------------------------
+
+          urls = list(dict.fromkeys(urls))
+
+          hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+          linhas = [
+              '<?xml version="1.0" encoding="UTF-8"?>',
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+          ]
+
+          for url in urls:
+              linhas.append("  <url>")
+              linhas.append(f"    <loc>{url}</loc>")
+              linhas.append(f"    <lastmod>{hoje}</lastmod>")
+              linhas.append("  </url>")
+
+          linhas.append("</urlset>")
+
           with open(
-              sitemap_path,
+              "build/web/sitemap.xml",
               "w",
               encoding="utf-8"
-          ) as sitemap:
+          ) as f:
+              f.write("\n".join(linhas))
 
-              sitemap.write(
-                  '<?xml version="1.0" encoding="UTF-8"?>\n'
-              )
+          print(f"Sitemap gerado com {len(urls)} URLs.")
+          PY
 
-              sitemap.write(
-                  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-              )
-
-              # ==================================================
-              # URLs FIXAS
-              # ==================================================
-
-              for url in fixed_urls:
-
-                  sitemap.write(
-                      "  <url>\n"
-                  )
-
-                  sitemap.write(
-                      f"    <loc>{escape(url)}</loc>\n"
-                  )
-
-                  sitemap.write(
-                      "  </url>\n"
-                  )
-
-              # ==================================================
-              # URLs DAS OBRAS
-              # ==================================================
-
-              for obra in obras_sitemap:
-
-                  url = (
-                      f"{base_url}/obra/"
-                      f"{obra['id']}/"
-                  )
-
-                  sitemap.write(
-                      "  <url>\n"
-                  )
-
-                  sitemap.write(
-                      f"    <loc>{escape(url)}</loc>\n"
-                  )
-
-                  lastmod = obra.get(
-                      "lastmod"
-                  )
-
-                  if lastmod:
-
-                      sitemap.write(
-                          f"    <lastmod>{escape(lastmod)}</lastmod>\n"
-                      )
-
-                  sitemap.write(
-                      "  </url>\n"
-                  )
-
-              sitemap.write(
-                  "</urlset>\n"
-              )
-
-          print(
-              f"Sitemap gerado: {sitemap_path}"
-          )
-
-          print(
-              f"URLs fixas no sitemap: "
-              f"{len(fixed_urls)}"
-          )
-
-          print(
-              f"URLs de obras no sitemap: "
-              f"{len(obras_sitemap)}"
-          )
-
-          print(
-              f"Total de URLs no sitemap: "
-              f"{len(fixed_urls) + len(obras_sitemap)}"
-          )
-
-      # ==========================================================
-      # CONFIGURAR GITHUB PAGES
-      # ==========================================================
-
-      - name: Configure Pages
+      # ============================================================
+      # 11. Configurar GitHub Pages
+      # ============================================================
+      - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # ==========================================================
-      # UPLOAD
-      # ==========================================================
-
-      - name: Upload artifact
+      # ============================================================
+      # 12. Upload do site
+      # ============================================================
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
-  # ==========================================================
-  # DEPLOY
-  # ==========================================================
-
+  # ================================================================
+  # 13. Deploy no GitHub Pages
+  # ================================================================
   deploy:
     environment:
       name: github-pages
@@ -1062,12 +457,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    needs:
-      - build
+    needs: build
 
     steps:
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

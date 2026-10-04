@@ -17,8 +17,8 @@ class ImagensStorageService {
   // BUCKET ÚNICO DAS IMAGENS
   // ============================================================
 
-  /// Todas as imagens, pendentes e publicadas,
-  /// ficam neste único bucket.
+  // Todas as imagens, pendentes e publicadas,
+  // ficam neste único bucket.
   static const String bucketImagens =
       'imagens-obras';
 
@@ -45,7 +45,9 @@ class ImagensStorageService {
     }
 
     final nomeSeguro =
-    _normalizarNomeArquivo(nomeArquivo);
+    _normalizarNomeArquivo(
+      nomeArquivo,
+    );
 
     final caminho =
         '$obraId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
@@ -91,12 +93,13 @@ class ImagensStorageService {
     }
 
     final nomeSeguro =
-    _normalizarNomeArquivo(nomeArquivo);
+    _normalizarNomeArquivo(
+      nomeArquivo,
+    );
 
     final caminho =
         '$obraPendenteId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
 
-    // IMPORTANTE:
     // As imagens pendentes usam o mesmo bucket
     // "imagens-obras".
     await _supabase.storage
@@ -203,7 +206,6 @@ class ImagensStorageService {
       );
     }
 
-    // As imagens pendentes estão no mesmo bucket.
     return await _supabase.storage
         .from(bucketImagens)
         .download(caminho);

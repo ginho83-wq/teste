@@ -15,10 +15,7 @@ class CategoriasPage extends StatelessWidget {
       descricao: 'Dissertações e trabalhos académicos de mestrado.',
       icone: Icons.menu_book_outlined,
     ),
-    _Categoria(
-      nome: 'Dissertação de Licenciatura',
-      descricao: 'Trabalhos finais e dissertações de licenciatura.',
-      icone: Icons.school_outlined,
+    
     ),
     _Categoria(
       nome: 'Monografia',
