@@ -15,8 +15,6 @@ class CategoriasPage extends StatelessWidget {
       descricao: 'Dissertações e trabalhos académicos de mestrado.',
       icone: Icons.menu_book_outlined,
     ),
-    
-    ),
     _Categoria(
       nome: 'Monografia',
       descricao: 'Monografias e trabalhos de conclusão.',
@@ -283,7 +281,8 @@ class _CategoriaCard extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                  CrossAxisAlignment.start,
                   children: [
                     Text(
                       categoria.nome,
@@ -346,4 +345,3 @@ class _Categoria {
     required this.icone,
   });
 }
-
