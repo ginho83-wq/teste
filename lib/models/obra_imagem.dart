@@ -3,6 +3,7 @@ class ObraImagem {
   final String obraId;
   final String urlImagem;
   final String? legenda;
+  final String? fonte;
   final String posicao;
   final int ordem;
 
@@ -11,6 +12,7 @@ class ObraImagem {
     required this.obraId,
     required this.urlImagem,
     this.legenda,
+    this.fonte,
     this.posicao = 'dentro_conteudo',
     this.ordem = 1,
   });
@@ -22,13 +24,16 @@ class ObraImagem {
       id: map['id']?.toString(),
 
       obraId:
-      map['obra_id'].toString(),
+      map['obra_id']?.toString() ?? '',
 
       urlImagem:
       map['url_imagem']?.toString() ?? '',
 
       legenda:
       map['legenda']?.toString(),
+
+      fonte:
+      map['fonte']?.toString(),
 
       posicao:
       map['posicao']?.toString() ??
@@ -50,6 +55,7 @@ class ObraImagem {
       'obra_id': obraId,
       'url_imagem': urlImagem,
       'legenda': legenda,
+      'fonte': fonte,
       'posicao': posicao,
       'ordem': ordem,
     };
@@ -60,6 +66,7 @@ class ObraImagem {
     String? obraId,
     String? urlImagem,
     String? legenda,
+    String? fonte,
     String? posicao,
     int? ordem,
   }) {
@@ -68,8 +75,10 @@ class ObraImagem {
       obraId: obraId ?? this.obraId,
       urlImagem: urlImagem ?? this.urlImagem,
       legenda: legenda ?? this.legenda,
+      fonte: fonte ?? this.fonte,
       posicao: posicao ?? this.posicao,
       ordem: ordem ?? this.ordem,
     );
   }
 }
+

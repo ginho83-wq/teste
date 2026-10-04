@@ -140,8 +140,7 @@ class _ObraDetalhesPageState
 
       setState(() {
         _carregando = false;
-        _erro =
-        'Não foi possível carregar esta obra.';
+        _erro = 'Não foi possível carregar esta obra.';
       });
     }
   }
@@ -196,7 +195,7 @@ class _ObraDetalhesPageState
   }
 
   // ============================================================
-  // CARREGAR SECÇÕES REAIS
+  // CARREGAR SECÇÕES
   // ============================================================
 
   Future<void> _carregarSecoes(
@@ -238,9 +237,7 @@ class _ObraDetalhesPageState
   // NORMALIZAR TEXTO
   // ============================================================
 
-  String _normalizarTitulo(
-      String texto,
-      ) {
+  String _normalizarTitulo(String texto) {
     var valor = texto.toLowerCase().trim();
 
     const substituicoes = {
@@ -360,7 +357,7 @@ class _ObraDetalhesPageState
   }
 
   // ============================================================
-  // CALCULAR SEMELHANÇA ENTRE TÍTULOS
+  // CALCULAR SEMELHANÇA
   // ============================================================
 
   int _pontuacaoTitulo(
@@ -569,11 +566,9 @@ class _ObraDetalhesPageState
         },
       );
 
-      final idsAdicionados =
-      <String>{};
+      final idsAdicionados = <String>{};
 
-      final chavesAdicionadas =
-      <String>{};
+      final chavesAdicionadas = <String>{};
 
       final relacionadas = <Obra>[];
 
@@ -790,7 +785,8 @@ class _ObraDetalhesPageState
             ),
             FilledButton(
               onPressed: () {
-                Navigator.of(context).pop(
+                Navigator.of(context)
+                    .pop(
                   motivoController.text
                       .trim(),
                 );
@@ -884,21 +880,49 @@ class _ObraDetalhesPageState
             color: Color(0xFF202124),
           ),
         ),
-        const SizedBox(height: 18),
+
+        // ======================================================
+        // AUTORES
+        // ======================================================
+
+        if (obra.autor.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(
+                  text: 'Autores: ',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight:
+                    FontWeight.w600,
+                    color: Color(0xFF202124),
+                  ),
+                ),
+                TextSpan(
+                  text: obra.autor,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    height: 1.5,
+                    color: Color(0xFF5F6368),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ] else
+          const SizedBox(height: 18),
+
+        // ======================================================
+        // INFORMAÇÕES EM CHIPS
+        // ======================================================
+
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            if (obra.autor
-                .trim()
-                .isNotEmpty)
-              _buildChip(
-                Icons.person_outline,
-                obra.autor,
-              ),
-            if (obra.categoria
-                .trim()
-                .isNotEmpty)
+            if (obra.categoria.trim().isNotEmpty)
               _buildChip(
                 Icons.category_outlined,
                 obra.categoria,
@@ -1245,19 +1269,52 @@ class _ObraDetalhesPageState
     final legenda =
         imagem.legenda?.trim() ?? '';
 
+    final fonte =
+        imagem.fonte?.trim() ?? '';
+
     return SizedBox(
       width: largura,
       child: Column(
         crossAxisAlignment:
-        CrossAxisAlignment.center,
+        CrossAxisAlignment.start,
         children: [
+          if (legenda.isNotEmpty)
+            Padding(
+              padding:
+              const EdgeInsets.only(
+                bottom: 8,
+              ),
+              child: Text(
+                'Fig. $numeroFigura — $legenda',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                  FontWeight.w600,
+                  height: 1.4,
+                  color: Color(0xFF202124),
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding:
+              const EdgeInsets.only(
+                bottom: 8,
+              ),
+              child: Text(
+                'Fig. $numeroFigura',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                  FontWeight.w600,
+                  color: Color(0xFF202124),
+                ),
+              ),
+            ),
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
               color: const Color(0xFFF8F9FA),
-              border: Border.all(
-                color: const Color(0xFFE0E0E0),
-              ),
               borderRadius:
               BorderRadius.circular(6),
             ),
@@ -1267,7 +1324,9 @@ class _ObraDetalhesPageState
               aspectRatio: 4 / 3,
               child: Image.network(
                 imagem.urlImagem,
-                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
                 loadingBuilder: (
                     context,
                     child,
@@ -1294,7 +1353,8 @@ class _ObraDetalhesPageState
                       EdgeInsets.all(16),
                       child: Column(
                         mainAxisAlignment:
-                        MainAxisAlignment.center,
+                        MainAxisAlignment
+                            .center,
                         children: [
                           Icon(
                             Icons
@@ -1303,7 +1363,9 @@ class _ObraDetalhesPageState
                             Color(0xFF9AA0A6),
                             size: 30,
                           ),
-                          SizedBox(height: 8),
+                          SizedBox(
+                            height: 8,
+                          ),
                           Text(
                             'Não foi possível '
                                 'carregar esta imagem.',
@@ -1323,18 +1385,23 @@ class _ObraDetalhesPageState
               ),
             ),
           ),
-          if (legenda.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Figura $numeroFigura — $legenda',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                color: Color(0xFF5F6368),
+          if (fonte.isNotEmpty)
+            Padding(
+              padding:
+              const EdgeInsets.only(
+                top: 7,
+              ),
+              child: Text(
+                'Fonte: $fonte',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontStyle:
+                  FontStyle.italic,
+                  height: 1.4,
+                  color: Color(0xFF5F6368),
+                ),
               ),
             ),
-          ],
         ],
       ),
     );
@@ -1342,14 +1409,6 @@ class _ObraDetalhesPageState
 
   // ============================================================
   // GALERIA DE IMAGENS
-  //
-  // REGRA:
-  // - As imagens são opcionais.
-  // - Se não houver imagens, não aparece galeria.
-  // - As imagens aparecem depois de todo o conteúdo textual.
-  // - Desktop largo: até 4 imagens por linha.
-  // - Larguras intermédias: 3 ou 2 por linha.
-  // - Telemóvel: 1 por linha.
   // ============================================================
 
   Widget _buildGaleriaImagensEditorial(
@@ -1402,19 +1461,6 @@ class _ObraDetalhesPageState
 
   // ============================================================
   // SECÇÕES REAIS
-  //
-  // REGRA DAS IMAGENS:
-  //
-  // O número de parágrafos não interfere na posição das imagens.
-  //
-  // Pode existir:
-  // - nenhum parágrafo;
-  // - 1 parágrafo;
-  // - 3 parágrafos;
-  // - vários parágrafos.
-  //
-  // As imagens são opcionais e, quando existem, aparecem
-  // depois de todo o conteúdo textual da obra.
   // ============================================================
 
   Widget _buildSecoesDaObra() {
@@ -1492,18 +1538,14 @@ class _ObraDetalhesPageState
       );
     }
 
-    // Se não houver secções, mas existirem imagens,
-    // mostra apenas a galeria.
     if (widgets.isEmpty) {
       if (_imagens.isEmpty) {
         return const SizedBox.shrink();
       }
 
       return LayoutBuilder(
-        builder: (
-            context,
-            constraints,
-            ) {
+        builder:
+            (context, constraints) {
           return _buildGaleriaImagensEditorial(
             constraints.maxWidth,
           );
@@ -1511,21 +1553,14 @@ class _ObraDetalhesPageState
       );
     }
 
-    // Conteúdo textual primeiro.
-    //
-    // A galeria é opcional e fica sempre depois
-    // de TODAS as secções/conteúdos.
     return LayoutBuilder(
-      builder: (
-          context,
-          constraints,
-          ) {
+      builder:
+          (context, constraints) {
         return Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
           children: [
             ...widgets,
-
             if (_imagens.isNotEmpty)
               _buildGaleriaImagensEditorial(
                 constraints.maxWidth,
@@ -1533,23 +1568,6 @@ class _ObraDetalhesPageState
           ],
         );
       },
-    );
-  }
-
-  // ============================================================
-  // SEPARADOR
-  // ============================================================
-
-  Widget _buildSeparador() {
-    return const Padding(
-      padding:
-      EdgeInsets.symmetric(
-        vertical: 30,
-      ),
-      child: Divider(
-        height: 1,
-        color: Color(0xFFE8EAED),
-      ),
     );
   }
 
@@ -1614,8 +1632,7 @@ class _ObraDetalhesPageState
             _enviandoSolicitacao
                 ? null
                 : _solicitarRemocao,
-            icon:
-            _enviandoSolicitacao
+            icon: _enviandoSolicitacao
                 ? const SizedBox(
               width: 16,
               height: 16,
@@ -1754,35 +1771,35 @@ class _ObraDetalhesPageState
 
         if (_secoes.isNotEmpty ||
             _imagens.isNotEmpty) ...[
-          _buildSeparador(),
+          const SizedBox(height: 36),
           _buildSecoesDaObra(),
         ],
 
-        _buildSeparador(),
+        const SizedBox(height: 40),
 
         _buildInformacoesTecnicas(
           obra,
         ),
 
-        _buildSeparador(),
+        const SizedBox(height: 40),
 
         _buildBotoesDocumento(
           obra,
         ),
 
-        _buildSeparador(),
+        const SizedBox(height: 40),
 
         _buildSolicitacaoRemocao(
           obra,
         ),
 
-        _buildSeparador(),
+        const SizedBox(height: 40),
 
         ComentariosSection(
           obraId: obra.id,
         ),
 
-        _buildSeparador(),
+        const SizedBox(height: 40),
 
         _buildObrasRelacionadas(),
       ],
@@ -1903,10 +1920,8 @@ class _ObraDetalhesPageState
           elevation: 0,
         ),
         body: LayoutBuilder(
-          builder: (
-              context,
-              constraints,
-              ) {
+          builder:
+              (context, constraints) {
             final desktop =
                 constraints.maxWidth >=
                     1000;
@@ -1984,4 +1999,3 @@ class _ObraRelacionada {
     required this.pontuacao,
   });
 }
-

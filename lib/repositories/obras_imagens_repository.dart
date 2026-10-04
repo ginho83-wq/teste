@@ -8,7 +8,8 @@ class ObrasImagensRepository {
   static final ObrasImagensRepository instancia =
   ObrasImagensRepository._();
 
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase =
+      Supabase.instance.client;
 
   // ============================================================
   // INSERIR IMAGEM
@@ -122,3 +123,4 @@ class ObrasImagensRepository {
         .eq('obra_id', obraId);
   }
 }
+
