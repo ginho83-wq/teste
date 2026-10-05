@@ -26,7 +26,8 @@ class ObrasImagensRepository {
         .from('teste_imagens')
         .insert(dados)
         .select(
-      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+      'id, obra_id, url_imagem, legenda, fonte, '
+          'posicao, ordem, paragrafo_ordem',
     )
         .single();
 
@@ -49,7 +50,8 @@ class ObrasImagensRepository {
     final resposta = await _supabase
         .from('teste_imagens')
         .select(
-      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+      'id, obra_id, url_imagem, legenda, fonte, '
+          'posicao, ordem, paragrafo_ordem',
     )
         .eq('obra_id', obraId.trim())
         .order('ordem', ascending: true);
@@ -77,7 +79,8 @@ class ObrasImagensRepository {
     final resposta = await _supabase
         .from('teste_imagens')
         .select(
-      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+      'id, obra_id, url_imagem, legenda, fonte, '
+          'posicao, ordem, paragrafo_ordem',
     )
         .eq('id', id.trim())
         .maybeSingle();
@@ -115,7 +118,8 @@ class ObrasImagensRepository {
         .update(dados)
         .eq('id', imagem.id!.trim())
         .select(
-      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+      'id, obra_id, url_imagem, legenda, fonte, '
+          'posicao, ordem, paragrafo_ordem',
     )
         .single();
 
@@ -158,3 +162,4 @@ class ObrasImagensRepository {
         .eq('obra_id', obraId.trim());
   }
 }
+
