@@ -156,8 +156,10 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           .toList()
         ..sort(
               (a, b) {
-            final paragrafoA = a.paragrafoOrdem ?? 999999;
-            final paragrafoB = b.paragrafoOrdem ?? 999999;
+            final paragrafoA =
+                a.paragrafoOrdem ?? 999999;
+            final paragrafoB =
+                b.paragrafoOrdem ?? 999999;
 
             final resultado =
             paragrafoA.compareTo(paragrafoB);
@@ -1027,8 +1029,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
               _buildInfoTecnica(
                 Icons.menu_book_outlined,
                 'Páginas',
-                obra.numeroPaginas
-                    .toString(),
+                obra.numeroPaginas.toString(),
               ),
             if (obra.tamanhoArquivoBytes !=
                 null)
@@ -1196,6 +1197,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       ) {
     return SelectableText(
       texto,
+      textAlign: TextAlign.justify,
       style: const TextStyle(
         fontSize: 16,
         height: 1.8,
@@ -1351,7 +1353,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                                 .center,
                             style:
                             TextStyle(
-                              color: Color(
+                              color:
+                              Color(
                                 0xFF5F6368,
                               ),
                               fontSize: 12,
@@ -1429,7 +1432,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             numeroColunas;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding:
+      const EdgeInsets.symmetric(
         vertical: 24,
       ),
       child: Wrap(
