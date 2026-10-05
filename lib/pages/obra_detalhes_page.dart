@@ -31,13 +31,16 @@ class _ObraDetalhesPageState
   final ObrasRepository _repository =
       ObrasRepository.instancia;
 
-  final ObrasImagensRepository _imagensRepository =
+  final ObrasImagensRepository
+  _imagensRepository =
       ObrasImagensRepository.instancia;
 
-  final ObraSecoesRepository _secoesRepository =
+  final ObraSecoesRepository
+  _secoesRepository =
       ObraSecoesRepository.instancia;
 
-  final HistoricoObrasService _historicoService =
+  final HistoricoObrasService
+  _historicoService =
       HistoricoObrasService.instancia;
 
   final SolicitacoesRemocaoRepository
@@ -874,7 +877,7 @@ class _ObraDetalhesPageState
             TextSpan(
               children: [
                 const TextSpan(
-                  text: 'Autores: ',
+                  text: 'Autor(es): ',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight:
@@ -1039,8 +1042,7 @@ class _ObraDetalhesPageState
               _buildInfoTecnica(
                 Icons.menu_book_outlined,
                 'Páginas',
-                obra.numeroPaginas
-                    .toString(),
+                obra.numeroPaginas.toString(),
               ),
             if (obra.tamanhoArquivoBytes !=
                 null)
@@ -1112,7 +1114,8 @@ class _ObraDetalhesPageState
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
 
-    if (bytes < 1024 * 1024 * 1024) {
+    if (bytes <
+        1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
 
@@ -1260,38 +1263,14 @@ class _ObraDetalhesPageState
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
-          Text(
-            legenda.isNotEmpty
-                ? 'Fig. $numeroFigura — $legenda'
-                : 'Fig. $numeroFigura',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-              color: Color(0xFF202124),
-            ),
-          ),
-
-          if (fonte.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            Text(
-              'Fonte: $fonte',
-              style: const TextStyle(
-                fontSize: 12,
-                height: 1.4,
-                fontStyle: FontStyle.italic,
-                color: Color(0xFF5F6368),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 8),
+          // ======================================================
+          // IMAGEM
+          // ======================================================
 
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color:
-              const Color(0xFFF8F9FA),
+              color: const Color(0xFFF8F9FA),
               borderRadius:
               BorderRadius.circular(6),
             ),
@@ -1309,8 +1288,7 @@ class _ObraDetalhesPageState
                     child,
                     loadingProgress,
                     ) {
-                  if (loadingProgress ==
-                      null) {
+                  if (loadingProgress == null) {
                     return child;
                   }
 
@@ -1334,8 +1312,7 @@ class _ObraDetalhesPageState
                       EdgeInsets.all(16),
                       child: Column(
                         mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
+                        MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons
@@ -1354,8 +1331,7 @@ class _ObraDetalhesPageState
                             TextAlign.center,
                             style:
                             TextStyle(
-                              color:
-                              Color(
+                              color: Color(
                                 0xFF5F6368,
                               ),
                               fontSize: 12,
@@ -1369,6 +1345,43 @@ class _ObraDetalhesPageState
               ),
             ),
           ),
+
+          // ======================================================
+          // LEGENDA — ABAIXO DA IMAGEM
+          // ======================================================
+
+          const SizedBox(height: 8),
+
+          Text(
+            legenda.isNotEmpty
+                ? 'Fig. $numeroFigura — $legenda'
+                : 'Fig. $numeroFigura',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight:
+              FontWeight.w600,
+              height: 1.4,
+              color: Color(0xFF202124),
+            ),
+          ),
+
+          // ======================================================
+          // FONTE — ABAIXO DA LEGENDA
+          // ======================================================
+
+          if (fonte.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              'Fonte: $fonte',
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                fontStyle:
+                FontStyle.italic,
+                color: Color(0xFF5F6368),
+              ),
+            ),
+          ],
         ],
       ),
     );
