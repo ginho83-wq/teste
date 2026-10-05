@@ -107,9 +107,11 @@ class PublicacaoService {
     final secoesLimpa =
     <Map<String, dynamic>>[];
 
-    for (var i = 0;
+    for (
+    var i = 0;
     i < secoes.length;
-    i++) {
+    i++
+    ) {
       final secao = secoes[i];
 
       final tituloSecao =
@@ -129,17 +131,21 @@ class PublicacaoService {
         continue;
       }
 
-      final ordem = int.tryParse(
-        secao['ordem']?.toString() ??
-            '',
-      ) ??
-          (i + 1);
+      final ordem =
+          int.tryParse(
+            secao['ordem']
+                ?.toString() ??
+                '',
+          ) ??
+              (i + 1);
 
-      final nivel = int.tryParse(
-        secao['nivel']?.toString() ??
-            '',
-      ) ??
-          1;
+      final nivel =
+          int.tryParse(
+            secao['nivel']
+                ?.toString() ??
+                '',
+          ) ??
+              1;
 
       secoesLimpa.add({
         'titulo': tituloSecao,
@@ -162,7 +168,8 @@ class PublicacaoService {
 
       if (!_ehImagem(imagem.nome)) {
         throw Exception(
-          'O arquivo "${imagem.nome}" não é uma imagem válida.',
+          'O arquivo "${imagem.nome}" não é uma '
+              'imagem válida.',
         );
       }
     }
@@ -197,11 +204,9 @@ class PublicacaoService {
     // ==========================================================
 
     final existePendente =
-    await _pendentesRepository.existeDuplicado(
-      titulo: tituloLimpo,
-      autor: autorLimpo,
-      nomeArquivo: nomeArquivo,
-      hashPdf: hashPdf,
+    await _pendentesRepository
+        .existeDuplicado(
+      hashPdf,
     );
 
     if (existePendente) {
@@ -264,7 +269,9 @@ class PublicacaoService {
 
     if (secoesLimpa.isNotEmpty) {
       conteudoTexto =
-          jsonEncode(secoesLimpa);
+          jsonEncode(
+            secoesLimpa,
+          );
     }
 
     // ==========================================================
@@ -273,21 +280,35 @@ class PublicacaoService {
 
     final obra = ObraPendente(
       titulo: tituloLimpo,
+
       descricao:
       descricao?.trim().isEmpty == true
           ? null
           : descricao?.trim(),
+
       autor: autorLimpo,
+
       categoria: categoriaLimpa,
-      urlDocumento: caminhoPendente,
+
+      urlDocumento:
+      caminhoPendente,
+
       anoObra: anoObra,
+
       dataPublicacao:
       dataPublicacao,
+
       userId: usuario.id,
+
       numeroPaginas:
       numeroPaginas,
+
       tamanhoArquivoBytes:
       tamanhoArquivoBytes,
+
+      hashPdf:
+      hashPdf,
+
       conteudoTexto:
       conteudoTexto,
     );
@@ -295,11 +316,10 @@ class PublicacaoService {
     final obraPendente =
     await _pendentesRepository.inserir(
       obra,
-      hashPdf: hashPdf,
     );
 
     // ==========================================================
-    // GARANTIR ID DA OBRA PENDENTE
+    // GARANTIR ID
     // ==========================================================
 
     final obraPendenteId =
@@ -313,26 +333,23 @@ class PublicacaoService {
     }
 
     // ==========================================================
-    // GUARDAR IMAGENS PENDENTES
-    //
-    // IMPORTANTE:
-    // Guardamos cada caminho logo depois do upload.
-    //
-    // Se o INSERT na tabela falhar, conseguimos remover
-    // diretamente o ficheiro do Bucket.
+    // IMAGENS PENDENTES
     // ==========================================================
 
     final caminhosImagensEnviadas =
     <String>[];
 
     try {
-      for (var i = 0;
+      for (
+      var i = 0;
       i < imagens.length;
-      i++) {
-        final imagem = imagens[i];
+      i++
+      ) {
+        final imagem =
+        imagens[i];
 
         // ------------------------------------------------------
-        // 1. ENVIAR PARA STORAGE
+        // UPLOAD
         // ------------------------------------------------------
 
         final caminho =
@@ -346,13 +363,12 @@ class PublicacaoService {
           imagem.bytes,
         );
 
-        // Guardar imediatamente o caminho.
         caminhosImagensEnviadas.add(
           caminho,
         );
 
         // ------------------------------------------------------
-        // 2. INSERIR NA TABELA
+        // INSERT
         // ------------------------------------------------------
 
         await _pendentesRepository
@@ -367,25 +383,24 @@ class PublicacaoService {
       }
     } catch (e) {
       // ========================================================
-      // LIMPAR OBRA PENDENTE E IMAGENS
+      // LIMPAR OBRA E IMAGENS
       // ========================================================
 
-      // Primeiro tenta limpar tudo o que já foi registado
-      // normalmente.
       try {
-        await _pendentesRepository.rejeitar(
+        await _pendentesRepository
+            .rejeitar(
           obraPendenteId,
         );
       } catch (_) {}
 
-      // Depois removemos diretamente todos os caminhos que
-      // foram enviados para o Storage.
-      //
-      // Isto é importante porque uma imagem pode ter sido
-      // enviada para o Bucket mas o INSERT da tabela ter
-      // falhado.
-      for (final caminho
-      in caminhosImagensEnviadas) {
+      // ========================================================
+      // REMOVER ARQUIVOS QUE FORAM ENVIADOS
+      // ========================================================
+
+      for (
+      final caminho
+      in caminhosImagensEnviadas
+      ) {
         try {
           await _imagensStorageService
               .removerImagemPendente(
@@ -394,8 +409,6 @@ class PublicacaoService {
         } catch (_) {}
       }
 
-      // Mantém o erro original para a interface mostrar
-      // a causa real.
       rethrow;
     }
 

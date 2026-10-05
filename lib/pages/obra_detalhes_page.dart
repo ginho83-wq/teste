@@ -124,7 +124,8 @@ class _ObraDetalhesPageState
         );
       } catch (e) {
         debugPrint(
-          'OBRA DETALHES: erro ao registrar histórico: $e',
+          'OBRA DETALHES: erro ao registrar '
+              'histórico: $e',
         );
       }
 
@@ -133,7 +134,8 @@ class _ObraDetalhesPageState
       await _carregarEstadoRemocao(obra.id);
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar obra: $e',
+        'OBRA DETALHES: erro ao carregar '
+            'obra: $e',
       );
 
       if (!mounted) return;
@@ -182,7 +184,8 @@ class _ObraDetalhesPageState
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar imagens: $e',
+        'OBRA DETALHES: erro ao carregar '
+            'imagens: $e',
       );
 
       if (!mounted) return;
@@ -221,7 +224,8 @@ class _ObraDetalhesPageState
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar secções: $e',
+        'OBRA DETALHES: erro ao carregar '
+            'secções: $e',
       );
 
       if (!mounted) return;
@@ -1130,7 +1134,8 @@ class _ObraDetalhesPageState
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
 
-    if (bytes < 1024 * 1024 * 1024) {
+    if (bytes <
+        1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
 
@@ -1269,9 +1274,6 @@ class _ObraDetalhesPageState
     final legenda =
         imagem.legenda?.trim() ?? '';
 
-    final fonte =
-        imagem.fonte?.trim() ?? '';
-
     return SizedBox(
       width: largura,
       child: Column(
@@ -1311,10 +1313,12 @@ class _ObraDetalhesPageState
                 ),
               ),
             ),
+
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
+              color:
+              const Color(0xFFF8F9FA),
               borderRadius:
               BorderRadius.circular(6),
             ),
@@ -1359,8 +1363,9 @@ class _ObraDetalhesPageState
                           Icon(
                             Icons
                                 .broken_image_outlined,
-                            color:
-                            Color(0xFF9AA0A6),
+                            color: Color(
+                              0xFF9AA0A6,
+                            ),
                             size: 30,
                           ),
                           SizedBox(
@@ -1371,9 +1376,11 @@ class _ObraDetalhesPageState
                                 'carregar esta imagem.',
                             textAlign:
                             TextAlign.center,
-                            style: TextStyle(
-                              color:
-                              Color(0xFF5F6368),
+                            style:
+                            TextStyle(
+                              color: Color(
+                                0xFF5F6368,
+                              ),
                               fontSize: 12,
                             ),
                           ),
@@ -1385,23 +1392,6 @@ class _ObraDetalhesPageState
               ),
             ),
           ),
-          if (fonte.isNotEmpty)
-            Padding(
-              padding:
-              const EdgeInsets.only(
-                top: 7,
-              ),
-              child: Text(
-                'Fonte: $fonte',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontStyle:
-                  FontStyle.italic,
-                  height: 1.4,
-                  color: Color(0xFF5F6368),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -1444,7 +1434,8 @@ class _ObraDetalhesPageState
       child: Wrap(
         spacing: espacamento,
         runSpacing: 24,
-        alignment: WrapAlignment.start,
+        alignment:
+        WrapAlignment.start,
         children: [
           for (var i = 0;
           i < _imagens.length;
@@ -1999,3 +1990,4 @@ class _ObraRelacionada {
     required this.pontuacao,
   });
 }
+

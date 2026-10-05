@@ -17,8 +17,6 @@ class ImagensStorageService {
   // BUCKET ÚNICO DAS IMAGENS
   // ============================================================
 
-  // Todas as imagens, pendentes e publicadas,
-  // ficam neste único bucket.
   static const String bucketImagens =
       'imagens-obras';
 
@@ -45,9 +43,7 @@ class ImagensStorageService {
     }
 
     final nomeSeguro =
-    _normalizarNomeArquivo(
-      nomeArquivo,
-    );
+    _normalizarNomeArquivo(nomeArquivo);
 
     final caminho =
         '$obraId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
@@ -93,15 +89,11 @@ class ImagensStorageService {
     }
 
     final nomeSeguro =
-    _normalizarNomeArquivo(
-      nomeArquivo,
-    );
+    _normalizarNomeArquivo(nomeArquivo);
 
     final caminho =
         '$obraPendenteId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
 
-    // As imagens pendentes usam o mesmo bucket
-    // "imagens-obras".
     await _supabase.storage
         .from(bucketImagens)
         .uploadBinary(
@@ -121,7 +113,7 @@ class ImagensStorageService {
   }
 
   // ============================================================
-  // OBTER URL PÚBLICA DA IMAGEM
+  // OBTER URL PÚBLICA
   // ============================================================
 
   String obterUrlPublica(
@@ -167,7 +159,6 @@ class ImagensStorageService {
       return;
     }
 
-    // Imagens pendentes também estão em "imagens-obras".
     await _supabase.storage
         .from(bucketImagens)
         .remove([
@@ -220,6 +211,18 @@ class ImagensStorageService {
     required String obraId,
     required String nomeArquivo,
   }) async {
+    if (caminhoPendente.trim().isEmpty) {
+      throw Exception(
+        'Caminho da imagem pendente inválido.',
+      );
+    }
+
+    if (obraId.trim().isEmpty) {
+      throw Exception(
+        'ID da obra publicada inválido.',
+      );
+    }
+
     final bytes =
     await baixarImagemPendente(
       caminhoPendente,
@@ -233,7 +236,7 @@ class ImagensStorageService {
   }
 
   // ============================================================
-  // NORMALIZAR NOME DO FICHEIRO
+  // NORMALIZAR NOME
   // ============================================================
 
   String _normalizarNomeArquivo(

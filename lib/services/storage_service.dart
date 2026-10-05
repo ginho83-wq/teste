@@ -7,7 +7,8 @@ import 'supabase_service.dart';
 class StorageService {
   StorageService._();
 
-  static final StorageService instancia = StorageService._();
+  static final StorageService instancia =
+  StorageService._();
 
   final SupabaseClient _supabase =
       SupabaseService.instancia.client;
@@ -21,8 +22,7 @@ class StorageService {
       'obras_pendentes';
 
   /// Bucket dos documentos PDF publicados.
-  static const String bucketObras =
-      'obras';
+  static const String bucketObras = 'obras';
 
   // ============================================================
   // DOCUMENTO PDF — PENDENTE
@@ -41,7 +41,8 @@ class StorageService {
       throw Exception('O arquivo está vazio.');
     }
 
-    final nomeSeguro = _normalizarNomeArquivo(nomeArquivo);
+    final nomeSeguro =
+    _normalizarNomeArquivo(nomeArquivo);
 
     final caminho =
         '$userId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
@@ -143,7 +144,8 @@ class StorageService {
       throw Exception('O arquivo está vazio.');
     }
 
-    final nomeSeguro = _normalizarNomeArquivo(nomeArquivo);
+    final nomeSeguro =
+    _normalizarNomeArquivo(nomeArquivo);
 
     final caminho =
         '$userId/${DateTime.now().millisecondsSinceEpoch}_$nomeSeguro';
@@ -189,7 +191,14 @@ class StorageService {
     required String userId,
     required String nomeArquivo,
   }) async {
-    final bytes = await baixarDocumentoPendente(
+    if (caminhoPendente.trim().isEmpty) {
+      throw Exception(
+        'Caminho do PDF pendente inválido.',
+      );
+    }
+
+    final bytes =
+    await baixarDocumentoPendente(
       caminhoPendente,
     );
 
@@ -241,7 +250,9 @@ class StorageService {
       '_',
     );
 
-    if (!resultado.toLowerCase().endsWith('.pdf')) {
+    if (!resultado
+        .toLowerCase()
+        .endsWith('.pdf')) {
       resultado = '$resultado.pdf';
     }
 
