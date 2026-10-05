@@ -5,7 +5,8 @@ import '../models/obra_imagem.dart';
 class ObrasImagensRepository {
   ObrasImagensRepository._();
 
-  static final ObrasImagensRepository instancia =
+  static final ObrasImagensRepository
+  instancia =
   ObrasImagensRepository._();
 
   final SupabaseClient _supabase =
@@ -30,7 +31,9 @@ class ObrasImagensRepository {
         .single();
 
     return ObraImagem.fromMap(
-      Map<String, dynamic>.from(resposta),
+      Map<String, dynamic>.from(
+        resposta,
+      ),
     );
   }
 
@@ -38,7 +41,8 @@ class ObrasImagensRepository {
   // CARREGAR IMAGENS DE UMA OBRA
   // ============================================================
 
-  Future<List<ObraImagem>> carregarPorObra(
+  Future<List<ObraImagem>>
+  carregarPorObra(
       String obraId,
       ) async {
     if (obraId.trim().isEmpty) {
@@ -57,7 +61,9 @@ class ObrasImagensRepository {
     return (resposta as List)
         .map(
           (item) => ObraImagem.fromMap(
-        Map<String, dynamic>.from(item),
+        Map<String, dynamic>.from(
+          item,
+        ),
       ),
     )
         .toList();
@@ -85,7 +91,9 @@ class ObrasImagensRepository {
     }
 
     return ObraImagem.fromMap(
-      Map<String, dynamic>.from(resposta),
+      Map<String, dynamic>.from(
+        resposta,
+      ),
     );
   }
 

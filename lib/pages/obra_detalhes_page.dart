@@ -53,10 +53,6 @@ class _ObraDetalhesPageState
 
   List<ObraSecao> _secoes = [];
 
-  // ============================================================
-  // OBRAS RELACIONADAS
-  // ============================================================
-
   List<Obra> _obrasRelacionadas = [];
 
   bool _carregandoRelacionadas = false;
@@ -124,8 +120,7 @@ class _ObraDetalhesPageState
         );
       } catch (e) {
         debugPrint(
-          'OBRA DETALHES: erro ao registrar '
-              'histórico: $e',
+          'OBRA DETALHES: erro ao registrar histórico: $e',
         );
       }
 
@@ -134,15 +129,15 @@ class _ObraDetalhesPageState
       await _carregarEstadoRemocao(obra.id);
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar '
-            'obra: $e',
+        'OBRA DETALHES: erro ao carregar obra: $e',
       );
 
       if (!mounted) return;
 
       setState(() {
         _carregando = false;
-        _erro = 'Não foi possível carregar esta obra.';
+        _erro =
+        'Não foi possível carregar esta obra.';
       });
     }
   }
@@ -184,8 +179,7 @@ class _ObraDetalhesPageState
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar '
-            'imagens: $e',
+        'OBRA DETALHES: erro ao carregar imagens: $e',
       );
 
       if (!mounted) return;
@@ -224,8 +218,7 @@ class _ObraDetalhesPageState
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar '
-            'secções: $e',
+        'OBRA DETALHES: erro ao carregar secções: $e',
       );
 
       if (!mounted) return;
@@ -633,8 +626,7 @@ class _ObraDetalhesPageState
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar '
-            'obras relacionadas: $e',
+        'OBRA DETALHES: erro ao carregar obras relacionadas: $e',
       );
 
       if (!mounted) return;
@@ -667,8 +659,7 @@ class _ObraDetalhesPageState
           await _authService.ehAdmin();
         } catch (e) {
           debugPrint(
-            'OBRA DETALHES: erro ao verificar '
-                'admin: $e',
+            'OBRA DETALHES: erro ao verificar admin: $e',
           );
         }
       }
@@ -718,8 +709,7 @@ class _ObraDetalhesPageState
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar '
-            'solicitação: $e',
+        'OBRA DETALHES: erro ao carregar solicitação: $e',
       );
 
       if (!mounted) return;
@@ -744,8 +734,7 @@ class _ObraDetalhesPageState
           .showSnackBar(
         const SnackBar(
           content: Text(
-            'É necessário iniciar sessão para '
-                'solicitar a remoção.',
+            'É necessário iniciar sessão para solicitar a remoção.',
           ),
         ),
       );
@@ -789,8 +778,7 @@ class _ObraDetalhesPageState
             ),
             FilledButton(
               onPressed: () {
-                Navigator.of(context)
-                    .pop(
+                Navigator.of(context).pop(
                   motivoController.text
                       .trim(),
                 );
@@ -840,8 +828,7 @@ class _ObraDetalhesPageState
       );
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao solicitar '
-            'remoção: $e',
+        'OBRA DETALHES: erro ao solicitar remoção: $e',
       );
 
       if (!mounted) return;
@@ -850,8 +837,7 @@ class _ObraDetalhesPageState
           .showSnackBar(
         SnackBar(
           content: Text(
-            'Não foi possível enviar a '
-                'solicitação: $e',
+            'Não foi possível enviar a solicitação: $e',
           ),
         ),
       );
@@ -868,9 +854,7 @@ class _ObraDetalhesPageState
   // CABEÇALHO
   // ============================================================
 
-  Widget _buildCabecalho(
-      Obra obra,
-      ) {
+  Widget _buildCabecalho(Obra obra) {
     return Column(
       crossAxisAlignment:
       CrossAxisAlignment.start,
@@ -884,11 +868,6 @@ class _ObraDetalhesPageState
             color: Color(0xFF202124),
           ),
         ),
-
-        // ======================================================
-        // AUTORES
-        // ======================================================
-
         if (obra.autor.trim().isNotEmpty) ...[
           const SizedBox(height: 12),
           Text.rich(
@@ -900,7 +879,8 @@ class _ObraDetalhesPageState
                     fontSize: 15,
                     fontWeight:
                     FontWeight.w600,
-                    color: Color(0xFF202124),
+                    color:
+                    Color(0xFF202124),
                   ),
                 ),
                 TextSpan(
@@ -908,7 +888,8 @@ class _ObraDetalhesPageState
                   style: const TextStyle(
                     fontSize: 15,
                     height: 1.5,
-                    color: Color(0xFF5F6368),
+                    color:
+                    Color(0xFF5F6368),
                   ),
                 ),
               ],
@@ -917,16 +898,13 @@ class _ObraDetalhesPageState
           const SizedBox(height: 18),
         ] else
           const SizedBox(height: 18),
-
-        // ======================================================
-        // INFORMAÇÕES EM CHIPS
-        // ======================================================
-
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            if (obra.categoria.trim().isNotEmpty)
+            if (obra.categoria
+                .trim()
+                .isNotEmpty)
               _buildChip(
                 Icons.category_outlined,
                 obra.categoria,
@@ -976,14 +954,16 @@ class _ObraDetalhesPageState
           Icon(
             icon,
             size: 16,
-            color: const Color(0xFF5F6368),
+            color:
+            const Color(0xFF5F6368),
           ),
           const SizedBox(width: 6),
           Text(
             texto,
             style: const TextStyle(
               fontSize: 13,
-              color: Color(0xFF5F6368),
+              color:
+              Color(0xFF5F6368),
             ),
           ),
         ],
@@ -995,9 +975,7 @@ class _ObraDetalhesPageState
   // DATA
   // ============================================================
 
-  String _formatarData(
-      DateTime data,
-      ) {
+  String _formatarData(DateTime data) {
     final dia =
     data.day.toString().padLeft(2, '0');
 
@@ -1061,9 +1039,11 @@ class _ObraDetalhesPageState
               _buildInfoTecnica(
                 Icons.menu_book_outlined,
                 'Páginas',
-                obra.numeroPaginas.toString(),
+                obra.numeroPaginas
+                    .toString(),
               ),
-            if (obra.tamanhoArquivoBytes != null)
+            if (obra.tamanhoArquivoBytes !=
+                null)
               _buildInfoTecnica(
                 Icons.storage_outlined,
                 'Tamanho',
@@ -1123,9 +1103,7 @@ class _ObraDetalhesPageState
   // TAMANHO
   // ============================================================
 
-  String _formatarTamanho(
-      int bytes,
-      ) {
+  String _formatarTamanho(int bytes) {
     if (bytes < 1024) {
       return '$bytes B';
     }
@@ -1134,8 +1112,7 @@ class _ObraDetalhesPageState
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
 
-    if (bytes <
-        1024 * 1024 * 1024) {
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
 
@@ -1274,45 +1251,41 @@ class _ObraDetalhesPageState
     final legenda =
         imagem.legenda?.trim() ?? '';
 
+    final fonte =
+        imagem.fonte?.trim() ?? '';
+
     return SizedBox(
       width: largura,
       child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
-          if (legenda.isNotEmpty)
-            Padding(
-              padding:
-              const EdgeInsets.only(
-                bottom: 8,
-              ),
-              child: Text(
-                'Fig. $numeroFigura — $legenda',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight:
-                  FontWeight.w600,
-                  height: 1.4,
-                  color: Color(0xFF202124),
-                ),
-              ),
-            )
-          else
-            Padding(
-              padding:
-              const EdgeInsets.only(
-                bottom: 8,
-              ),
-              child: Text(
-                'Fig. $numeroFigura',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight:
-                  FontWeight.w600,
-                  color: Color(0xFF202124),
-                ),
+          Text(
+            legenda.isNotEmpty
+                ? 'Fig. $numeroFigura — $legenda'
+                : 'Fig. $numeroFigura',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+              color: Color(0xFF202124),
+            ),
+          ),
+
+          if (fonte.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              'Fonte: $fonte',
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                fontStyle: FontStyle.italic,
+                color: Color(0xFF5F6368),
               ),
             ),
+          ],
+
+          const SizedBox(height: 8),
 
           Container(
             width: double.infinity,
@@ -1351,6 +1324,10 @@ class _ObraDetalhesPageState
                     error,
                     stackTrace,
                     ) {
+                  debugPrint(
+                    'OBRA DETALHES: erro ao carregar imagem: $error',
+                  );
+
                   return const Center(
                     child: Padding(
                       padding:
@@ -1372,13 +1349,13 @@ class _ObraDetalhesPageState
                             height: 8,
                           ),
                           Text(
-                            'Não foi possível '
-                                'carregar esta imagem.',
+                            'Não foi possível carregar esta imagem.',
                             textAlign:
                             TextAlign.center,
                             style:
                             TextStyle(
-                              color: Color(
+                              color:
+                              Color(
                                 0xFF5F6368,
                               ),
                               fontSize: 12,
@@ -1598,22 +1575,22 @@ class _ObraDetalhesPageState
           'Remoção da obra',
           style: TextStyle(
             fontSize: 19,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF202124),
+            fontWeight:
+            FontWeight.w700,
+            color:
+            Color(0xFF202124),
           ),
         ),
         const SizedBox(height: 10),
         Text(
           existeSolicitacao
-              ? 'Já existe uma solicitação de remoção '
-              'pendente para esta obra.'
-              : 'Se identificar algum problema com '
-              'esta publicação, pode solicitar a sua '
-              'remoção para análise administrativa.',
+              ? 'Já existe uma solicitação de remoção pendente para esta obra.'
+              : 'Se identificar algum problema com esta publicação, pode solicitar a sua remoção para análise administrativa.',
           style: const TextStyle(
             fontSize: 14,
             height: 1.6,
-            color: Color(0xFF5F6368),
+            color:
+            Color(0xFF5F6368),
           ),
         ),
         const SizedBox(height: 14),
@@ -1623,7 +1600,8 @@ class _ObraDetalhesPageState
             _enviandoSolicitacao
                 ? null
                 : _solicitarRemocao,
-            icon: _enviandoSolicitacao
+            icon:
+            _enviandoSolicitacao
                 ? const SizedBox(
               width: 16,
               height: 16,
@@ -1633,7 +1611,8 @@ class _ObraDetalhesPageState
               ),
             )
                 : const Icon(
-              Icons.report_outlined,
+              Icons
+                  .report_outlined,
             ),
             label: Text(
               _enviandoSolicitacao
@@ -1691,8 +1670,7 @@ class _ObraDetalhesPageState
           ),
           SizedBox(height: 14),
           Text(
-            'Ainda não existem outras obras '
-                'suficientemente relacionadas a esta publicação.',
+            'Ainda não existem outras obras suficientemente relacionadas a esta publicação.',
             style: TextStyle(
               fontSize: 14,
               color:

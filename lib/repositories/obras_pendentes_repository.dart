@@ -197,11 +197,21 @@ class ObrasPendentesRepository {
     required String obraPendenteId,
     required String caminhoImagem,
     String? legenda,
+    String? fonte,
     String posicao = 'dentro_conteudo',
     int ordem = 1,
   }) async {
     final idPendente =
     obraPendenteId.trim();
+
+    final caminhoLimpo =
+    caminhoImagem.trim();
+
+    final legendaLimpa =
+    legenda?.trim();
+
+    final fonteLimpa =
+    fonte?.trim();
 
     if (idPendente.isEmpty) {
       throw Exception(
@@ -209,7 +219,7 @@ class ObrasPendentesRepository {
       );
     }
 
-    if (caminhoImagem.trim().isEmpty) {
+    if (caminhoLimpo.isEmpty) {
       throw Exception(
         'caminho_imagem não pode estar vazio.',
       );
@@ -225,33 +235,48 @@ class ObrasPendentesRepository {
     );
     print(
       '[DIAGNÓSTICO IMAGEM] caminho_imagem: '
-          '$caminhoImagem',
+          '$caminhoLimpo',
     );
     print(
-      '[DIAGNÓSTICO IMAGEM] legenda: $legenda',
+      '[DIAGNÓSTICO IMAGEM] legenda: '
+          '$legendaLimpa',
     );
     print(
-      '[DIAGNÓSTICO IMAGEM] posicao: $posicao',
+      '[DIAGNÓSTICO IMAGEM] fonte: '
+          '$fonteLimpa',
     );
     print(
-      '[DIAGNÓSTICO IMAGEM] ordem: $ordem',
+      '[DIAGNÓSTICO IMAGEM] posicao: '
+          '$posicao',
+    );
+    print(
+      '[DIAGNÓSTICO IMAGEM] ordem: '
+          '$ordem',
     );
 
     try {
-      final resposta = await _supabase
-          .from('obras_pendentes_imagens')
-          .insert({
+      final dados = <String, dynamic>{
         'obra_pendente_id': idPendente,
-        'caminho_imagem': caminhoImagem,
-        'legenda': legenda,
+        'caminho_imagem': caminhoLimpo,
+        'legenda': legendaLimpa?.isEmpty == true
+            ? null
+            : legendaLimpa,
+        'fonte': fonteLimpa?.isEmpty == true
+            ? null
+            : fonteLimpa,
         'posicao': posicao,
         'ordem': ordem,
-      })
+      };
+
+      final resposta = await _supabase
+          .from('obras_pendentes_imagens')
+          .insert(dados)
           .select('''
             id,
             obra_pendente_id,
             caminho_imagem,
             legenda,
+            fonte,
             posicao,
             ordem,
             created_at
@@ -278,18 +303,23 @@ class ObrasPendentesRepository {
         '[DIAGNÓSTICO IMAGEM] ERRO AO INSERIR '
             'IMAGEM PENDENTE',
       );
+
       print(
         '[DIAGNÓSTICO IMAGEM] code: ${e.code}',
       );
+
       print(
         '[DIAGNÓSTICO IMAGEM] message: ${e.message}',
       );
+
       print(
         '[DIAGNÓSTICO IMAGEM] details: ${e.details}',
       );
+
       print(
         '[DIAGNÓSTICO IMAGEM] hint: ${e.hint}',
       );
+
       print('================================================');
 
       rethrow;
@@ -315,6 +345,7 @@ class ObrasPendentesRepository {
       '[DIAGNÓSTICO IMAGEM] CONSULTANDO '
           'obras_pendentes_imagens...',
     );
+
     print(
       '[DIAGNÓSTICO IMAGEM] obra_pendente_id: '
           '$idLimpo',
@@ -353,6 +384,7 @@ class ObrasPendentesRepository {
             obra_pendente_id,
             caminho_imagem,
             legenda,
+            fonte,
             posicao,
             ordem,
             created_at
@@ -366,15 +398,11 @@ class ObrasPendentesRepository {
         ascending: true,
       );
 
-      final lista =
-      (resposta as List)
+      final lista = (resposta as List)
           .map(
-            (item) =>
-            ObraImagem.fromMap(
-              Map<String, dynamic>.from(
-                item,
-              ),
-            ),
+            (item) => ObraImagem.fromMap(
+          Map<String, dynamic>.from(item),
+        ),
       )
           .toList();
 
@@ -389,6 +417,8 @@ class ObrasPendentesRepository {
               'id=${imagem.id} | '
               'obra_pendente_id=${imagem.obraId} | '
               'caminho=${imagem.urlImagem} | '
+              'legenda=${imagem.legenda} | '
+              'fonte=${imagem.fonte} | '
               'posicao=${imagem.posicao} | '
               'ordem=${imagem.ordem}',
         );
@@ -542,7 +572,9 @@ class ObrasPendentesRepository {
     // ==========================================================
 
     final pendente =
-    await carregarPorId(idLimpo);
+    await carregarPorId(
+      idLimpo,
+    );
 
     if (pendente == null) {
       throw Exception(
@@ -580,8 +612,7 @@ class ObrasPendentesRepository {
 
     if (hashPdf != null &&
         hashPdf.isNotEmpty) {
-      final duplicado =
-      await _supabase
+      final duplicado = await _supabase
           .from('obras')
           .select('id')
           .eq(
@@ -638,7 +669,9 @@ class ObrasPendentesRepository {
     }
 
     final nomeArquivoPdf =
-    _nomeArquivo(caminhoPdfPendente);
+    _nomeArquivo(
+      caminhoPdfPendente,
+    );
 
     bool pdfCopiado = false;
 
@@ -664,8 +697,10 @@ class ObrasPendentesRepository {
           .copiarDocumentoParaPublicadas(
         caminhoPendente:
         caminhoPdfPendente,
-        userId: pendente.userId,
-        nomeArquivo: nomeArquivoPdf,
+        userId:
+        pendente.userId,
+        nomeArquivo:
+        nomeArquivoPdf,
       );
 
       pdfCopiado = true;
@@ -700,16 +735,20 @@ class ObrasPendentesRepository {
 
       final dadosObra =
       <String, dynamic>{
-        'titulo': pendente.titulo,
+        'titulo':
+        pendente.titulo,
 
-        'descricao': pendente.descricao,
+        'descricao':
+        pendente.descricao,
 
         'conteudo_texto':
         pendente.conteudoTexto,
 
-        'autor': pendente.autor,
+        'autor':
+        pendente.autor,
 
-        'categoria': pendente.categoria,
+        'categoria':
+        pendente.categoria,
 
         'url_documento':
         urlDocumento,
@@ -793,8 +832,10 @@ class ObrasPendentesRepository {
 
       print('================================================');
 
-      for (final imagemPendente
-      in imagensPendentes) {
+      for (
+      final imagemPendente
+      in imagensPendentes
+      ) {
         final caminhoPendente =
         imagemPendente.urlImagem
             ?.trim();
@@ -802,13 +843,13 @@ class ObrasPendentesRepository {
         if (caminhoPendente == null ||
             caminhoPendente.isEmpty) {
           throw Exception(
-            'Imagem pendente '
-                '${imagemPendente.id} não possui '
-                'caminho válido.',
+            'Imagem pendente ${imagemPendente.id} '
+                'não possui caminho válido.',
           );
         }
 
         print('------------------------------------------------');
+
         print(
           '[DIAGNÓSTICO IMAGEM] TRANSFERINDO '
               'IMAGEM',
@@ -822,6 +863,16 @@ class ObrasPendentesRepository {
         print(
           '[DIAGNÓSTICO IMAGEM] caminho pendente: '
               '$caminhoPendente',
+        );
+
+        print(
+          '[DIAGNÓSTICO IMAGEM] legenda: '
+              '${imagemPendente.legenda}',
+        );
+
+        print(
+          '[DIAGNÓSTICO IMAGEM] fonte: '
+              '${imagemPendente.fonte}',
         );
 
         // ======================================================
@@ -885,17 +936,31 @@ class ObrasPendentesRepository {
 
         // ======================================================
         // CRIAR REGISTRO
+        //
+        // AQUI ESTÁ A ALTERAÇÃO PRINCIPAL:
+        // fonte também é transferida.
         // ======================================================
 
         final imagemPublicada =
         ObraImagem(
-          id: _uuid.v4(),
-          obraId: obra.id,
-          urlImagem: urlImagem,
+          id:
+          _uuid.v4(),
+
+          obraId:
+          obra.id,
+
+          urlImagem:
+          urlImagem,
+
           legenda:
           imagemPendente.legenda,
+
+          fonte:
+          imagemPendente.fonte,
+
           posicao:
           imagemPendente.posicao,
+
           ordem:
           imagemPendente.ordem,
         );
@@ -931,6 +996,16 @@ class ObrasPendentesRepository {
               '${imagemGravada.urlImagem}',
         );
 
+        print(
+          '[DIAGNÓSTICO IMAGEM] legenda: '
+              '${imagemGravada.legenda}',
+        );
+
+        print(
+          '[DIAGNÓSTICO IMAGEM] fonte: '
+              '${imagemGravada.fonte}',
+        );
+
         // ======================================================
         // VALIDAR OBRA
         // ======================================================
@@ -944,16 +1019,24 @@ class ObrasPendentesRepository {
         }
 
         // ======================================================
-        // CONFIRMAR BANCO
+        // CONFIRMAR ID
         // ======================================================
 
         if (imagemGravada.id == null ||
-            imagemGravada.id!.trim().isEmpty) {
+            imagemGravada.id!
+                .trim()
+                .isEmpty) {
           throw Exception(
             'ERRO CRÍTICO: imagem gravada '
                 'não possui ID.',
           );
         }
+
+        // ======================================================
+        // CONFIRMAR BANCO
+        //
+        // Agora também confirma legenda e fonte.
+        // ======================================================
 
         final confirmacao =
         await _supabase
@@ -963,6 +1046,7 @@ class ObrasPendentesRepository {
                   obra_id,
                   url_imagem,
                   legenda,
+                  fonte,
                   posicao,
                   ordem
                 ''')
@@ -1070,8 +1154,8 @@ class ObrasPendentesRepository {
       );
 
       print(
-        '[DIAGNÓSTICO PUBLICAÇÃO] Imagens '
-            'transferidas: ${imagensFinais.length}',
+        '[DIAGNÓSTICO PUBLICAÇÃO] Imagens transferidas: '
+            '${imagensFinais.length}',
       );
 
       print('================================================');
@@ -1162,8 +1246,10 @@ class ObrasPendentesRepository {
       // REMOVER IMAGENS PUBLICADAS DO STORAGE
       // ========================================================
 
-      for (final caminho
-      in imagensPublicadas) {
+      for (
+      final caminho
+      in imagensPublicadas
+      ) {
         try {
           await _imagensStorage
               .removerImagem(
@@ -1261,7 +1347,8 @@ class ObrasPendentesRepository {
       i < decoded.length;
       i++
       ) {
-        final item = decoded[i];
+        final item =
+        decoded[i];
 
         if (item is! Map) {
           continue;
@@ -1306,12 +1393,18 @@ class ObrasPendentesRepository {
             1;
 
         registros.add({
-          'id': _uuid.v4(),
-          'obra_id': obra.id,
-          'titulo': titulo,
-          'conteudo': conteudo,
-          'ordem': ordem,
-          'nivel': nivel,
+          'id':
+          _uuid.v4(),
+          'obra_id':
+          obra.id,
+          'titulo':
+          titulo,
+          'conteudo':
+          conteudo,
+          'ordem':
+          ordem,
+          'nivel':
+          nivel,
         });
       }
 

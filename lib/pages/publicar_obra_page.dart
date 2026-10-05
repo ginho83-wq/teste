@@ -5,48 +5,32 @@ import '../services/auth_service.dart';
 import '../services/publicacao_service.dart';
 
 class PublicarObraPage extends StatefulWidget {
-  const PublicarObraPage({
-    super.key,
-  });
+  const PublicarObraPage({super.key});
 
   @override
-  State<PublicarObraPage> createState() =>
-      _PublicarObraPageState();
+  State<PublicarObraPage> createState() => _PublicarObraPageState();
 }
 
-class _PublicarObraPageState
-    extends State<PublicarObraPage> {
-  final _formKey =
-  GlobalKey<FormState>();
+class _PublicarObraPageState extends State<PublicarObraPage> {
+  final _formKey = GlobalKey<FormState>();
 
-  final _tituloController =
-  TextEditingController();
+  final _tituloController = TextEditingController();
+  final _descricaoController = TextEditingController();
+  final _autorController = TextEditingController();
+  final _anoController = TextEditingController();
 
-  final _descricaoController =
-  TextEditingController();
-
-  final _autorController =
-  TextEditingController();
-
-  final _anoController =
-  TextEditingController();
-
-  final ArquivoService _arquivoService =
-      ArquivoService.instancia;
-
-  final PublicacaoService _publicacaoService =
-      PublicacaoService.instancia;
+  final _arquivoService = ArquivoService.instancia;
+  final _publicacaoService = PublicacaoService.instancia;
 
   String? _categoriaSelecionada;
 
   ArquivoSelecionado? _arquivoSelecionado;
 
-  final List<ArquivoSelecionado>
-  _imagensSelecionadas = [];
+  final List<_ImagemEditor> _imagensSelecionadas = [];
 
   bool _carregando = false;
 
-  final List<String> _categorias = const [
+  final List<String> _categorias = [
     'Tese de Doutoramento',
     'Dissertação de Mestrado',
     'Monografia',
@@ -69,6 +53,10 @@ class _PublicarObraPageState
     _autorController.dispose();
     _anoController.dispose();
 
+    for (final imagem in _imagensSelecionadas) {
+      imagem.dispose();
+    }
+
     for (final secao in _secoes) {
       secao.dispose();
     }
@@ -82,10 +70,9 @@ class _PublicarObraPageState
 
   Future<void> _selecionarArquivo() async {
     try {
-      final arquivo =
-      await _arquivoService.selecionarPdf();
+      final arquivo = await _arquivoService.selecionarPdf();
 
-      if (!mounted || arquivo == null) {
+      if (arquivo == null) {
         return;
       }
 
@@ -93,14 +80,9 @@ class _PublicarObraPageState
         _arquivoSelecionado = arquivo;
       });
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Erro ao selecionar arquivo: $e',
-          ),
-        ),
+      _mostrarMensagem(
+        'Erro ao selecionar o PDF: $e',
+        erro: true,
       );
     }
   }
@@ -111,36 +93,33 @@ class _PublicarObraPageState
 
   Future<void> _selecionarImagens() async {
     try {
-      final imagens =
-      await _arquivoService.selecionarImagens();
+      final imagens = await _arquivoService.selecionarImagens();
 
-      if (!mounted || imagens.isEmpty) {
+      if (imagens.isEmpty) {
         return;
       }
 
       setState(() {
         for (final imagem in imagens) {
-          final duplicada =
-          _imagensSelecionadas.any(
-                (existente) =>
-            existente.nome == imagem.nome &&
-                existente.tamanho == imagem.tamanho,
+          final existe = _imagensSelecionadas.any(
+                (item) =>
+            item.arquivo.nome == imagem.nome &&
+                item.arquivo.tamanho == imagem.tamanho,
           );
 
-          if (!duplicada) {
-            _imagensSelecionadas.add(imagem);
+          if (!existe) {
+            _imagensSelecionadas.add(
+              _ImagemEditor(
+                arquivo: imagem,
+              ),
+            );
           }
         }
       });
     } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Erro ao selecionar imagens: $e',
-          ),
-        ),
+      _mostrarMensagem(
+        'Erro ao selecionar imagens: $e',
+        erro: true,
       );
     }
   }
@@ -150,9 +129,13 @@ class _PublicarObraPageState
   // ============================================================
 
   void _removerImagem(int index) {
-    if (_carregando) {
+    if (index < 0 || index >= _imagensSelecionadas.length) {
       return;
     }
+
+    final imagem = _imagensSelecionadas[index];
+
+    imagem.dispose();
 
     setState(() {
       _imagensSelecionadas.removeAt(index);
@@ -180,12 +163,17 @@ class _PublicarObraPageState
       return;
     }
 
-    final secao =
-    _secoes.removeAt(index);
+    if (index < 0 || index >= _secoes.length) {
+      return;
+    }
+
+    final secao = _secoes[index];
 
     secao.dispose();
 
-    setState(() {});
+    setState(() {
+      _secoes.removeAt(index);
+    });
   }
 
   // ============================================================
@@ -193,116 +181,104 @@ class _PublicarObraPageState
   // ============================================================
 
   Future<void> _publicar() async {
+    if (_carregando) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (_categoriaSelecionada == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Selecione a categoria da obra.',
-          ),
-        ),
+      _mostrarMensagem(
+        'Selecione a categoria da obra.',
+        erro: true,
       );
-
       return;
     }
 
     if (_arquivoSelecionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Selecione o arquivo PDF da obra.',
-          ),
-        ),
+      _mostrarMensagem(
+        'Selecione o ficheiro PDF da obra.',
+        erro: true,
       );
-
       return;
     }
 
-    final usuario =
-        AuthService.instancia.usuarioAtual;
+    final utilizador = AuthService.instancia.usuarioAtual;
 
-    if (usuario == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'É necessário estar autenticado para publicar.',
-          ),
-        ),
+    if (utilizador == null) {
+      _mostrarMensagem(
+        'É necessário estar autenticado para publicar uma obra.',
+        erro: true,
       );
-
       return;
     }
 
-    final secoes =
-    <Map<String, dynamic>>[];
+    // ==========================================================
+    // PREPARAR SECÇÕES
+    // ==========================================================
 
-    for (int i = 0;
-    i < _secoes.length;
-    i++) {
+    final List<Map<String, dynamic>> secoes = [];
+
+    for (int i = 0; i < _secoes.length; i++) {
       final secao = _secoes[i];
 
-      final titulo =
-      secao.tituloController.text.trim();
+      final titulo = secao.tituloController.text.trim();
+      final conteudo = secao.conteudoController.text.trim();
 
-      final conteudo =
-      secao.conteudoController.text.trim();
-
-      if (titulo.isEmpty &&
-          conteudo.isEmpty) {
+      if (titulo.isEmpty && conteudo.isEmpty) {
         continue;
       }
-
-      if (titulo.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Informe o título da secção ${i + 1}.',
-            ),
-          ),
-        );
-
-        return;
-      }
-
-      if (conteudo.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Informe o conteúdo da secção "$titulo".',
-            ),
-          ),
-        );
-
-        return;
-      }
-
-      final nivel =
-          int.tryParse(
-            secao.nivelController.text.trim(),
-          ) ??
-              1;
 
       secoes.add({
         'titulo': titulo,
         'conteudo': conteudo,
-        'ordem': secoes.length + 1,
-        'nivel': nivel,
+        'ordem': i + 1,
+        'nivel': secao.nivel,
       });
     }
 
     if (secoes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Adicione pelo menos uma secção da obra.',
-          ),
-        ),
+      _mostrarMensagem(
+        'Adicione pelo menos uma secção com conteúdo.',
+        erro: true,
       );
-
       return;
+    }
+
+    // ==========================================================
+    // PREPARAR IMAGENS
+    //
+    // O PublicacaoService espera:
+    //
+    // {
+    //   'arquivo': ArquivoSelecionado,
+    //   'legenda': String,
+    //   'fonte': String,
+    // }
+    //
+    // ==========================================================
+
+    final List<Map<String, dynamic>> imagens =
+    _imagensSelecionadas.map((imagem) {
+      return {
+        'arquivo': imagem.arquivo,
+        'legenda': imagem.legendaController.text.trim(),
+        'fonte': imagem.fonteController.text.trim(),
+      };
+    }).toList();
+
+    // ==========================================================
+    // PREPARAR ANO
+    // ==========================================================
+
+    final anoTexto = _anoController.text.trim();
+
+    int? ano;
+
+    if (anoTexto.isNotEmpty) {
+      ano = int.tryParse(anoTexto);
     }
 
     setState(() {
@@ -310,47 +286,50 @@ class _PublicarObraPageState
     });
 
     try {
-      final ano = int.tryParse(
-        _anoController.text.trim(),
-      );
+      // ========================================================
+      // PUBLICAR
+      // ========================================================
 
       await _publicacaoService.publicar(
-        titulo:
-        _tituloController.text.trim(),
-        descricao:
-        _descricaoController.text.trim(),
-        autor:
-        _autorController.text.trim(),
-        categoria:
-        _categoriaSelecionada!,
+        titulo: _tituloController.text.trim(),
+        descricao: _descricaoController.text.trim(),
+        autor: _autorController.text.trim(),
+        categoria: _categoriaSelecionada!,
         anoObra: ano,
-        arquivoPdf:
-        _arquivoSelecionado!.bytes,
-        nomeArquivo:
-        _arquivoSelecionado!.nome,
+
+        // CORREÇÃO:
+        // PublicacaoService espera Uint8List.
+        arquivoPdf: _arquivoSelecionado!.bytes,
+
+        nomeArquivo: _arquivoSelecionado!.nome,
+
         secoes: secoes,
-        imagens:
-        List<ArquivoSelecionado>.from(
-          _imagensSelecionadas,
-        ),
+
+        // CORREÇÃO:
+        // Enviamos arquivo + legenda + fonte.
+        imagens: imagens,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Obra enviada com sucesso para análise.',
-          ),
-        ),
+      _mostrarMensagem(
+        'Obra enviada com sucesso para análise.',
       );
 
-      _formKey.currentState!.reset();
+      // ========================================================
+      // LIMPAR FORMULÁRIO
+      // ========================================================
 
       _tituloController.clear();
       _descricaoController.clear();
       _autorController.clear();
       _anoController.clear();
+
+      for (final imagem in _imagensSelecionadas) {
+        imagem.dispose();
+      }
 
       for (final secao in _secoes) {
         secao.dispose();
@@ -358,7 +337,9 @@ class _PublicarObraPageState
 
       setState(() {
         _categoriaSelecionada = null;
+
         _arquivoSelecionado = null;
+
         _imagensSelecionadas.clear();
 
         _secoes.clear();
@@ -368,14 +349,13 @@ class _PublicarObraPageState
         );
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Não foi possível publicar a obra: $e',
-          ),
-        ),
+      _mostrarMensagem(
+        'Erro ao publicar a obra: $e',
+        erro: true,
       );
     } finally {
       if (mounted) {
@@ -390,147 +370,111 @@ class _PublicarObraPageState
   // EDITOR DE SECÇÃO
   // ============================================================
 
-  Widget _buildSecaoEditor(int index) {
-    final secao =
-    _secoes[index];
+  Widget _buildSecaoEditor(
+      BuildContext context,
+      int index,
+      ) {
+    final secao = _secoes[index];
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(
-        bottom: 20,
-      ),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade300,
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Secção ${index + 1}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (_secoes.length > 1)
+                  IconButton(
+                    tooltip: 'Remover secção',
+                    icon: const Icon(
+                      Icons.delete_outline,
+                    ),
+                    onPressed: () {
+                      _removerSecao(index);
+                    },
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // ==================================================
+            // TÍTULO DA SECÇÃO
+            // ==================================================
+
+            TextFormField(
+              controller: secao.tituloController,
+              decoration: const InputDecoration(
+                labelText: 'Título da secção',
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ==================================================
+            // NÍVEL
+            // ==================================================
+
+            DropdownButtonFormField<int>(
+              value: secao.nivel,
+              decoration: const InputDecoration(
+                labelText: 'Nível da secção',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 1,
+                  child: Text('Nível 1'),
+                ),
+                DropdownMenuItem(
+                  value: 2,
+                  child: Text('Nível 2'),
+                ),
+                DropdownMenuItem(
+                  value: 3,
+                  child: Text('Nível 3'),
+                ),
+              ],
+              onChanged: (valor) {
+                if (valor == null) {
+                  return;
+                }
+
+                setState(() {
+                  secao.nivel = valor;
+                });
+              },
+            ),
+
+            const SizedBox(height: 12),
+
+            // ==================================================
+            // CONTEÚDO
+            // ==================================================
+
+            TextFormField(
+              controller: secao.conteudoController,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Conteúdo',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
-        borderRadius:
-        BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Secção ${index + 1}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (_secoes.length > 1)
-                IconButton(
-                  tooltip:
-                  'Remover secção',
-                  onPressed:
-                  _carregando
-                      ? null
-                      : () =>
-                      _removerSecao(
-                        index,
-                      ),
-                  icon: const Icon(
-                    Icons.delete_outline,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller:
-            secao.tituloController,
-            enabled: !_carregando,
-            textCapitalization:
-            TextCapitalization.sentences,
-            decoration:
-            const InputDecoration(
-              labelText:
-              'Título da secção',
-              hintText:
-              'Ex.: Introdução',
-              border:
-              OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<int>(
-            value: secao.nivel,
-            decoration:
-            const InputDecoration(
-              labelText:
-              'Nível da secção',
-              border:
-              OutlineInputBorder(),
-              helperText:
-              '1 = secção principal, 2 = subseção, 3 = subsubseção.',
-            ),
-            items: const [
-              DropdownMenuItem<int>(
-                value: 1,
-                child: Text(
-                  'Nível 1 — Principal',
-                ),
-              ),
-              DropdownMenuItem<int>(
-                value: 2,
-                child: Text(
-                  'Nível 2 — Subsecção',
-                ),
-              ),
-              DropdownMenuItem<int>(
-                value: 3,
-                child: Text(
-                  'Nível 3 — Subsubsecção',
-                ),
-              ),
-            ],
-            onChanged:
-            _carregando
-                ? null
-                : (valor) {
-              if (valor == null) {
-                return;
-              }
-
-              setState(() {
-                secao.nivel =
-                    valor;
-
-                secao
-                    .nivelController
-                    .text =
-                    valor.toString();
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller:
-            secao.conteudoController,
-            enabled: !_carregando,
-            minLines: 8,
-            maxLines: 20,
-            keyboardType:
-            TextInputType.multiline,
-            textCapitalization:
-            TextCapitalization.sentences,
-            decoration:
-            const InputDecoration(
-              labelText:
-              'Conteúdo da secção',
-              hintText:
-              'Escreva ou cole aqui o conteúdo desta secção...',
-              alignLabelWithHint: true,
-              border:
-              OutlineInputBorder(),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -540,159 +484,164 @@ class _PublicarObraPageState
   // ============================================================
 
   Widget _buildImagens() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey.shade300,
+    if (_imagensSelecionadas.isEmpty) {
+      return const Text(
+        'Nenhuma imagem selecionada.',
+        style: TextStyle(
+          color: Colors.grey,
         ),
-        borderRadius:
-        BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Imagens da obra',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight:
-              FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Opcional. Pode adicionar uma ou várias imagens. '
-                'As imagens serão apresentadas depois do último conteúdo da obra.',
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed:
-            _carregando
-                ? null
-                : _selecionarImagens,
-            icon: const Icon(
-              Icons.add_photo_alternate_outlined,
-            ),
-            label: const Text(
-              'Adicionar imagens',
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_imagensSelecionadas.isEmpty)
-            const Text(
-              'Nenhuma imagem selecionada.',
-            )
-          else
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: List.generate(
-                _imagensSelecionadas.length,
-                    (index) {
-                  final imagem =
-                  _imagensSelecionadas[
-                  index];
+      );
+    }
 
-                  return SizedBox(
-                    width: 180,
-                    child: Container(
-                      decoration:
-                      BoxDecoration(
-                        border: Border.all(
-                          color: Colors
-                              .grey
-                              .shade300,
-                        ),
-                        borderRadius:
-                        BorderRadius
-                            .circular(
-                          8,
+    return Column(
+      children: List.generate(
+        _imagensSelecionadas.length,
+            (index) {
+          final imagem = _imagensSelecionadas[index];
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ==================================================
+                  // IMAGEM + REMOVER
+                  // ==================================================
+
+                  Row(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          imagem.arquivo.nome,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      padding:
-                      const EdgeInsets
-                          .all(8),
-                      child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
-                        children: [
-                          ClipRRect(
-                            borderRadius:
-                            BorderRadius
-                                .circular(
-                              6,
+                      IconButton(
+                        tooltip: 'Remover imagem',
+                        icon: const Icon(
+                          Icons.delete_outline,
+                        ),
+                        onPressed: () {
+                          _removerImagem(index);
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ==================================================
+                  // PREVISUALIZAÇÃO
+                  // ==================================================
+
+                  Center(
+                    child: ClipRRect(
+                      borderRadius:
+                      BorderRadius.circular(8),
+                      child: Image.memory(
+                        imagem.arquivo.bytes,
+                        height: 180,
+                        fit: BoxFit.contain,
+                        errorBuilder: (
+                            context,
+                            error,
+                            stackTrace,
+                            ) {
+                          return Container(
+                            height: 180,
+                            width: double.infinity,
+                            alignment: Alignment.center,
+                            color: Colors.grey.shade200,
+                            child: const Icon(
+                              Icons
+                                  .broken_image_outlined,
+                              size: 50,
                             ),
-                            child:
-                            Image.memory(
-                              imagem.bytes,
-                              width:
-                              double.infinity,
-                              height: 110,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 8,
-                          ),
-                          Text(
-                            imagem.nome,
-                            maxLines: 2,
-                            overflow:
-                            TextOverflow
-                                .ellipsis,
-                            style:
-                            const TextStyle(
-                              fontWeight:
-                              FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 4,
-                          ),
-                          Text(
-                            '${imagem.tamanhoMb.toStringAsFixed(2)} MB',
-                            style:
-                            TextStyle(
-                              fontSize: 12,
-                              color: Colors
-                                  .grey
-                                  .shade700,
-                            ),
-                          ),
-                          Align(
-                            alignment:
-                            Alignment
-                                .centerRight,
-                            child:
-                            IconButton(
-                              tooltip:
-                              'Remover imagem',
-                              onPressed:
-                              _carregando
-                                  ? null
-                                  : () =>
-                                  _removerImagem(
-                                    index,
-                                  ),
-                              icon:
-                              const Icon(
-                                Icons
-                                    .delete_outline,
-                              ),
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
-                  );
-                },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ==================================================
+                  // LEGENDA
+                  // ==================================================
+
+                  TextFormField(
+                    controller:
+                    imagem.legendaController,
+                    decoration:
+                    const InputDecoration(
+                      labelText:
+                      'Legenda da imagem',
+                      hintText:
+                      'Ex.: Figura 1 — Localização do Município de Nampula',
+                      border:
+                      OutlineInputBorder(),
+                      prefixIcon: Icon(
+                        Icons
+                            .description_outlined,
+                      ),
+                    ),
+                    maxLines: 2,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ==================================================
+                  // FONTE
+                  // ==================================================
+
+                  TextFormField(
+                    controller:
+                    imagem.fonteController,
+                    decoration:
+                    const InputDecoration(
+                      labelText:
+                      'Fonte da imagem',
+                      hintText:
+                      'Ex.: Autor, 2026 / Google Earth / INE',
+                      border:
+                      OutlineInputBorder(),
+                      prefixIcon: Icon(
+                        Icons.source_outlined,
+                      ),
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
               ),
             ),
-        ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ============================================================
+  // MENSAGEM
+  // ============================================================
+
+  void _mostrarMensagem(
+      String mensagem, {
+        bool erro = false,
+      }) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: erro ? Colors.red : null,
       ),
     );
   }
@@ -702,100 +651,65 @@ class _PublicarObraPageState
   // ============================================================
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-        const Text(
-          'Publicar obra',
+        title: const Text(
+          'Publicar Obra',
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 800,
-          ),
-          child:
-          SingleChildScrollView(
-            padding:
-            const EdgeInsets.all(32),
-            child: Form(
-              key: _formKey,
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 900,
+              ),
               child: Column(
                 crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
+                CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Publicar obra académica',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight:
-                      FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  const Text(
-                    'Envie o seu trabalho para análise e posterior publicação na Obra Livre.',
-                  ),
-                  const SizedBox(
-                    height: 32,
-                  ),
+                  // ==================================================
+                  // TÍTULO
+                  // ==================================================
 
                   TextFormField(
-                    controller:
-                    _tituloController,
-                    enabled:
-                    !_carregando,
+                    controller: _tituloController,
                     decoration:
                     const InputDecoration(
-                      labelText:
-                      'Título',
+                      labelText: 'Título da obra',
                       border:
                       OutlineInputBorder(),
                     ),
-                    validator:
-                        (valor) {
-                      if (valor ==
-                          null ||
-                          valor
-                              .trim()
-                              .isEmpty) {
-                        return 'Informe o título.';
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
+                        return 'Informe o título da obra.';
                       }
 
                       return null;
                     },
                   ),
 
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 16),
+
+                  // ==================================================
+                  // AUTOR
+                  // ==================================================
 
                   TextFormField(
-                    controller:
-                    _autorController,
-                    enabled:
-                    !_carregando,
+                    controller: _autorController,
                     decoration:
                     const InputDecoration(
-                      labelText:
-                      'Autor',
+                      labelText: 'Autor',
                       border:
                       OutlineInputBorder(),
                     ),
-                    validator:
-                        (valor) {
-                      if (valor ==
-                          null ||
-                          valor
-                              .trim()
-                              .isEmpty) {
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
                         return 'Informe o autor.';
                       }
 
@@ -803,92 +717,68 @@ class _PublicarObraPageState
                     },
                   ),
 
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 16),
 
-                  DropdownButtonFormField<
-                      String>(
-                    value:
-                    _categoriaSelecionada,
+                  // ==================================================
+                  // CATEGORIA
+                  // ==================================================
+
+                  DropdownButtonFormField<String>(
+                    value: _categoriaSelecionada,
                     decoration:
                     const InputDecoration(
-                      labelText:
-                      'Categoria',
+                      labelText: 'Categoria',
                       border:
                       OutlineInputBorder(),
                     ),
-                    items:
-                    _categorias
-                        .map(
+                    items: _categorias.map(
                           (categoria) {
-                        return DropdownMenuItem<
-                            String>(
-                          value:
-                          categoria,
-                          child:
-                          Text(
-                            categoria,
-                          ),
+                        return DropdownMenuItem<String>(
+                          value: categoria,
+                          child: Text(categoria),
                         );
                       },
                     ).toList(),
-                    onChanged:
-                    _carregando
-                        ? null
-                        : (valor) {
-                      setState(
-                            () {
-                          _categoriaSelecionada =
-                              valor;
-                        },
-                      );
+                    onChanged: (valor) {
+                      setState(() {
+                        _categoriaSelecionada =
+                            valor;
+                      });
                     },
-                    validator:
-                        (valor) {
-                      if (valor ==
-                          null ||
-                          valor
-                              .isEmpty) {
-                        return 'Selecione a categoria.';
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.isEmpty) {
+                        return 'Selecione uma categoria.';
                       }
 
                       return null;
                     },
                   ),
 
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 16),
+
+                  // ==================================================
+                  // ANO
+                  // ==================================================
 
                   TextFormField(
-                    controller:
-                    _anoController,
-                    enabled:
-                    !_carregando,
+                    controller: _anoController,
                     keyboardType:
-                    TextInputType
-                        .number,
+                    TextInputType.number,
                     decoration:
                     const InputDecoration(
-                      labelText:
-                      'Ano da obra',
+                      labelText: 'Ano da obra',
                       border:
                       OutlineInputBorder(),
                     ),
-                    validator:
-                        (valor) {
-                      if (valor ==
-                          null ||
-                          valor
-                              .trim()
-                              .isEmpty) {
-                        return 'Informe o ano.';
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
+                        return null;
                       }
 
                       if (int.tryParse(
-                        valor
-                            .trim(),
+                        valor.trim(),
                       ) ==
                           null) {
                         return 'Informe um ano válido.';
@@ -898,217 +788,199 @@ class _PublicarObraPageState
                     },
                   ),
 
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 16),
+
+                  // ==================================================
+                  // DESCRIÇÃO
+                  // ==================================================
 
                   TextFormField(
                     controller:
                     _descricaoController,
-                    enabled:
-                    !_carregando,
                     maxLines: 5,
                     decoration:
                     const InputDecoration(
-                      labelText:
-                      'Descrição',
-                      alignLabelWithHint:
-                      true,
+                      labelText: 'Descrição',
+                      alignLabelWithHint: true,
                       border:
                       OutlineInputBorder(),
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 32,
-                  ),
+                  const SizedBox(height: 28),
+
+                  // ==================================================
+                  // SECÇÕES
+                  // ==================================================
 
                   const Text(
-                    'Secções da obra',
+                    'Conteúdo da obra',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight:
-                      FontWeight.w600,
+                      FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 8,
-                  ),
-
-                  const Text(
-                    'Adicione as diferentes partes da obra. Cada secção terá o seu próprio título e conteúdo.',
-                  ),
-
-                  const SizedBox(
-                    height: 20,
-                  ),
+                  const SizedBox(height: 12),
 
                   ...List.generate(
                     _secoes.length,
                         (index) =>
                         _buildSecaoEditor(
+                          context,
                           index,
                         ),
                   ),
 
-                  SizedBox(
-                    width:
-                    double.infinity,
-                    child:
-                    OutlinedButton.icon(
-                      onPressed:
-                      _carregando
-                          ? null
-                          : _adicionarSecao,
-                      icon:
-                      const Icon(
-                        Icons
-                            .add_circle_outline,
-                      ),
-                      label:
-                      const Text(
-                        'Adicionar secção',
-                      ),
+                  OutlinedButton.icon(
+                    onPressed:
+                    _adicionarSecao,
+                    icon: const Icon(
+                      Icons.add,
+                    ),
+                    label: const Text(
+                      'Adicionar secção',
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 32,
-                  ),
+                  const SizedBox(height: 28),
 
                   // ==================================================
                   // PDF
                   // ==================================================
 
-                  Container(
-                    width:
-                    double.infinity,
-                    padding:
-                    const EdgeInsets.all(
-                      20,
-                    ),
-                    decoration:
-                    BoxDecoration(
-                      border:
-                      Border.all(
-                        color: Colors
-                            .grey
-                            .shade300,
-                      ),
-                      borderRadius:
-                      BorderRadius
-                          .circular(
-                        8,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment
-                          .start,
-                      children: [
-                        const Text(
-                          'Arquivo PDF',
-                          style:
-                          TextStyle(
-                            fontSize:
-                            16,
-                            fontWeight:
-                            FontWeight
-                                .w600,
-                          ),
-                        ),
-                        const SizedBox(
-                          height: 12,
-                        ),
-                        if (_arquivoSelecionado ==
-                            null)
-                          const Text(
-                            'Nenhum arquivo selecionado.',
-                          )
-                        else ...[
-                          Text(
-                            _arquivoSelecionado!
-                                .nome,
-                            style:
-                            const TextStyle(
-                              fontWeight:
-                              FontWeight
-                                  .w500,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 4,
-                          ),
-                          Text(
-                            '${_arquivoSelecionado!.tamanhoMb.toStringAsFixed(2)} MB',
-                          ),
-                        ],
-                        const SizedBox(
-                          height: 16,
-                        ),
-                        OutlinedButton.icon(
-                          onPressed:
-                          _carregando
-                              ? null
-                              : _selecionarArquivo,
-                          icon:
-                          const Icon(
-                            Icons
-                                .upload_file,
-                          ),
-                          label:
-                          Text(
-                            _arquivoSelecionado ==
-                                null
-                                ? 'Selecionar PDF'
-                                : 'Alterar PDF',
-                          ),
-                        ),
-                      ],
+                  const Text(
+                    'Documento PDF',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight:
+                      FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 20,
+                  const SizedBox(height: 12),
+
+                  Card(
+                    child: Padding(
+                      padding:
+                      const EdgeInsets.all(
+                        16,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons
+                                .picture_as_pdf,
+                            size: 40,
+                          ),
+
+                          const SizedBox(
+                            width: 12,
+                          ),
+
+                          Expanded(
+                            child: Text(
+                              _arquivoSelecionado
+                                  ?.nome ??
+                                  'Nenhum PDF selecionado',
+                            ),
+                          ),
+
+                          ElevatedButton
+                              .icon(
+                            onPressed:
+                            _selecionarArquivo,
+                            icon: const Icon(
+                              Icons
+                                  .upload_file,
+                            ),
+                            label: const Text(
+                              'Selecionar PDF',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+
+                  const SizedBox(height: 28),
 
                   // ==================================================
                   // IMAGENS
                   // ==================================================
 
-                  _buildImagens(),
-
-                  const SizedBox(
-                    height: 32,
+                  const Text(
+                    'Imagens',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight:
+                      FontWeight.bold,
+                    ),
                   ),
 
+                  const SizedBox(height: 8),
+
+                  const Text(
+                    'Adicione imagens e informe a legenda e a fonte de cada uma.',
+                    style: TextStyle(
+                      color: Colors.grey,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  OutlinedButton.icon(
+                    onPressed:
+                    _selecionarImagens,
+                    icon: const Icon(
+                      Icons
+                          .add_photo_alternate_outlined,
+                    ),
+                    label: const Text(
+                      'Adicionar imagens',
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildImagens(),
+
+                  const SizedBox(height: 32),
+
+                  // ==================================================
+                  // PUBLICAR
+                  // ==================================================
+
                   SizedBox(
-                    width:
-                    double.infinity,
-                    height: 48,
+                    height: 52,
                     child:
-                    ElevatedButton(
+                    ElevatedButton.icon(
                       onPressed:
                       _carregando
                           ? null
                           : _publicar,
-                      child:
-                      _carregando
+                      icon: _carregando
                           ? const SizedBox(
-                        width: 22,
-                        height: 22,
+                        width: 20,
+                        height: 20,
                         child:
                         CircularProgressIndicator(
-                          strokeWidth:
-                          2,
+                          strokeWidth: 2,
                         ),
                       )
-                          : const Text(
-                        'Enviar para análise',
+                          : const Icon(
+                        Icons.publish,
+                      ),
+                      label: Text(
+                        _carregando
+                            ? 'A enviar...'
+                            : 'Publicar obra',
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -1119,11 +991,38 @@ class _PublicarObraPageState
   }
 }
 
-// ================================================================
-// MODELO LOCAL PARA EDIÇÃO DE SECÇÃO
-// ================================================================
+// ==================================================================
+// EDITOR DE IMAGEM
+// ==================================================================
+
+class _ImagemEditor {
+  _ImagemEditor({
+    required this.arquivo,
+  });
+
+  final ArquivoSelecionado arquivo;
+
+  final TextEditingController
+  legendaController =
+  TextEditingController();
+
+  final TextEditingController
+  fonteController =
+  TextEditingController();
+
+  void dispose() {
+    legendaController.dispose();
+    fonteController.dispose();
+  }
+}
+
+// ==================================================================
+// EDITOR DE SECÇÃO
+// ==================================================================
 
 class _SecaoEditor {
+  _SecaoEditor();
+
   final TextEditingController
   tituloController =
   TextEditingController();
@@ -1146,3 +1045,4 @@ class _SecaoEditor {
     nivelController.dispose();
   }
 }
+

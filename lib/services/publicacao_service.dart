@@ -47,10 +47,18 @@ class PublicacaoService {
     required Uint8List arquivoPdf,
     required String nomeArquivo,
     int? anoObra,
-    List<Map<String, dynamic>> secoes =
-    const [],
-    List<ArquivoSelecionado> imagens =
-    const [],
+    List<Map<String, dynamic>> secoes = const [],
+
+    // ==========================================================
+    // IMAGENS
+    //
+    // Cada imagem agora pode trazer:
+    // arquivo
+    // legenda
+    // fonte
+    // ==========================================================
+
+    List<Map<String, dynamic>> imagens = const [],
   }) async {
     final usuario =
         _authService.usuarioAtual;
@@ -112,7 +120,8 @@ class PublicacaoService {
     i < secoes.length;
     i++
     ) {
-      final secao = secoes[i];
+      final secao =
+      secoes[i];
 
       final tituloSecao =
           secao['titulo']
@@ -160,15 +169,24 @@ class PublicacaoService {
     // ==========================================================
 
     for (final imagem in imagens) {
-      if (imagem.bytes.isEmpty) {
+      final arquivo =
+      imagem['arquivo'];
+
+      if (arquivo is! ArquivoSelecionado) {
+        throw Exception(
+          'Dados de imagem inválidos.',
+        );
+      }
+
+      if (arquivo.bytes.isEmpty) {
         throw Exception(
           'Uma das imagens selecionadas está vazia.',
         );
       }
 
-      if (!_ehImagem(imagem.nome)) {
+      if (!_ehImagem(arquivo.nome)) {
         throw Exception(
-          'O arquivo "${imagem.nome}" não é uma '
+          'O arquivo "${arquivo.nome}" não é uma '
               'imagem válida.',
         );
       }
@@ -179,14 +197,17 @@ class PublicacaoService {
     // ==========================================================
 
     final hashPdf =
-    sha256.convert(arquivoPdf).toString();
+    sha256
+        .convert(arquivoPdf)
+        .toString();
 
     // ==========================================================
     // DUPLICADO PUBLICADO
     // ==========================================================
 
     final existePublicada =
-    await _obrasRepository.existeDuplicado(
+    await _obrasRepository
+        .existeDuplicado(
       titulo: tituloLimpo,
       autor: autorLimpo,
       nomeArquivo: nomeArquivo,
@@ -293,12 +314,14 @@ class PublicacaoService {
       urlDocumento:
       caminhoPendente,
 
-      anoObra: anoObra,
+      anoObra:
+      anoObra,
 
       dataPublicacao:
       dataPublicacao,
 
-      userId: usuario.id,
+      userId:
+      usuario.id,
 
       numeroPaginas:
       numeroPaginas,
@@ -314,7 +337,8 @@ class PublicacaoService {
     );
 
     final obraPendente =
-    await _pendentesRepository.inserir(
+    await _pendentesRepository
+        .inserir(
       obra,
     );
 
@@ -345,8 +369,32 @@ class PublicacaoService {
       i < imagens.length;
       i++
       ) {
-        final imagem =
+        final dadosImagem =
         imagens[i];
+
+        final arquivo =
+        dadosImagem['arquivo']
+        as ArquivoSelecionado;
+
+        // ------------------------------------------------------
+        // LEGENDA
+        // ------------------------------------------------------
+
+        final legenda =
+            dadosImagem['legenda']
+                ?.toString()
+                .trim() ??
+                '';
+
+        // ------------------------------------------------------
+        // FONTE
+        // ------------------------------------------------------
+
+        final fonte =
+            dadosImagem['fonte']
+                ?.toString()
+                .trim() ??
+                '';
 
         // ------------------------------------------------------
         // UPLOAD
@@ -358,9 +406,9 @@ class PublicacaoService {
           obraPendenteId:
           obraPendenteId,
           nomeArquivo:
-          imagem.nome,
+          arquivo.nome,
           bytes:
-          imagem.bytes,
+          arquivo.bytes,
         );
 
         caminhosImagensEnviadas.add(
@@ -369,6 +417,12 @@ class PublicacaoService {
 
         // ------------------------------------------------------
         // INSERT
+        //
+        // Agora enviamos:
+        // caminho
+        // ordem
+        // legenda
+        // fonte
         // ------------------------------------------------------
 
         await _pendentesRepository
@@ -379,6 +433,14 @@ class PublicacaoService {
           caminho,
           ordem:
           i + 1,
+          legenda:
+          legenda.isEmpty
+              ? null
+              : legenda,
+          fonte:
+          fonte.isEmpty
+              ? null
+              : fonte,
         );
       }
     } catch (e) {
