@@ -5,8 +5,7 @@ import '../models/obra_imagem.dart';
 class ObrasImagensRepository {
   ObrasImagensRepository._();
 
-  static final ObrasImagensRepository
-  instancia =
+  static final ObrasImagensRepository instancia =
   ObrasImagensRepository._();
 
   final SupabaseClient _supabase =
@@ -21,19 +20,18 @@ class ObrasImagensRepository {
       ) async {
     final dados = imagem.toMap();
 
-    // O ID é gerado pelo Supabase.
     dados.remove('id');
 
     final resposta = await _supabase
         .from('teste_imagens')
         .insert(dados)
-        .select()
+        .select(
+      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+    )
         .single();
 
     return ObraImagem.fromMap(
-      Map<String, dynamic>.from(
-        resposta,
-      ),
+      Map<String, dynamic>.from(resposta),
     );
   }
 
@@ -41,8 +39,7 @@ class ObrasImagensRepository {
   // CARREGAR IMAGENS DE UMA OBRA
   // ============================================================
 
-  Future<List<ObraImagem>>
-  carregarPorObra(
+  Future<List<ObraImagem>> carregarPorObra(
       String obraId,
       ) async {
     if (obraId.trim().isEmpty) {
@@ -51,26 +48,23 @@ class ObrasImagensRepository {
 
     final resposta = await _supabase
         .from('teste_imagens')
-        .select()
-        .eq('obra_id', obraId)
-        .order(
-      'ordem',
-      ascending: true,
-    );
+        .select(
+      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+    )
+        .eq('obra_id', obraId.trim())
+        .order('ordem', ascending: true);
 
     return (resposta as List)
         .map(
           (item) => ObraImagem.fromMap(
-        Map<String, dynamic>.from(
-          item,
-        ),
+        Map<String, dynamic>.from(item),
       ),
     )
         .toList();
   }
 
   // ============================================================
-  // CARREGAR IMAGEM POR ID
+  // CARREGAR UMA IMAGEM PELO ID
   // ============================================================
 
   Future<ObraImagem?> carregarPorId(
@@ -82,8 +76,10 @@ class ObrasImagensRepository {
 
     final resposta = await _supabase
         .from('teste_imagens')
-        .select()
-        .eq('id', id)
+        .select(
+      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+    )
+        .eq('id', id.trim())
         .maybeSingle();
 
     if (resposta == null) {
@@ -91,9 +87,40 @@ class ObrasImagensRepository {
     }
 
     return ObraImagem.fromMap(
-      Map<String, dynamic>.from(
-        resposta,
-      ),
+      Map<String, dynamic>.from(resposta),
+    );
+  }
+
+  // ============================================================
+  // ATUALIZAR IMAGEM
+  // ============================================================
+
+  Future<ObraImagem> atualizar(
+      ObraImagem imagem,
+      ) async {
+    if (imagem.id == null ||
+        imagem.id!.trim().isEmpty) {
+      throw Exception(
+        'Não é possível atualizar uma imagem sem ID.',
+      );
+    }
+
+    final dados = imagem.toMap();
+
+    dados.remove('id');
+    dados.remove('obra_id');
+
+    final resposta = await _supabase
+        .from('teste_imagens')
+        .update(dados)
+        .eq('id', imagem.id!.trim())
+        .select(
+      'id, obra_id, url_imagem, legenda, fonte, posicao, ordem',
+    )
+        .single();
+
+    return ObraImagem.fromMap(
+      Map<String, dynamic>.from(resposta),
     );
   }
 
@@ -111,7 +138,7 @@ class ObrasImagensRepository {
     await _supabase
         .from('teste_imagens')
         .delete()
-        .eq('id', id);
+        .eq('id', id.trim());
   }
 
   // ============================================================
@@ -128,7 +155,6 @@ class ObrasImagensRepository {
     await _supabase
         .from('teste_imagens')
         .delete()
-        .eq('obra_id', obraId);
+        .eq('obra_id', obraId.trim());
   }
 }
-

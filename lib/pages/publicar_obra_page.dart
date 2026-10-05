@@ -250,24 +250,43 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     // ==========================================================
     // PREPARAR IMAGENS
     //
-    // O PublicacaoService espera:
+    // Cada imagem envia:
     //
-    // {
-    //   'arquivo': ArquivoSelecionado,
-    //   'legenda': String,
-    //   'fonte': String,
-    // }
+    // arquivo
+    // legenda
+    // fonte
+    // paragrafoOrdem
     //
     // ==========================================================
 
-    final List<Map<String, dynamic>> imagens =
-    _imagensSelecionadas.map((imagem) {
-      return {
+    final List<Map<String, dynamic>> imagens = [];
+
+    for (final imagem in _imagensSelecionadas) {
+      final paragrafoTexto =
+      imagem.paragrafoOrdemController.text.trim();
+
+      int? paragrafoOrdem;
+
+      if (paragrafoTexto.isNotEmpty) {
+        paragrafoOrdem = int.tryParse(paragrafoTexto);
+
+        if (paragrafoOrdem == null || paragrafoOrdem < 1) {
+          _mostrarMensagem(
+            'A ordem do parágrafo da imagem '
+                '"${imagem.arquivo.nome}" é inválida.',
+            erro: true,
+          );
+          return;
+        }
+      }
+
+      imagens.add({
         'arquivo': imagem.arquivo,
         'legenda': imagem.legendaController.text.trim(),
         'fonte': imagem.fonteController.text.trim(),
-      };
-    }).toList();
+        'paragrafoOrdem': paragrafoOrdem,
+      });
+    }
 
     // ==========================================================
     // PREPARAR ANO
@@ -297,16 +316,14 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
         categoria: _categoriaSelecionada!,
         anoObra: ano,
 
-        // CORREÇÃO:
-        // PublicacaoService espera Uint8List.
+        // O PublicacaoService espera Uint8List.
         arquivoPdf: _arquivoSelecionado!.bytes,
 
         nomeArquivo: _arquivoSelecionado!.nome,
 
         secoes: secoes,
 
-        // CORREÇÃO:
-        // Enviamos arquivo + legenda + fonte.
+        // Envia arquivo + legenda + fonte + parágrafo.
         imagens: imagens,
       );
 
@@ -617,6 +634,51 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                     ),
                     maxLines: 2,
                   ),
+
+                  const SizedBox(height: 12),
+
+                  // ==================================================
+                  // PARÁGRAFO DA IMAGEM
+                  // ==================================================
+
+                  TextFormField(
+                    controller:
+                    imagem.paragrafoOrdemController,
+                    keyboardType:
+                    TextInputType.number,
+                    decoration:
+                    const InputDecoration(
+                      labelText:
+                      'Parágrafo onde a imagem aparece',
+                      hintText: 'Ex.: 3',
+                      helperText:
+                      'Informe o número do parágrafo após o qual a imagem deve aparecer.',
+                      border:
+                      OutlineInputBorder(),
+                      prefixIcon: Icon(
+                        Icons
+                            .format_list_numbered,
+                      ),
+                    ),
+                    validator: (valor) {
+                      if (valor == null ||
+                          valor.trim().isEmpty) {
+                        return null;
+                      }
+
+                      final numero =
+                      int.tryParse(
+                        valor.trim(),
+                      );
+
+                      if (numero == null ||
+                          numero < 1) {
+                        return 'Informe um número de parágrafo válido.';
+                      }
+
+                      return null;
+                    },
+                  ),
                 ],
               ),
             ),
@@ -887,8 +949,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                             ),
                           ),
 
-                          ElevatedButton
-                              .icon(
+                          ElevatedButton.icon(
                             onPressed:
                             _selecionarArquivo,
                             icon: const Icon(
@@ -922,7 +983,7 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                   const SizedBox(height: 8),
 
                   const Text(
-                    'Adicione imagens e informe a legenda e a fonte de cada uma.',
+                    'Adicione imagens e informe a legenda, a fonte e o parágrafo onde cada imagem deverá aparecer.',
                     style: TextStyle(
                       color: Colors.grey,
                     ),
@@ -1002,17 +1063,19 @@ class _ImagemEditor {
 
   final ArquivoSelecionado arquivo;
 
-  final TextEditingController
-  legendaController =
+  final TextEditingController legendaController =
   TextEditingController();
 
-  final TextEditingController
-  fonteController =
+  final TextEditingController fonteController =
+  TextEditingController();
+
+  final TextEditingController paragrafoOrdemController =
   TextEditingController();
 
   void dispose() {
     legendaController.dispose();
     fonteController.dispose();
+    paragrafoOrdemController.dispose();
   }
 }
 
@@ -1023,16 +1086,13 @@ class _ImagemEditor {
 class _SecaoEditor {
   _SecaoEditor();
 
-  final TextEditingController
-  tituloController =
+  final TextEditingController tituloController =
   TextEditingController();
 
-  final TextEditingController
-  conteudoController =
+  final TextEditingController conteudoController =
   TextEditingController();
 
-  final TextEditingController
-  nivelController =
+  final TextEditingController nivelController =
   TextEditingController(
     text: '1',
   );

@@ -6,6 +6,7 @@ class ObraImagem {
   final String? fonte;
   final String posicao;
   final int ordem;
+  final int? paragrafoOrdem;
 
   const ObraImagem({
     this.id,
@@ -15,6 +16,7 @@ class ObraImagem {
     this.fonte,
     this.posicao = 'dentro_conteudo',
     this.ordem = 1,
+    this.paragrafoOrdem,
   });
 
   // ============================================================
@@ -24,63 +26,36 @@ class ObraImagem {
   factory ObraImagem.fromMap(
       Map<String, dynamic> map,
       ) {
-    final id =
-    map['id']?.toString();
+    final id = map['id']?.toString();
 
     final obraId =
         map['obra_id']?.toString() ??
-            map['obra_pendente_id']
-                ?.toString() ??
+            map['obra_pendente_id']?.toString() ??
             '';
 
     String urlImagem = '';
 
-    final valorUrl =
-    map['url_imagem'];
+    final valorUrl = map['url_imagem'];
 
     if (valorUrl != null &&
         valorUrl.toString().trim().isNotEmpty) {
-      urlImagem =
-          valorUrl.toString().trim();
+      urlImagem = valorUrl.toString().trim();
     } else {
-      final valorCaminho =
-      map['caminho_imagem'];
+      final valorCaminho = map['caminho_imagem'];
 
       if (valorCaminho != null &&
-          valorCaminho
-              .toString()
-              .trim()
-              .isNotEmpty) {
-        urlImagem =
-            valorCaminho.toString().trim();
+          valorCaminho.toString().trim().isNotEmpty) {
+        urlImagem = valorCaminho.toString().trim();
       }
     }
 
-    // ==========================================================
-    // LEGENDA
-    // ==========================================================
+    final legenda = map['legenda']?.toString();
 
-    final legenda =
-    map['legenda']?.toString();
-
-    // ==========================================================
-    // FONTE
-    // ==========================================================
-
-    final fonte =
-    map['fonte']?.toString();
-
-    // ==========================================================
-    // POSIÇÃO
-    // ==========================================================
+    final fonte = map['fonte']?.toString();
 
     final posicao =
         map['posicao']?.toString() ??
             'dentro_conteudo';
-
-    // ==========================================================
-    // ORDEM
-    // ==========================================================
 
     final ordem =
     map['ordem'] != null
@@ -90,6 +65,13 @@ class ObraImagem {
         1
         : 1;
 
+    final paragrafoOrdem =
+    map['paragrafo_ordem'] != null
+        ? int.tryParse(
+      map['paragrafo_ordem'].toString(),
+    )
+        : null;
+
     return ObraImagem(
       id: id,
       obraId: obraId,
@@ -98,6 +80,7 @@ class ObraImagem {
       fonte: fonte,
       posicao: posicao,
       ordem: ordem,
+      paragrafoOrdem: paragrafoOrdem,
     );
   }
 
@@ -114,6 +97,8 @@ class ObraImagem {
       'fonte': fonte,
       'posicao': posicao,
       'ordem': ordem,
+      if (paragrafoOrdem != null)
+        'paragrafo_ordem': paragrafoOrdem,
     };
   }
 
@@ -129,20 +114,18 @@ class ObraImagem {
     String? fonte,
     String? posicao,
     int? ordem,
+    int? paragrafoOrdem,
   }) {
     return ObraImagem(
       id: id ?? this.id,
       obraId: obraId ?? this.obraId,
-      urlImagem:
-      urlImagem ?? this.urlImagem,
-      legenda:
-      legenda ?? this.legenda,
-      fonte:
-      fonte ?? this.fonte,
-      posicao:
-      posicao ?? this.posicao,
-      ordem:
-      ordem ?? this.ordem,
+      urlImagem: urlImagem ?? this.urlImagem,
+      legenda: legenda ?? this.legenda,
+      fonte: fonte ?? this.fonte,
+      posicao: posicao ?? this.posicao,
+      ordem: ordem ?? this.ordem,
+      paragrafoOrdem:
+      paragrafoOrdem ?? this.paragrafoOrdem,
     );
   }
 }

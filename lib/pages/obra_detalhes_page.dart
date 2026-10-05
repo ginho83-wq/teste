@@ -22,33 +22,25 @@ class ObraDetalhesPage extends StatefulWidget {
   });
 
   @override
-  State<ObraDetalhesPage> createState() =>
-      _ObraDetalhesPageState();
+  State<ObraDetalhesPage> createState() => _ObraDetalhesPageState();
 }
 
-class _ObraDetalhesPageState
-    extends State<ObraDetalhesPage> {
-  final ObrasRepository _repository =
-      ObrasRepository.instancia;
+class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
+  final ObrasRepository _repository = ObrasRepository.instancia;
 
-  final ObrasImagensRepository
-  _imagensRepository =
+  final ObrasImagensRepository _imagensRepository =
       ObrasImagensRepository.instancia;
 
-  final ObraSecoesRepository
-  _secoesRepository =
+  final ObraSecoesRepository _secoesRepository =
       ObraSecoesRepository.instancia;
 
-  final HistoricoObrasService
-  _historicoService =
+  final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
-  final SolicitacoesRemocaoRepository
-  _solicitacoesRepository =
+  final SolicitacoesRemocaoRepository _solicitacoesRepository =
       SolicitacoesRemocaoRepository.instancia;
 
-  final AuthService _authService =
-      AuthService.instancia;
+  final AuthService _authService = AuthService.instancia;
 
   Obra? _obra;
 
@@ -93,8 +85,7 @@ class _ObraDetalhesPageState
     });
 
     try {
-      final obra =
-      await _repository.carregarPorId(widget.id);
+      final obra = await _repository.carregarPorId(widget.id);
 
       if (!mounted) return;
 
@@ -112,9 +103,7 @@ class _ObraDetalhesPageState
       });
 
       await _carregarImagens(obra.id);
-
       await _carregarSecoes(obra.id);
-
       await _carregarObrasRelacionadas(obra);
 
       try {
@@ -128,7 +117,6 @@ class _ObraDetalhesPageState
       }
 
       await _carregarEstadoAutenticacao();
-
       await _carregarEstadoRemocao(obra.id);
     } catch (e) {
       debugPrint(
@@ -139,8 +127,7 @@ class _ObraDetalhesPageState
 
       setState(() {
         _carregando = false;
-        _erro =
-        'Não foi possível carregar esta obra.';
+        _erro = 'Não foi possível carregar esta obra.';
       });
     }
   }
@@ -160,18 +147,27 @@ class _ObraDetalhesPageState
 
     try {
       final imagens =
-      await _imagensRepository.carregarPorObra(
-        obraId,
-      );
+      await _imagensRepository.carregarPorObra(obraId);
 
       final imagensValidas = imagens
           .where(
-            (imagem) =>
-        imagem.urlImagem.trim().isNotEmpty,
+            (imagem) => imagem.urlImagem.trim().isNotEmpty,
       )
           .toList()
         ..sort(
-              (a, b) => a.ordem.compareTo(b.ordem),
+              (a, b) {
+            final paragrafoA = a.paragrafoOrdem ?? 999999;
+            final paragrafoB = b.paragrafoOrdem ?? 999999;
+
+            final resultado =
+            paragrafoA.compareTo(paragrafoB);
+
+            if (resultado != 0) {
+              return resultado;
+            }
+
+            return a.ordem.compareTo(b.ordem);
+          },
         );
 
       if (!mounted) return;
@@ -209,9 +205,7 @@ class _ObraDetalhesPageState
 
     try {
       final secoes =
-      await _secoesRepository.carregarPorObra(
-        obraId,
-      );
+      await _secoesRepository.carregarPorObra(obraId);
 
       if (!mounted) return;
 
@@ -295,8 +289,7 @@ class _ObraDetalhesPageState
   Set<String> _palavrasImportantes(
       String titulo,
       ) {
-    final normalizado =
-    _normalizarTitulo(titulo);
+    final normalizado = _normalizarTitulo(titulo);
 
     if (normalizado.isEmpty) {
       return {};
@@ -349,9 +342,7 @@ class _ObraDetalhesPageState
         .where(
           (palavra) =>
       palavra.length >= 3 &&
-          !palavrasIgnoradas.contains(
-            palavra,
-          ),
+          !palavrasIgnoradas.contains(palavra),
     )
         .toSet();
   }
@@ -450,8 +441,7 @@ class _ObraDetalhesPageState
         obrasPorId[id] = outra;
       }
 
-      final candidatos =
-      <_ObraRelacionada>[];
+      final candidatos = <_ObraRelacionada>[];
 
       for (final outra in obrasPorId.values) {
         var pontuacao = 0;
@@ -477,8 +467,7 @@ class _ObraDetalhesPageState
         final mesmaCategoria =
             categoriaAtual.isNotEmpty &&
                 categoriaOutra.isNotEmpty &&
-                categoriaAtual ==
-                    categoriaOutra;
+                categoriaAtual == categoriaOutra;
 
         if (mesmaCategoria) {
           pontuacao += 20;
@@ -567,9 +556,7 @@ class _ObraDetalhesPageState
       );
 
       final idsAdicionados = <String>{};
-
       final chavesAdicionadas = <String>{};
-
       final relacionadas = <Obra>[];
 
       for (final candidato in candidatos) {
@@ -602,9 +589,7 @@ class _ObraDetalhesPageState
               '',
         ].join('|');
 
-        if (chavesAdicionadas.contains(
-          chave,
-        )) {
+        if (chavesAdicionadas.contains(chave)) {
           continue;
         }
 
@@ -645,8 +630,7 @@ class _ObraDetalhesPageState
   // AUTENTICAÇÃO
   // ============================================================
 
-  Future<void>
-  _carregarEstadoAutenticacao() async {
+  Future<void> _carregarEstadoAutenticacao() async {
     try {
       final utilizador =
           _authService.usuarioAtual;
@@ -781,7 +765,8 @@ class _ObraDetalhesPageState
             ),
             FilledButton(
               onPressed: () {
-                Navigator.of(context).pop(
+                Navigator.of(context)
+                    .pop(
                   motivoController.text
                       .trim(),
                 );
@@ -1042,7 +1027,8 @@ class _ObraDetalhesPageState
               _buildInfoTecnica(
                 Icons.menu_book_outlined,
                 'Páginas',
-                obra.numeroPaginas.toString(),
+                obra.numeroPaginas
+                    .toString(),
               ),
             if (obra.tamanhoArquivoBytes !=
                 null)
@@ -1114,8 +1100,7 @@ class _ObraDetalhesPageState
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
 
-    if (bytes <
-        1024 * 1024 * 1024) {
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
 
@@ -1203,47 +1188,82 @@ class _ObraDetalhesPageState
   }
 
   // ============================================================
-  // CONTEÚDO DE SECÇÃO
+  // CONTEÚDO DE PARÁGRAFO
   // ============================================================
 
-  List<Widget> _buildConteudoSecao(
+  Widget _buildParagrafo(
       String texto,
       ) {
-    final paragrafos =
-    _obterParagrafos(texto);
-
-    if (paragrafos.isEmpty) {
-      return [];
-    }
-
-    final widgets = <Widget>[];
-
-    for (var i = 0;
-    i < paragrafos.length;
-    i++) {
-      widgets.add(
-        SelectableText(
-          paragrafos[i],
-          style: const TextStyle(
-            fontSize: 16,
-            height: 1.8,
-            color: Color(0xFF3C4043),
-          ),
-        ),
-      );
-
-      if (i < paragrafos.length - 1) {
-        widgets.add(
-          const SizedBox(height: 18),
-        );
-      }
-    }
-
-    return widgets;
+    return SelectableText(
+      texto,
+      style: const TextStyle(
+        fontSize: 16,
+        height: 1.8,
+        color: Color(0xFF3C4043),
+      ),
+    );
   }
 
   // ============================================================
-  // IMAGEM INDIVIDUAL DA GALERIA
+  // IMAGENS POR POSIÇÃO
+  // ============================================================
+
+  List<ObraImagem> _imagensParaInicio() {
+    return _imagens
+        .where(
+          (imagem) =>
+      imagem.posicao.trim() ==
+          'inicio_conteudo',
+    )
+        .toList()
+      ..sort(
+            (a, b) =>
+            a.ordem.compareTo(b.ordem),
+      );
+  }
+
+  List<ObraImagem> _imagensParaFinal() {
+    return _imagens
+        .where(
+          (imagem) {
+        final posicao =
+        imagem.posicao.trim();
+
+        return posicao ==
+            'depois_conteudo' ||
+            (posicao ==
+                'dentro_conteudo' &&
+                imagem.paragrafoOrdem ==
+                    null);
+      },
+    )
+        .toList()
+      ..sort(
+            (a, b) =>
+            a.ordem.compareTo(b.ordem),
+      );
+  }
+
+  List<ObraImagem> _imagensDepoisDoParagrafo(
+      int paragrafoOrdem,
+      ) {
+    return _imagens
+        .where(
+          (imagem) =>
+      imagem.posicao.trim() ==
+          'dentro_conteudo' &&
+          imagem.paragrafoOrdem ==
+              paragrafoOrdem,
+    )
+        .toList()
+      ..sort(
+            (a, b) =>
+            a.ordem.compareTo(b.ordem),
+      );
+  }
+
+  // ============================================================
+  // IMAGEM INDIVIDUAL
   // ============================================================
 
   Widget _buildImagemEditorial(
@@ -1263,14 +1283,11 @@ class _ObraDetalhesPageState
         crossAxisAlignment:
         CrossAxisAlignment.start,
         children: [
-          // ======================================================
-          // IMAGEM
-          // ======================================================
-
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
+              color:
+              const Color(0xFFF8F9FA),
               borderRadius:
               BorderRadius.circular(6),
             ),
@@ -1288,7 +1305,8 @@ class _ObraDetalhesPageState
                     child,
                     loadingProgress,
                     ) {
-                  if (loadingProgress == null) {
+                  if (loadingProgress ==
+                      null) {
                     return child;
                   }
 
@@ -1312,7 +1330,8 @@ class _ObraDetalhesPageState
                       EdgeInsets.all(16),
                       child: Column(
                         mainAxisAlignment:
-                        MainAxisAlignment.center,
+                        MainAxisAlignment
+                            .center,
                         children: [
                           Icon(
                             Icons
@@ -1328,7 +1347,8 @@ class _ObraDetalhesPageState
                           Text(
                             'Não foi possível carregar esta imagem.',
                             textAlign:
-                            TextAlign.center,
+                            TextAlign
+                                .center,
                             style:
                             TextStyle(
                               color: Color(
@@ -1345,13 +1365,7 @@ class _ObraDetalhesPageState
               ),
             ),
           ),
-
-          // ======================================================
-          // LEGENDA — ABAIXO DA IMAGEM
-          // ======================================================
-
           const SizedBox(height: 8),
-
           Text(
             legenda.isNotEmpty
                 ? 'Fig. $numeroFigura — $legenda'
@@ -1364,11 +1378,6 @@ class _ObraDetalhesPageState
               color: Color(0xFF202124),
             ),
           ),
-
-          // ======================================================
-          // FONTE — ABAIXO DA LEGENDA
-          // ======================================================
-
           if (fonte.isNotEmpty) ...[
             const SizedBox(height: 3),
             Text(
@@ -1378,7 +1387,8 @@ class _ObraDetalhesPageState
                 height: 1.4,
                 fontStyle:
                 FontStyle.italic,
-                color: Color(0xFF5F6368),
+                color:
+                Color(0xFF5F6368),
               ),
             ),
           ],
@@ -1388,20 +1398,22 @@ class _ObraDetalhesPageState
   }
 
   // ============================================================
-  // GALERIA DE IMAGENS
+  // GALERIA DE UM GRUPO DE IMAGENS
   // ============================================================
 
-  Widget _buildGaleriaImagensEditorial(
+  Widget _buildGaleriaDoGrupo(
+      List<ObraImagem> imagens,
       double larguraDisponivel,
+      int numeroFiguraInicial,
       ) {
-    if (_imagens.isEmpty) {
+    if (imagens.isEmpty) {
       return const SizedBox.shrink();
     }
 
     var numeroColunas = 1;
 
     if (larguraDisponivel >= 760) {
-      numeroColunas = 4;
+      numeroColunas = 3;
     } else if (larguraDisponivel >= 560) {
       numeroColunas = 3;
     } else if (larguraDisponivel >= 360) {
@@ -1417,9 +1429,8 @@ class _ObraDetalhesPageState
             numeroColunas;
 
     return Padding(
-      padding: const EdgeInsets.only(
-        top: 24,
-        bottom: 32,
+      padding: const EdgeInsets.symmetric(
+        vertical: 24,
       ),
       child: Wrap(
         spacing: espacamento,
@@ -1428,14 +1439,129 @@ class _ObraDetalhesPageState
         WrapAlignment.start,
         children: [
           for (var i = 0;
-          i < _imagens.length;
+          i < imagens.length;
           i++)
             _buildImagemEditorial(
-              _imagens[i],
-              i + 1,
+              imagens[i],
+              numeroFiguraInicial + i,
               larguraImagem,
             ),
         ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TODAS AS IMAGENS DE INÍCIO
+  // ============================================================
+
+  Widget _buildImagensInicio(
+      double larguraDisponivel,
+      ) {
+    final imagens =
+    _imagensParaInicio();
+
+    if (imagens.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final numeroFiguraInicial =
+    _numeroFiguraAntesDasImagens(
+      imagens,
+    );
+
+    return _buildGaleriaDoGrupo(
+      imagens,
+      larguraDisponivel,
+      numeroFiguraInicial,
+    );
+  }
+
+  // ============================================================
+  // NÚMERO DA FIGURA
+  // ============================================================
+
+  int _numeroFiguraAntesDasImagens(
+      List<ObraImagem> grupo,
+      ) {
+    if (grupo.isEmpty) {
+      return 1;
+    }
+
+    final idsGrupo =
+    grupo.map((e) => e.id).toSet();
+
+    var numero = 1;
+
+    for (final imagem in _imagens) {
+      if (idsGrupo.contains(imagem.id)) {
+        break;
+      }
+
+      numero++;
+    }
+
+    return numero;
+  }
+
+  int _numeroFiguraDaImagem(
+      ObraImagem imagem,
+      ) {
+    final indice =
+    _imagens.indexOf(imagem);
+
+    if (indice < 0) {
+      return 1;
+    }
+
+    return indice + 1;
+  }
+
+  // ============================================================
+  // IMAGENS DEPOIS DO PARÁGRAFO
+  // ============================================================
+
+  Widget _buildImagensDepoisDoParagrafoWidget(
+      int paragrafoOrdem,
+      double larguraDisponivel,
+      ) {
+    final imagens =
+    _imagensDepoisDoParagrafo(
+      paragrafoOrdem,
+    );
+
+    if (imagens.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildGaleriaDoGrupo(
+      imagens,
+      larguraDisponivel,
+      _numeroFiguraDaImagem(
+        imagens.first,
+      ),
+    );
+  }
+
+  // ============================================================
+  // IMAGENS NO FINAL
+  // ============================================================
+
+  Widget _buildImagensFinal(
+      double larguraDisponivel,
+      ) {
+    final imagens =
+    _imagensParaFinal();
+
+    if (imagens.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildGaleriaDoGrupo(
+      imagens,
+      larguraDisponivel,
+      _numeroFiguraDaImagem(
+        imagens.first,
       ),
     );
   }
@@ -1458,68 +1584,7 @@ class _ObraDetalhesPageState
       );
     }
 
-    final widgets = <Widget>[];
-
-    for (var indiceSecao = 0;
-    indiceSecao < _secoes.length;
-    indiceSecao++) {
-      final secao =
-      _secoes[indiceSecao];
-
-      final titulo =
-      secao.titulo.trim();
-
-      final conteudo =
-          secao.conteudo?.trim() ?? '';
-
-      if (titulo.isEmpty &&
-          conteudo.isEmpty) {
-        continue;
-      }
-
-      widgets.add(
-        Padding(
-          padding:
-          const EdgeInsets.only(
-            bottom: 32,
-          ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              if (titulo.isNotEmpty)
-                Text(
-                  titulo,
-                  style: TextStyle(
-                    fontSize:
-                    secao.nivel <= 1
-                        ? 22
-                        : 19,
-                    fontWeight:
-                    FontWeight.w700,
-                    color:
-                    const Color(
-                      0xFF202124,
-                    ),
-                    height: 1.3,
-                  ),
-                ),
-              if (titulo.isNotEmpty &&
-                  conteudo.isNotEmpty)
-                const SizedBox(
-                  height: 14,
-                ),
-              if (conteudo.isNotEmpty)
-                ..._buildConteudoSecao(
-                  conteudo,
-                ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (widgets.isEmpty) {
+    if (_secoes.isEmpty) {
       if (_imagens.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -1527,8 +1592,17 @@ class _ObraDetalhesPageState
       return LayoutBuilder(
         builder:
             (context, constraints) {
-          return _buildGaleriaImagensEditorial(
-            constraints.maxWidth,
+          return Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              _buildImagensInicio(
+                constraints.maxWidth,
+              ),
+              _buildImagensFinal(
+                constraints.maxWidth,
+              ),
+            ],
           );
         },
       );
@@ -1537,16 +1611,177 @@ class _ObraDetalhesPageState
     return LayoutBuilder(
       builder:
           (context, constraints) {
+        final largura =
+            constraints.maxWidth;
+
+        final widgets = <Widget>[];
+
+        // --------------------------------------------------------
+        // IMAGENS ESCOLHIDAS PARA O INÍCIO
+        // --------------------------------------------------------
+
+        final imagensInicio =
+        _imagensParaInicio();
+
+        if (imagensInicio.isNotEmpty) {
+          widgets.add(
+            _buildGaleriaDoGrupo(
+              imagensInicio,
+              largura,
+              _numeroFiguraAntesDasImagens(
+                imagensInicio,
+              ),
+            ),
+          );
+        }
+
+        // --------------------------------------------------------
+        // PARÁGRAFOS DAS SECÇÕES
+        // --------------------------------------------------------
+
+        var contadorParagrafo = 0;
+
+        for (var indiceSecao = 0;
+        indiceSecao < _secoes.length;
+        indiceSecao++) {
+          final secao =
+          _secoes[indiceSecao];
+
+          final titulo =
+          secao.titulo.trim();
+
+          final conteudo =
+              secao.conteudo?.trim() ?? '';
+
+          if (titulo.isEmpty &&
+              conteudo.isEmpty) {
+            continue;
+          }
+
+          final widgetsSecao =
+          <Widget>[];
+
+          if (titulo.isNotEmpty) {
+            widgetsSecao.add(
+              Text(
+                titulo,
+                style: TextStyle(
+                  fontSize:
+                  secao.nivel <= 1
+                      ? 22
+                      : 19,
+                  fontWeight:
+                  FontWeight.w700,
+                  color: const Color(
+                    0xFF202124,
+                  ),
+                  height: 1.3,
+                ),
+              ),
+            );
+          }
+
+          if (titulo.isNotEmpty &&
+              conteudo.isNotEmpty) {
+            widgetsSecao.add(
+              const SizedBox(
+                height: 14,
+              ),
+            );
+          }
+
+          if (conteudo.isNotEmpty) {
+            final paragrafos =
+            _obterParagrafos(
+              conteudo,
+            );
+
+            for (var i = 0;
+            i < paragrafos.length;
+            i++) {
+              contadorParagrafo++;
+
+              widgetsSecao.add(
+                _buildParagrafo(
+                  paragrafos[i],
+                ),
+              );
+
+              // --------------------------------------------------
+              // IMAGEM DEPOIS DO PARÁGRAFO ESCOLHIDO
+              // --------------------------------------------------
+
+              final imagensDepois =
+              _imagensDepoisDoParagrafo(
+                contadorParagrafo,
+              );
+
+              if (imagensDepois.isNotEmpty) {
+                widgetsSecao.add(
+                  _buildGaleriaDoGrupo(
+                    imagensDepois,
+                    largura,
+                    _numeroFiguraDaImagem(
+                      imagensDepois.first,
+                    ),
+                  ),
+                );
+              }
+
+              if (i <
+                  paragrafos.length - 1) {
+                widgetsSecao.add(
+                  const SizedBox(
+                    height: 18,
+                  ),
+                );
+              }
+            }
+          }
+
+          widgets.add(
+            Padding(
+              padding:
+              const EdgeInsets.only(
+                bottom: 32,
+              ),
+              child: Column(
+                crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
+                children: widgetsSecao,
+              ),
+            ),
+          );
+        }
+
+        // --------------------------------------------------------
+        // IMAGENS NO FINAL
+        // --------------------------------------------------------
+
+        final imagensFinal =
+        _imagensParaFinal();
+
+        if (imagensFinal.isNotEmpty) {
+          widgets.add(
+            _buildGaleriaDoGrupo(
+              imagensFinal,
+              largura,
+              _numeroFiguraDaImagem(
+                imagensFinal.first,
+              ),
+            ),
+          );
+        }
+
+        if (widgets.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
         return Column(
           crossAxisAlignment:
           CrossAxisAlignment.start,
-          children: [
-            ...widgets,
-            if (_imagens.isNotEmpty)
-              _buildGaleriaImagensEditorial(
-                constraints.maxWidth,
-              ),
-          ],
+          children: widgets,
         );
       },
     );

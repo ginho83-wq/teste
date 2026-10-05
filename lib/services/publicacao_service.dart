@@ -15,25 +15,19 @@ import 'storage_service.dart';
 class PublicacaoService {
   PublicacaoService._();
 
-  static final PublicacaoService instancia =
-  PublicacaoService._();
+  static final PublicacaoService instancia = PublicacaoService._();
 
-  final AuthService _authService =
-      AuthService.instancia;
+  final AuthService _authService = AuthService.instancia;
 
-  final StorageService _storageService =
-      StorageService.instancia;
+  final StorageService _storageService = StorageService.instancia;
 
-  final ImagensStorageService
-  _imagensStorageService =
+  final ImagensStorageService _imagensStorageService =
       ImagensStorageService.instancia;
 
-  final ObrasPendentesRepository
-  _pendentesRepository =
+  final ObrasPendentesRepository _pendentesRepository =
       ObrasPendentesRepository.instancia;
 
-  final ObrasRepository _obrasRepository =
-      ObrasRepository.instancia;
+  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
 
   // ============================================================
   // PUBLICAR
@@ -52,16 +46,16 @@ class PublicacaoService {
     // ==========================================================
     // IMAGENS
     //
-    // Cada imagem agora pode trazer:
+    // Cada imagem pode trazer:
     // arquivo
     // legenda
     // fonte
+    // paragrafoOrdem
     // ==========================================================
 
     List<Map<String, dynamic>> imagens = const [],
   }) async {
-    final usuario =
-        _authService.usuarioAtual;
+    final usuario = _authService.usuarioAtual;
 
     if (usuario == null) {
       throw Exception(
@@ -69,14 +63,9 @@ class PublicacaoService {
       );
     }
 
-    final tituloLimpo =
-    titulo.trim();
-
-    final autorLimpo =
-    autor.trim();
-
-    final categoriaLimpa =
-    categoria.trim();
+    final tituloLimpo = titulo.trim();
+    final autorLimpo = autor.trim();
+    final categoriaLimpa = categoria.trim();
 
     if (tituloLimpo.isEmpty) {
       throw Exception(
@@ -112,49 +101,30 @@ class PublicacaoService {
     // LIMPAR SECÇÕES
     // ==========================================================
 
-    final secoesLimpa =
-    <Map<String, dynamic>>[];
+    final secoesLimpa = <Map<String, dynamic>>[];
 
-    for (
-    var i = 0;
-    i < secoes.length;
-    i++
-    ) {
-      final secao =
-      secoes[i];
+    for (var i = 0; i < secoes.length; i++) {
+      final secao = secoes[i];
 
       final tituloSecao =
-          secao['titulo']
-              ?.toString()
-              .trim() ??
-              '';
+          secao['titulo']?.toString().trim() ?? '';
 
       final conteudoSecao =
-          secao['conteudo']
-              ?.toString()
-              .trim() ??
-              '';
+          secao['conteudo']?.toString().trim() ?? '';
 
-      if (tituloSecao.isEmpty &&
-          conteudoSecao.isEmpty) {
+      if (tituloSecao.isEmpty && conteudoSecao.isEmpty) {
         continue;
       }
 
-      final ordem =
-          int.tryParse(
-            secao['ordem']
-                ?.toString() ??
-                '',
-          ) ??
-              (i + 1);
+      final ordem = int.tryParse(
+        secao['ordem']?.toString() ?? '',
+      ) ??
+          (i + 1);
 
-      final nivel =
-          int.tryParse(
-            secao['nivel']
-                ?.toString() ??
-                '',
-          ) ??
-              1;
+      final nivel = int.tryParse(
+        secao['nivel']?.toString() ?? '',
+      ) ??
+          1;
 
       secoesLimpa.add({
         'titulo': tituloSecao,
@@ -169,8 +139,7 @@ class PublicacaoService {
     // ==========================================================
 
     for (final imagem in imagens) {
-      final arquivo =
-      imagem['arquivo'];
+      final arquivo = imagem['arquivo'];
 
       if (arquivo is! ArquivoSelecionado) {
         throw Exception(
@@ -186,9 +155,28 @@ class PublicacaoService {
 
       if (!_ehImagem(arquivo.nome)) {
         throw Exception(
-          'O arquivo "${arquivo.nome}" não é uma '
-              'imagem válida.',
+          'O arquivo "${arquivo.nome}" não é uma imagem válida.',
         );
+      }
+
+      // --------------------------------------------------------
+      // VALIDAR PARÁGRAFO
+      // --------------------------------------------------------
+
+      final valorParagrafo =
+          imagem['paragrafoOrdem'] ??
+              imagem['paragrafo_ordem'];
+
+      if (valorParagrafo != null) {
+        final paragrafoOrdem =
+        int.tryParse(valorParagrafo.toString());
+
+        if (paragrafoOrdem == null || paragrafoOrdem < 1) {
+          throw Exception(
+            'A ordem do parágrafo da imagem '
+                '"${arquivo.nome}" é inválida.',
+          );
+        }
       }
     }
 
@@ -196,8 +184,7 @@ class PublicacaoService {
     // HASH DO PDF
     // ==========================================================
 
-    final hashPdf =
-    sha256
+    final hashPdf = sha256
         .convert(arquivoPdf)
         .toString();
 
@@ -206,8 +193,7 @@ class PublicacaoService {
     // ==========================================================
 
     final existePublicada =
-    await _obrasRepository
-        .existeDuplicado(
+    await _obrasRepository.existeDuplicado(
       titulo: tituloLimpo,
       autor: autorLimpo,
       nomeArquivo: nomeArquivo,
@@ -225,8 +211,7 @@ class PublicacaoService {
     // ==========================================================
 
     final existePendente =
-    await _pendentesRepository
-        .existeDuplicado(
+    await _pendentesRepository.existeDuplicado(
       hashPdf,
     );
 
@@ -240,16 +225,14 @@ class PublicacaoService {
     // DATA
     // ==========================================================
 
-    final dataPublicacao =
-    DateTime.now();
+    final dataPublicacao = DateTime.now();
 
     // ==========================================================
     // ENVIAR PDF
     // ==========================================================
 
     final caminhoPendente =
-    await _storageService
-        .enviarDocumentoPendente(
+    await _storageService.enviarDocumentoPendente(
       userId: usuario.id,
       nomeArquivo: nomeArquivo,
       bytes: arquivoPdf,
@@ -263,12 +246,9 @@ class PublicacaoService {
 
     try {
       final documento =
-      await PdfDocument.openData(
-        arquivoPdf,
-      );
+      await PdfDocument.openData(arquivoPdf);
 
-      numeroPaginas =
-          documento.pagesCount;
+      numeroPaginas = documento.pagesCount;
 
       await documento.close();
     } catch (_) {
@@ -279,8 +259,7 @@ class PublicacaoService {
     // TAMANHO
     // ==========================================================
 
-    final tamanhoArquivoBytes =
-        arquivoPdf.length;
+    final tamanhoArquivoBytes = arquivoPdf.length;
 
     // ==========================================================
     // SECÇÕES
@@ -289,10 +268,9 @@ class PublicacaoService {
     String? conteudoTexto;
 
     if (secoesLimpa.isNotEmpty) {
-      conteudoTexto =
-          jsonEncode(
-            secoesLimpa,
-          );
+      conteudoTexto = jsonEncode(
+        secoesLimpa,
+      );
     }
 
     // ==========================================================
@@ -301,44 +279,23 @@ class PublicacaoService {
 
     final obra = ObraPendente(
       titulo: tituloLimpo,
-
-      descricao:
-      descricao?.trim().isEmpty == true
+      descricao: descricao?.trim().isEmpty == true
           ? null
           : descricao?.trim(),
-
       autor: autorLimpo,
-
       categoria: categoriaLimpa,
-
-      urlDocumento:
-      caminhoPendente,
-
-      anoObra:
-      anoObra,
-
-      dataPublicacao:
-      dataPublicacao,
-
-      userId:
-      usuario.id,
-
-      numeroPaginas:
-      numeroPaginas,
-
-      tamanhoArquivoBytes:
-      tamanhoArquivoBytes,
-
-      hashPdf:
-      hashPdf,
-
-      conteudoTexto:
-      conteudoTexto,
+      urlDocumento: caminhoPendente,
+      anoObra: anoObra,
+      dataPublicacao: dataPublicacao,
+      userId: usuario.id,
+      numeroPaginas: numeroPaginas,
+      tamanhoArquivoBytes: tamanhoArquivoBytes,
+      hashPdf: hashPdf,
+      conteudoTexto: conteudoTexto,
     );
 
     final obraPendente =
-    await _pendentesRepository
-        .inserir(
+    await _pendentesRepository.inserir(
       obra,
     );
 
@@ -346,8 +303,7 @@ class PublicacaoService {
     // GARANTIR ID
     // ==========================================================
 
-    final obraPendenteId =
-        obraPendente.id;
+    final obraPendenteId = obraPendente.id;
 
     if (obraPendenteId == null ||
         obraPendenteId.trim().isEmpty) {
@@ -360,21 +316,14 @@ class PublicacaoService {
     // IMAGENS PENDENTES
     // ==========================================================
 
-    final caminhosImagensEnviadas =
-    <String>[];
+    final caminhosImagensEnviadas = <String>[];
 
     try {
-      for (
-      var i = 0;
-      i < imagens.length;
-      i++
-      ) {
-        final dadosImagem =
-        imagens[i];
+      for (var i = 0; i < imagens.length; i++) {
+        final dadosImagem = imagens[i];
 
         final arquivo =
-        dadosImagem['arquivo']
-        as ArquivoSelecionado;
+        dadosImagem['arquivo'] as ArquivoSelecionado;
 
         // ------------------------------------------------------
         // LEGENDA
@@ -397,18 +346,41 @@ class PublicacaoService {
                 '';
 
         // ------------------------------------------------------
+        // PARÁGRAFO
+        //
+        // Aceita:
+        // paragrafoOrdem
+        // paragrafo_ordem
+        // ------------------------------------------------------
+
+        final valorParagrafo =
+            dadosImagem['paragrafoOrdem'] ??
+                dadosImagem['paragrafo_ordem'];
+
+        final int? paragrafoOrdem =
+        valorParagrafo == null ||
+            valorParagrafo.toString().trim().isEmpty
+            ? null
+            : int.tryParse(
+          valorParagrafo.toString(),
+        );
+
+        // ------------------------------------------------------
+        // ORDEM DA IMAGEM
+        // ------------------------------------------------------
+
+        final ordem = i + 1;
+
+        // ------------------------------------------------------
         // UPLOAD
         // ------------------------------------------------------
 
         final caminho =
         await _imagensStorageService
             .enviarImagemPendente(
-          obraPendenteId:
-          obraPendenteId,
-          nomeArquivo:
-          arquivo.nome,
-          bytes:
-          arquivo.bytes,
+          obraPendenteId: obraPendenteId,
+          nomeArquivo: arquivo.nome,
+          bytes: arquivo.bytes,
         );
 
         caminhosImagensEnviadas.add(
@@ -423,24 +395,20 @@ class PublicacaoService {
         // ordem
         // legenda
         // fonte
+        // paragrafoOrdem
         // ------------------------------------------------------
 
-        await _pendentesRepository
-            .inserirImagemPendente(
-          obraPendenteId:
-          obraPendenteId,
-          caminhoImagem:
-          caminho,
-          ordem:
-          i + 1,
-          legenda:
-          legenda.isEmpty
+        await _pendentesRepository.inserirImagemPendente(
+          obraPendenteId: obraPendenteId,
+          caminhoImagem: caminho,
+          ordem: ordem,
+          legenda: legenda.isEmpty
               ? null
               : legenda,
-          fonte:
-          fonte.isEmpty
+          fonte: fonte.isEmpty
               ? null
               : fonte,
+          paragrafoOrdem: paragrafoOrdem,
         );
       }
     } catch (e) {
@@ -449,8 +417,7 @@ class PublicacaoService {
       // ========================================================
 
       try {
-        await _pendentesRepository
-            .rejeitar(
+        await _pendentesRepository.rejeitar(
           obraPendenteId,
         );
       } catch (_) {}
@@ -459,10 +426,8 @@ class PublicacaoService {
       // REMOVER ARQUIVOS QUE FORAM ENVIADOS
       // ========================================================
 
-      for (
-      final caminho
-      in caminhosImagensEnviadas
-      ) {
+      for (final caminho
+      in caminhosImagensEnviadas) {
         try {
           await _imagensStorageService
               .removerImagemPendente(
