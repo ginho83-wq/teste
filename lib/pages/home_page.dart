@@ -31,21 +31,25 @@ class _HomePageState extends State<HomePage> {
   final AuthService _authService =
       AuthService.instancia;
 
-  final HistoricoObrasService _historicoService =
+  final HistoricoObrasService
+  _historicoService =
       HistoricoObrasService.instancia;
 
-  final TextEditingController _pesquisaController =
+  final TextEditingController
+  _pesquisaController =
   TextEditingController();
 
   List<Obra> _obrasRecentes = [];
-  List<HistoricoObra> _consultasRecentes = [];
+  List<HistoricoObra>
+  _consultasRecentes = [];
 
   bool _carregandoObras = true;
   bool _carregandoConsultas = false;
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
-  StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription<AuthState>?
+  _authSubscription;
 
   @override
   void initState() {
@@ -126,7 +130,8 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _carregarConsultasRecentes() async {
+  Future<void> _carregarConsultasRecentes()
+  async {
     final usuario =
         Supabase.instance.client.auth.currentUser;
 
@@ -367,7 +372,8 @@ class _HomePageState extends State<HomePage> {
       ..showSnackBar(
         SnackBar(
           content: Text(mensagem),
-          behavior: SnackBarBehavior.floating,
+          behavior:
+          SnackBarBehavior.floating,
         ),
       );
   }
@@ -729,80 +735,96 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ============================================================
+  // HERO COM IMAGEM DE FUNDO
+  // ============================================================
+
   Widget _buildHero() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      color: Colors.white,
-      child: Center(
-        child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 900,
+      height: MediaQuery.of(context).size.height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/livros_home.png',
+            fit: BoxFit.cover,
           ),
-          child: Padding(
-            padding:
-            const EdgeInsets.fromLTRB(
-              24,
-              64,
-              24,
-              48,
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'Publique e encontre conhecimento.',
-                  textAlign:
-                  TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight:
-                    FontWeight.w700,
-                    color:
-                    Color(0xFF1F1F1F),
-                    height: 1.18,
-                    letterSpacing: -0.8,
-                  ),
+
+          Container(
+            color:
+            Colors.black.withOpacity(0.42),
+          ),
+
+          Center(
+            child: ConstrainedBox(
+              constraints:
+              const BoxConstraints(
+                maxWidth: 900,
+              ),
+              child: Padding(
+                padding:
+                const EdgeInsets.symmetric(
+                  horizontal: 24,
                 ),
-
-                const SizedBox(height: 16),
-
-                const SizedBox(
-                  width: 620,
-                  child: Text(
-                    'Pesquise e consulte obras académicas, científicas e literários.',
-                    textAlign:
-                    TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color:
-                      Color(0xFF666666),
-                      height: 1.55,
+                child: Column(
+                  mainAxisAlignment:
+                  MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Publique e encontre conhecimento.',
+                      textAlign:
+                      TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 38,
+                        fontWeight:
+                        FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.18,
+                        letterSpacing: -0.8,
+                      ),
                     ),
-                  ),
-                ),
 
-                const SizedBox(height: 30),
+                    const SizedBox(height: 18),
 
-                ConstrainedBox(
-                  constraints:
-                  const BoxConstraints(
-                    maxWidth: 760,
-                  ),
-                  child: BarraPesquisa(
-                    controller:
-                    _pesquisaController,
-                    hintText:
-                    'Pesquisar obras académicas',
-                    onPesquisar:
-                    _executarPesquisa,
-                    onLimpar:
-                    _limparPesquisa,
-                  ),
+                    const SizedBox(
+                      width: 620,
+                      child: Text(
+                        'Pesquise e consulte obras académicas, científicas e literárias.',
+                        textAlign:
+                        TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Colors.white,
+                          height: 1.55,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    ConstrainedBox(
+                      constraints:
+                      const BoxConstraints(
+                        maxWidth: 760,
+                      ),
+                      child: BarraPesquisa(
+                        controller:
+                        _pesquisaController,
+                        hintText:
+                        'Pesquisar obras académicas',
+                        onPesquisar:
+                        _executarPesquisa,
+                        onLimpar:
+                        _limparPesquisa,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1175,4 +1197,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
