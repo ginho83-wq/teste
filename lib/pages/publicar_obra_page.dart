@@ -30,6 +30,9 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
   bool _carregando = false;
 
+  static const int _maxPalavrasDescricao = 30;
+  static const int _maxPalavrasConteudo = 2000;
+
   final List<String> _categorias = [
     'Tese de Doutoramento',
     'Dissertação de Mestrado',
@@ -47,7 +50,16 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+
+    _descricaoController.addListener(_limitarDescricao);
+  }
+
+  @override
   void dispose() {
+    _descricaoController.removeListener(_limitarDescricao);
+
     _tituloController.dispose();
     _descricaoController.dispose();
     _autorController.dispose();
@@ -64,9 +76,77 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     super.dispose();
   }
 
-  // ============================================================
-  // SELECIONAR PDF
-  // ============================================================
+  int _contarPalavras(String texto) {
+    final textoLimpo = texto.trim();
+
+    if (textoLimpo.isEmpty) {
+      return 0;
+    }
+
+    return textoLimpo.split(RegExp(r'\s+')).length;
+  }
+
+  void _limitarDescricao() {
+    final texto = _descricaoController.text;
+
+    if (texto.trim().isEmpty) {
+      return;
+    }
+
+    if (_contarPalavras(texto) <= _maxPalavrasDescricao) {
+      return;
+    }
+
+    final palavras = texto.trim().split(RegExp(r'\s+'));
+
+    final textoLimitado = palavras
+        .take(_maxPalavrasDescricao)
+        .join(' ');
+
+    _descricaoController.value = TextEditingValue(
+      text: textoLimitado,
+      selection: TextSelection.collapsed(
+        offset: textoLimitado.length,
+      ),
+    );
+
+    _mostrarMensagem(
+      'A descrição pode ter no máximo 30 palavras.',
+      erro: true,
+    );
+  }
+
+  void _limitarConteudoSecao(
+      _SecaoEditor secao,
+      ) {
+    final texto = secao.conteudoController.text;
+
+    if (texto.trim().isEmpty) {
+      return;
+    }
+
+    if (_contarPalavras(texto) <= _maxPalavrasConteudo) {
+      return;
+    }
+
+    final palavras = texto.trim().split(RegExp(r'\s+'));
+
+    final textoLimitado = palavras
+        .take(_maxPalavrasConteudo)
+        .join(' ');
+
+    secao.conteudoController.value = TextEditingValue(
+      text: textoLimitado,
+      selection: TextSelection.collapsed(
+        offset: textoLimitado.length,
+      ),
+    );
+
+    _mostrarMensagem(
+      'O conteúdo de cada secção pode ter no máximo 2000 palavras.',
+      erro: true,
+    );
+  }
 
   Future<void> _selecionarArquivo() async {
     try {
@@ -86,10 +166,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       );
     }
   }
-
-  // ============================================================
-  // SELECIONAR IMAGENS
-  // ============================================================
 
   Future<void> _selecionarImagens() async {
     try {
@@ -124,12 +200,9 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     }
   }
 
-  // ============================================================
-  // REMOVER IMAGEM
-  // ============================================================
-
   void _removerImagem(int index) {
-    if (index < 0 || index >= _imagensSelecionadas.length) {
+    if (index < 0 ||
+        index >= _imagensSelecionadas.length) {
       return;
     }
 
@@ -142,10 +215,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     });
   }
 
-  // ============================================================
-  // ADICIONAR SECÇÃO
-  // ============================================================
-
   void _adicionarSecao() {
     setState(() {
       _secoes.add(
@@ -154,16 +223,13 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     });
   }
 
-  // ============================================================
-  // REMOVER SECÇÃO
-  // ============================================================
-
   void _removerSecao(int index) {
     if (_secoes.length <= 1) {
       return;
     }
 
-    if (index < 0 || index >= _secoes.length) {
+    if (index < 0 ||
+        index >= _secoes.length) {
       return;
     }
 
@@ -176,9 +242,13 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     });
   }
 
-  // ============================================================
-  // PUBLICAR
-  // ============================================================
+  void _cancelar() {
+    if (_carregando) {
+      return;
+    }
+
+    Navigator.of(context).pop();
+  }
 
   Future<void> _publicar() async {
     if (_carregando) {
@@ -205,7 +275,8 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       return;
     }
 
-    final utilizador = AuthService.instancia.usuarioAtual;
+    final utilizador =
+        AuthService.instancia.usuarioAtual;
 
     if (utilizador == null) {
       _mostrarMensagem(
@@ -215,19 +286,40 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       return;
     }
 
-    // ==========================================================
-    // PREPARAR SECÇÕES
-    // ==========================================================
+    final descricao =
+    _descricaoController.text.trim();
+
+    if (_contarPalavras(descricao) >
+        _maxPalavrasDescricao) {
+      _mostrarMensagem(
+        'A descrição pode ter no máximo 30 palavras.',
+        erro: true,
+      );
+      return;
+    }
 
     final List<Map<String, dynamic>> secoes = [];
 
     for (int i = 0; i < _secoes.length; i++) {
       final secao = _secoes[i];
 
-      final titulo = secao.tituloController.text.trim();
-      final conteudo = secao.conteudoController.text.trim();
+      final titulo =
+      secao.tituloController.text.trim();
 
-      if (titulo.isEmpty && conteudo.isEmpty) {
+      final conteudo =
+      secao.conteudoController.text.trim();
+
+      if (_contarPalavras(conteudo) >
+          _maxPalavrasConteudo) {
+        _mostrarMensagem(
+          'A Secção ${i + 1} ultrapassa o limite de 2000 palavras.',
+          erro: true,
+        );
+        return;
+      }
+
+      if (titulo.isEmpty &&
+          conteudo.isEmpty) {
         continue;
       }
 
@@ -247,18 +339,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       return;
     }
 
-    // ==========================================================
-    // PREPARAR IMAGENS
-    //
-    // Cada imagem envia:
-    //
-    // arquivo
-    // legenda
-    // fonte
-    // paragrafoOrdem
-    //
-    // ==========================================================
-
     final List<Map<String, dynamic>> imagens = [];
 
     for (final imagem in _imagensSelecionadas) {
@@ -268,12 +348,13 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       int? paragrafoOrdem;
 
       if (paragrafoTexto.isNotEmpty) {
-        paragrafoOrdem = int.tryParse(paragrafoTexto);
+        paragrafoOrdem =
+            int.tryParse(paragrafoTexto);
 
-        if (paragrafoOrdem == null || paragrafoOrdem < 1) {
+        if (paragrafoOrdem == null ||
+            paragrafoOrdem < 1) {
           _mostrarMensagem(
-            'A ordem do parágrafo da imagem '
-                '"${imagem.arquivo.nome}" é inválida.',
+            'A ordem do parágrafo da imagem "${imagem.arquivo.nome}" é inválida.',
             erro: true,
           );
           return;
@@ -282,17 +363,16 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
       imagens.add({
         'arquivo': imagem.arquivo,
-        'legenda': imagem.legendaController.text.trim(),
-        'fonte': imagem.fonteController.text.trim(),
+        'legenda':
+        imagem.legendaController.text.trim(),
+        'fonte':
+        imagem.fonteController.text.trim(),
         'paragrafoOrdem': paragrafoOrdem,
       });
     }
 
-    // ==========================================================
-    // PREPARAR ANO
-    // ==========================================================
-
-    final anoTexto = _anoController.text.trim();
+    final anoTexto =
+    _anoController.text.trim();
 
     int? ano;
 
@@ -305,25 +385,15 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     });
 
     try {
-      // ========================================================
-      // PUBLICAR
-      // ========================================================
-
       await _publicacaoService.publicar(
         titulo: _tituloController.text.trim(),
-        descricao: _descricaoController.text.trim(),
+        descricao: descricao,
         autor: _autorController.text.trim(),
         categoria: _categoriaSelecionada!,
         anoObra: ano,
-
-        // O PublicacaoService espera Uint8List.
         arquivoPdf: _arquivoSelecionado!.bytes,
-
         nomeArquivo: _arquivoSelecionado!.nome,
-
         secoes: secoes,
-
-        // Envia arquivo + legenda + fonte + parágrafo.
         imagens: imagens,
       );
 
@@ -334,10 +404,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       _mostrarMensagem(
         'Obra enviada com sucesso para análise.',
       );
-
-      // ========================================================
-      // LIMPAR FORMULÁRIO
-      // ========================================================
 
       _tituloController.clear();
       _descricaoController.clear();
@@ -354,7 +420,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
       setState(() {
         _categoriaSelecionada = null;
-
         _arquivoSelecionado = null;
 
         _imagensSelecionadas.clear();
@@ -383,22 +448,26 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     }
   }
 
-  // ============================================================
-  // EDITOR DE SECÇÃO
-  // ============================================================
-
   Widget _buildSecaoEditor(
       BuildContext context,
       int index,
       ) {
     final secao = _secoes[index];
 
+    final quantidadePalavras =
+    _contarPalavras(
+      secao.conteudoController.text,
+    );
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(
+        bottom: 16,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -407,13 +476,15 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                     'Secção ${index + 1}',
                     style: const TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                      FontWeight.bold,
                     ),
                   ),
                 ),
                 if (_secoes.length > 1)
                   IconButton(
-                    tooltip: 'Remover secção',
+                    tooltip:
+                    'Remover secção',
                     icon: const Icon(
                       Icons.delete_outline,
                     ),
@@ -426,42 +497,47 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
             const SizedBox(height: 12),
 
-            // ==================================================
-            // TÍTULO DA SECÇÃO
-            // ==================================================
-
             TextFormField(
-              controller: secao.tituloController,
-              decoration: const InputDecoration(
-                labelText: 'Título da secção',
-                border: OutlineInputBorder(),
+              controller:
+              secao.tituloController,
+              decoration:
+              const InputDecoration(
+                labelText:
+                'Título da secção',
+                border:
+                OutlineInputBorder(),
               ),
             ),
 
             const SizedBox(height: 12),
 
-            // ==================================================
-            // NÍVEL
-            // ==================================================
-
             DropdownButtonFormField<int>(
               value: secao.nivel,
-              decoration: const InputDecoration(
-                labelText: 'Nível da secção',
-                border: OutlineInputBorder(),
+              decoration:
+              const InputDecoration(
+                labelText:
+                'Nível da secção',
+                border:
+                OutlineInputBorder(),
               ),
               items: const [
                 DropdownMenuItem(
                   value: 1,
-                  child: Text('Nível 1'),
+                  child: Text(
+                    'Nível 1',
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 2,
-                  child: Text('Nível 2'),
+                  child: Text(
+                    'Nível 2',
+                  ),
                 ),
                 DropdownMenuItem(
                   value: 3,
-                  child: Text('Nível 3'),
+                  child: Text(
+                    'Nível 3',
+                  ),
                 ),
               ],
               onChanged: (valor) {
@@ -477,28 +553,43 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
             const SizedBox(height: 12),
 
-            // ==================================================
-            // CONTEÚDO
-            // ==================================================
-
             TextFormField(
-              controller: secao.conteudoController,
+              controller:
+              secao.conteudoController,
               maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Conteúdo',
+              decoration:
+              InputDecoration(
+                labelText:
+                'Conteúdo',
                 alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+                border:
+                const OutlineInputBorder(),
+                helperText:
+                '$quantidadePalavras/$_maxPalavrasConteudo palavras',
+                helperStyle:
+                TextStyle(
+                  color:
+                  quantidadePalavras >=
+                      _maxPalavrasConteudo
+                      ? Colors.red
+                      : Colors.grey,
+                  fontWeight:
+                  FontWeight.w500,
+                ),
               ),
+              onChanged: (_) {
+                _limitarConteudoSecao(
+                  secao,
+                );
+
+                setState(() {});
+              },
             ),
           ],
         ),
       ),
     );
   }
-
-  // ============================================================
-  // IMAGENS
-  // ============================================================
 
   Widget _buildImagens() {
     if (_imagensSelecionadas.isEmpty) {
@@ -514,19 +605,21 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       children: List.generate(
         _imagensSelecionadas.length,
             (index) {
-          final imagem = _imagensSelecionadas[index];
+          final imagem =
+          _imagensSelecionadas[index];
 
           return Card(
-            margin: const EdgeInsets.only(bottom: 16),
+            margin:
+            const EdgeInsets.only(
+              bottom: 16,
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding:
+              const EdgeInsets.all(12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
-                  // ==================================================
-                  // IMAGEM + REMOVER
-                  // ==================================================
-
                   Row(
                     crossAxisAlignment:
                     CrossAxisAlignment.start,
@@ -534,18 +627,25 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                       Expanded(
                         child: Text(
                           imagem.arquivo.nome,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                          style:
+                          const TextStyle(
+                            fontWeight:
+                            FontWeight.bold,
                           ),
                         ),
                       ),
+
                       IconButton(
-                        tooltip: 'Remover imagem',
+                        tooltip:
+                        'Remover imagem',
                         icon: const Icon(
-                          Icons.delete_outline,
+                          Icons
+                              .delete_outline,
                         ),
                         onPressed: () {
-                          _removerImagem(index);
+                          _removerImagem(
+                            index,
+                          );
                         },
                       ),
                     ],
@@ -553,15 +653,14 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 8),
 
-                  // ==================================================
-                  // PREVISUALIZAÇÃO
-                  // ==================================================
-
                   Center(
                     child: ClipRRect(
                       borderRadius:
-                      BorderRadius.circular(8),
-                      child: Image.memory(
+                      BorderRadius.circular(
+                        8,
+                      ),
+                      child:
+                      Image.memory(
                         imagem.arquivo.bytes,
                         height: 180,
                         fit: BoxFit.contain,
@@ -572,10 +671,15 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                             ) {
                           return Container(
                             height: 180,
-                            width: double.infinity,
-                            alignment: Alignment.center,
-                            color: Colors.grey.shade200,
-                            child: const Icon(
+                            width:
+                            double.infinity,
+                            alignment:
+                            Alignment.center,
+                            color: Colors
+                                .grey
+                                .shade200,
+                            child:
+                            const Icon(
                               Icons
                                   .broken_image_outlined,
                               size: 50,
@@ -588,13 +692,10 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 16),
 
-                  // ==================================================
-                  // LEGENDA
-                  // ==================================================
-
                   TextFormField(
                     controller:
-                    imagem.legendaController,
+                    imagem
+                        .legendaController,
                     decoration:
                     const InputDecoration(
                       labelText:
@@ -603,7 +704,8 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                       'Ex.: Figura 1 — Localização do Município de Nampula',
                       border:
                       OutlineInputBorder(),
-                      prefixIcon: Icon(
+                      prefixIcon:
+                      Icon(
                         Icons
                             .description_outlined,
                       ),
@@ -612,10 +714,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                   ),
 
                   const SizedBox(height: 12),
-
-                  // ==================================================
-                  // FONTE
-                  // ==================================================
 
                   TextFormField(
                     controller:
@@ -628,8 +726,10 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                       'Ex.: Autor, 2026 / Google Earth / INE',
                       border:
                       OutlineInputBorder(),
-                      prefixIcon: Icon(
-                        Icons.source_outlined,
+                      prefixIcon:
+                      Icon(
+                        Icons
+                            .source_outlined,
                       ),
                     ),
                     maxLines: 2,
@@ -637,13 +737,10 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 12),
 
-                  // ==================================================
-                  // PARÁGRAFO DA IMAGEM
-                  // ==================================================
-
                   TextFormField(
                     controller:
-                    imagem.paragrafoOrdemController,
+                    imagem
+                        .paragrafoOrdemController,
                     keyboardType:
                     TextInputType.number,
                     decoration:
@@ -655,7 +752,8 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                       'Informe o número do parágrafo após o qual a imagem deve aparecer.',
                       border:
                       OutlineInputBorder(),
-                      prefixIcon: Icon(
+                      prefixIcon:
+                      Icon(
                         Icons
                             .format_list_numbered,
                       ),
@@ -688,10 +786,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
     );
   }
 
-  // ============================================================
-  // MENSAGEM
-  // ============================================================
-
   void _mostrarMensagem(
       String mensagem, {
         bool erro = false,
@@ -700,17 +794,15 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(mensagem),
-        backgroundColor: erro ? Colors.red : null,
+        backgroundColor:
+        erro ? Colors.red : null,
       ),
     );
   }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -723,25 +815,25 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding:
+          const EdgeInsets.all(20),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
+              constraints:
+              const BoxConstraints(
                 maxWidth: 900,
               ),
               child: Column(
                 crossAxisAlignment:
                 CrossAxisAlignment.stretch,
                 children: [
-                  // ==================================================
-                  // TÍTULO
-                  // ==================================================
-
                   TextFormField(
-                    controller: _tituloController,
+                    controller:
+                    _tituloController,
                     decoration:
                     const InputDecoration(
-                      labelText: 'Título da obra',
+                      labelText:
+                      'Título da obra',
                       border:
                       OutlineInputBorder(),
                     ),
@@ -757,12 +849,9 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 16),
 
-                  // ==================================================
-                  // AUTOR
-                  // ==================================================
-
                   TextFormField(
-                    controller: _autorController,
+                    controller:
+                    _autorController,
                     decoration:
                     const InputDecoration(
                       labelText: 'Autor',
@@ -781,23 +870,25 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 16),
 
-                  // ==================================================
-                  // CATEGORIA
-                  // ==================================================
-
                   DropdownButtonFormField<String>(
-                    value: _categoriaSelecionada,
+                    value:
+                    _categoriaSelecionada,
                     decoration:
                     const InputDecoration(
-                      labelText: 'Categoria',
+                      labelText:
+                      'Categoria',
                       border:
                       OutlineInputBorder(),
                     ),
-                    items: _categorias.map(
+                    items:
+                    _categorias.map(
                           (categoria) {
-                        return DropdownMenuItem<String>(
-                          value: categoria,
-                          child: Text(categoria),
+                        return DropdownMenuItem<
+                            String>(
+                          value:
+                          categoria,
+                          child:
+                          Text(categoria),
                         );
                       },
                     ).toList(),
@@ -819,17 +910,15 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 16),
 
-                  // ==================================================
-                  // ANO
-                  // ==================================================
-
                   TextFormField(
-                    controller: _anoController,
+                    controller:
+                    _anoController,
                     keyboardType:
                     TextInputType.number,
                     decoration:
                     const InputDecoration(
-                      labelText: 'Ano da obra',
+                      labelText:
+                      'Ano da obra',
                       border:
                       OutlineInputBorder(),
                     ),
@@ -852,28 +941,40 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
 
                   const SizedBox(height: 16),
 
-                  // ==================================================
-                  // DESCRIÇÃO
-                  // ==================================================
-
                   TextFormField(
                     controller:
                     _descricaoController,
                     maxLines: 5,
                     decoration:
-                    const InputDecoration(
-                      labelText: 'Descrição',
-                      alignLabelWithHint: true,
+                    InputDecoration(
+                      labelText:
+                      'Descrição',
+                      alignLabelWithHint:
+                      true,
                       border:
-                      OutlineInputBorder(),
+                      const OutlineInputBorder(),
+                      helperText:
+                      '${_contarPalavras(_descricaoController.text)}/$_maxPalavrasDescricao palavras',
+                      helperStyle:
+                      TextStyle(
+                        color:
+                        _contarPalavras(
+                          _descricaoController
+                              .text,
+                        ) >=
+                            _maxPalavrasDescricao
+                            ? Colors.red
+                            : Colors.grey,
+                        fontWeight:
+                        FontWeight.w500,
+                      ),
                     ),
+                    onChanged: (_) {
+                      setState(() {});
+                    },
                   ),
 
                   const SizedBox(height: 28),
-
-                  // ==================================================
-                  // SECÇÕES
-                  // ==================================================
 
                   const Text(
                     'Conteúdo da obra',
@@ -907,10 +1008,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                   ),
 
                   const SizedBox(height: 28),
-
-                  // ==================================================
-                  // PDF
-                  // ==================================================
 
                   const Text(
                     'Documento PDF',
@@ -956,7 +1053,8 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                               Icons
                                   .upload_file,
                             ),
-                            label: const Text(
+                            label:
+                            const Text(
                               'Selecionar PDF',
                             ),
                           ),
@@ -966,10 +1064,6 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                   ),
 
                   const SizedBox(height: 28),
-
-                  // ==================================================
-                  // IMAGENS
-                  // ==================================================
 
                   const Text(
                     'Imagens',
@@ -1010,35 +1104,107 @@ class _PublicarObraPageState extends State<PublicarObraPage> {
                   const SizedBox(height: 32),
 
                   // ==================================================
-                  // PUBLICAR
+                  // BOTÕES CANCELAR E ENVIAR
                   // ==================================================
 
-                  SizedBox(
-                    height: 52,
-                    child:
-                    ElevatedButton.icon(
-                      onPressed:
-                      _carregando
-                          ? null
-                          : _publicar,
-                      icon: _carregando
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child:
-                        CircularProgressIndicator(
-                          strokeWidth: 2,
+                  Row(
+                    mainAxisAlignment:
+                    MainAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed:
+                          _carregando
+                              ? null
+                              : _cancelar,
+                          child:
+                          const Text(
+                            'Cancelar',
+                          ),
+                          style:
+                          OutlinedButton
+                              .styleFrom(
+                            backgroundColor:
+                            Colors
+                                .grey
+                                .shade200,
+                            foregroundColor:
+                            Colors
+                                .black87,
+                            side:
+                            BorderSide(
+                              color: Colors
+                                  .grey
+                                  .shade400,
+                            ),
+                            shape:
+                            RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius
+                                  .circular(
+                                10,
+                              ),
+                            ),
+                            padding:
+                            const EdgeInsets
+                                .symmetric(
+                              horizontal: 18,
+                            ),
+                          ),
                         ),
-                      )
-                          : const Icon(
-                        Icons.publish,
                       ),
-                      label: Text(
-                        _carregando
-                            ? 'A enviar...'
-                            : 'Publicar obra',
+
+                      const SizedBox(
+                        width: 12,
                       ),
-                    ),
+
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed:
+                          _carregando
+                              ? null
+                              : _publicar,
+                          child: _carregando
+                              ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child:
+                            CircularProgressIndicator(
+                              strokeWidth:
+                              2,
+                            ),
+                          )
+                              : const Text(
+                            'Enviar',
+                          ),
+                          style:
+                          ElevatedButton
+                              .styleFrom(
+                            backgroundColor:
+                            const Color(
+                              0xFF1565C0,
+                            ),
+                            foregroundColor:
+                            Colors.white,
+                            shape:
+                            RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius
+                                  .circular(
+                                10,
+                              ),
+                            ),
+                            padding:
+                            const EdgeInsets
+                                .symmetric(
+                              horizontal: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 30),
@@ -1063,13 +1229,16 @@ class _ImagemEditor {
 
   final ArquivoSelecionado arquivo;
 
-  final TextEditingController legendaController =
+  final TextEditingController
+  legendaController =
   TextEditingController();
 
-  final TextEditingController fonteController =
+  final TextEditingController
+  fonteController =
   TextEditingController();
 
-  final TextEditingController paragrafoOrdemController =
+  final TextEditingController
+  paragrafoOrdemController =
   TextEditingController();
 
   void dispose() {
@@ -1086,23 +1255,19 @@ class _ImagemEditor {
 class _SecaoEditor {
   _SecaoEditor();
 
-  final TextEditingController tituloController =
+  final TextEditingController
+  tituloController =
   TextEditingController();
 
-  final TextEditingController conteudoController =
+  final TextEditingController
+  conteudoController =
   TextEditingController();
-
-  final TextEditingController nivelController =
-  TextEditingController(
-    text: '1',
-  );
 
   int nivel = 1;
 
   void dispose() {
     tituloController.dispose();
     conteudoController.dispose();
-    nivelController.dispose();
   }
 }
 

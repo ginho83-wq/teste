@@ -17,38 +17,34 @@ class ObraListaItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // ===============================================================
-    // 2ª LINHA — AUTOR + ANO DA OBRA + DESCRIÇÃO
+    // 2ª LINHA — DESCRIÇÃO
     // ===============================================================
 
-    final List<String> segundaLinha = [];
-
-    if (obra.autor.trim().isNotEmpty) {
-      segundaLinha.add(
-        obra.autor.trim(),
-      );
-    }
-
-    if (obra.anoObra != null) {
-      segundaLinha.add(
-        '(${obra.anoObra})',
-      );
-    }
-
-    if ((obra.descricao ?? '').trim().isNotEmpty) {
-      segundaLinha.add(
-        obra.descricao!.trim(),
-      );
-    }
+    final String textoDescricao =
+    (obra.descricao ?? '').trim();
 
     // ===============================================================
-    // 3ª LINHA — CATEGORIA + DATA + PDF + PÁGINAS + TAMANHO
+    // 3ª LINHA — AUTOR + CATEGORIA + ANO + DATA + PDF
+    //              + PÁGINAS + TAMANHO
     // ===============================================================
 
     final List<String> terceiraLinha = [];
 
+    if (obra.autor.trim().isNotEmpty) {
+      terceiraLinha.add(
+        obra.autor.trim(),
+      );
+    }
+
     if (obra.categoria.trim().isNotEmpty) {
       terceiraLinha.add(
         obra.categoria.trim(),
+      );
+    }
+
+    if (obra.anoObra != null) {
+      terceiraLinha.add(
+        '${obra.anoObra}',
       );
     }
 
@@ -75,9 +71,6 @@ class ObraListaItem extends StatelessWidget {
         ),
       );
     }
-
-    final String textoSegundaLinha =
-    segundaLinha.join(', ');
 
     final String textoTerceiraLinha =
     terceiraLinha.join(', ');
@@ -116,6 +109,7 @@ class ObraListaItem extends StatelessWidget {
               Text(
                 obra.titulo,
                 softWrap: true,
+                textAlign: TextAlign.left,
                 style: const TextStyle(
                   fontSize: 17,
                   height: 1.4,
@@ -130,15 +124,16 @@ class ObraListaItem extends StatelessWidget {
               const SizedBox(height: 5),
 
               // =====================================================
-              // 2. AUTOR + ANO + DESCRIÇÃO
+              // 2. DESCRIÇÃO
               // =====================================================
 
-              if (textoSegundaLinha.isNotEmpty)
+              if (textoDescricao.isNotEmpty)
                 Text(
-                  textoSegundaLinha,
+                  textoDescricao,
                   softWrap: true,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.justify,
                   style: const TextStyle(
                     fontSize: 13,
                     height: 1.5,
@@ -150,19 +145,22 @@ class ObraListaItem extends StatelessWidget {
               const SizedBox(height: 4),
 
               // =====================================================
-              // 3. CATEGORIA + DATA + PDF + PÁGINAS + TAMANHO
+              // 3. AUTOR + CATEGORIA + ANO + DATA + PDF
+              //    + PÁGINAS + TAMANHO
               // =====================================================
 
-              Text(
-                textoTerceiraLinha,
-                softWrap: true,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xff5f6368),
+              if (textoTerceiraLinha.isNotEmpty)
+                Text(
+                  textoTerceiraLinha,
+                  softWrap: true,
+                  textAlign: TextAlign.justify,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xff5f6368),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -202,4 +200,3 @@ class ObraListaItem extends StatelessWidget {
         '${unidades[indice]}';
   }
 }
-
