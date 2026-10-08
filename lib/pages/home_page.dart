@@ -1367,7 +1367,7 @@ class _MegafoneAnuncieState
                   ),
 
                   const Text(
-                    'Anuncie',
+                    'Anuncie aqui!',
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight:
