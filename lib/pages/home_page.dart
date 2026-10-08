@@ -31,25 +31,21 @@ class _HomePageState extends State<HomePage> {
   final AuthService _authService =
       AuthService.instancia;
 
-  final HistoricoObrasService
-  _historicoService =
+  final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
-  final TextEditingController
-  _pesquisaController =
+  final TextEditingController _pesquisaController =
   TextEditingController();
 
   List<Obra> _obrasRecentes = [];
-  List<HistoricoObra>
-  _consultasRecentes = [];
+  List<HistoricoObra> _consultasRecentes = [];
 
   bool _carregandoObras = true;
   bool _carregandoConsultas = false;
   bool _ehAdmin = false;
   bool _carregandoPerfil = true;
 
-  StreamSubscription<AuthState>?
-  _authSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
 
   @override
   void initState() {
@@ -130,8 +126,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _carregarConsultasRecentes()
-  async {
+  Future<void> _carregarConsultasRecentes() async {
     final usuario =
         Supabase.instance.client.auth.currentUser;
 
@@ -372,8 +367,7 @@ class _HomePageState extends State<HomePage> {
       ..showSnackBar(
         SnackBar(
           content: Text(mensagem),
-          behavior:
-          SnackBarBehavior.floating,
+          behavior: SnackBarBehavior.floating,
         ),
       );
   }
@@ -457,7 +451,6 @@ class _HomePageState extends State<HomePage> {
 
           if (!estaAutenticado) ...[
             const SizedBox(width: 2),
-
             _buildNavButton(
               label: 'Acervo',
               onPressed: () {
@@ -469,7 +462,6 @@ class _HomePageState extends State<HomePage> {
           if (estaAutenticado &&
               !_ehAdmin) ...[
             const SizedBox(width: 2),
-
             _buildNavButton(
               label: 'Acervo',
               onPressed: () {
@@ -488,7 +480,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ],
       ),
-
       actions: [
         if (estaAutenticado) ...[
           const SizedBox(width: 12),
@@ -735,14 +726,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ============================================================
-  // HERO COM IMAGEM DE FUNDO
-  // ============================================================
-
   Widget _buildHero() {
     return SizedBox(
       width: double.infinity,
-      height: MediaQuery.of(context).size.height,
+      height:
+      MediaQuery.of(context).size.height,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -785,7 +773,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
 
-                    const SizedBox(height: 18),
+                    const SizedBox(
+                      height: 18,
+                    ),
 
                     const SizedBox(
                       width: 620,
@@ -801,14 +791,17 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
 
-                    const SizedBox(height: 32),
+                    const SizedBox(
+                      height: 32,
+                    ),
 
                     ConstrainedBox(
                       constraints:
                       const BoxConstraints(
                         maxWidth: 760,
                       ),
-                      child: BarraPesquisa(
+                      child:
+                      BarraPesquisa(
                         controller:
                         _pesquisaController,
                         hintText:
@@ -862,17 +855,72 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Explore as obras por tipo de publicação.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color:
-                  Color(0xFF777777),
-                  height: 1.5,
-                ),
+              LayoutBuilder(
+                builder:
+                    (context, constraints) {
+                  final largura =
+                      constraints.maxWidth;
+
+                  if (largura < 600) {
+                    return Column(
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Explore as obras por tipo de publicação.',
+                          style:
+                          TextStyle(
+                            fontSize: 14,
+                            color:
+                            Color(0xFF777777),
+                            height: 1.5,
+                          ),
+                        ),
+
+                        const SizedBox(
+                          height: 12,
+                        ),
+
+                        Align(
+                          alignment:
+                          Alignment.centerRight,
+                          child:
+                          _buildBotaoAnuncie(),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.center,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Explore as obras por tipo de publicação.',
+                          style:
+                          TextStyle(
+                            fontSize: 14,
+                            color:
+                            Color(0xFF777777),
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(
+                        width: 20,
+                      ),
+
+                      _buildBotaoAnuncie(),
+                    ],
+                  );
+                },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(
+                height: 16,
+              ),
 
               LayoutBuilder(
                 builder:
@@ -925,6 +973,14 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBotaoAnuncie() {
+    return _MegafoneAnuncie(
+      onTap: () {
+        context.go('/anuncie');
+      },
     );
   }
 
@@ -1017,7 +1073,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              const SizedBox(height: 7),
+              const SizedBox(
+                height: 7,
+              ),
 
               const Text(
                 'Confira as obras publicadas recentemente.',
@@ -1029,7 +1087,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              const SizedBox(height: 5),
+              const SizedBox(
+                height: 5,
+              ),
 
               if (_carregandoObras)
                 const Center(
@@ -1107,7 +1167,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              const SizedBox(height: 7),
+              const SizedBox(
+                height: 7,
+              ),
 
               const Text(
                 'Aceda rapidamente às obras que consultou.',
@@ -1119,7 +1181,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              const SizedBox(height: 22),
+              const SizedBox(
+                height: 22,
+              ),
 
               if (_carregandoConsultas)
                 const Center(
@@ -1197,3 +1261,128 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+class _MegafoneAnuncie
+    extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _MegafoneAnuncie({
+    required this.onTap,
+  });
+
+  @override
+  State<_MegafoneAnuncie> createState() =>
+      _MegafoneAnuncieState();
+}
+
+class _MegafoneAnuncieState
+    extends State<_MegafoneAnuncie>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller =
+    AnimationController(
+      vsync: this,
+      duration:
+      const Duration(
+        milliseconds: 1800,
+      ),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Anuncie no Obra Livre',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius:
+          BorderRadius.circular(22),
+          hoverColor:
+          const Color(0xFFF1F1F1),
+          splashColor:
+          const Color(0xFFE5E5E5),
+          child: Padding(
+            padding:
+            const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder:
+                  (context, child) {
+                final progresso =
+                    _controller.value;
+
+                final movimento =
+                progresso < 0.12
+                    ? progresso / 0.12
+                    : progresso < 0.24
+                    ? (0.24 -
+                    progresso) /
+                    0.12
+                    : 0.0;
+
+                final escala =
+                    1.0 +
+                        (movimento * 0.08);
+
+                return Transform.translate(
+                  offset: Offset(
+                    movimento * 2.0,
+                    0,
+                  ),
+                  child: Transform.scale(
+                    scale: escala,
+                    child: child,
+                  ),
+                );
+              },
+              child: Row(
+                mainAxisSize:
+                MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.campaign_outlined,
+                    size: 23,
+                    color:
+                    Color(0xFF333333),
+                  ),
+
+                  const SizedBox(
+                    width: 7,
+                  ),
+
+                  const Text(
+                    'Anuncie',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight:
+                      FontWeight.w600,
+                      color:
+                      Color(0xFF333333),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

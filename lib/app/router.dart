@@ -30,6 +30,7 @@ import '../pages/politica_privacidade_page.dart';
 import '../pages/cookies_page.dart';
 import '../pages/contacto_page.dart';
 import '../pages/ajuda_page.dart';
+import '../pages/publicidade_page.dart';
 
 final AuthService _authService = AuthService.instancia;
 
@@ -103,6 +104,7 @@ bool _ehRotaPublica(String caminho) {
       caminho == '/cookies' ||
       caminho == '/contacto' ||
       caminho == '/ajuda' ||
+      caminho == '/anuncie' ||
       caminho.startsWith('/obra/') ||
       caminho.startsWith('/categoria/') ||
       caminho.startsWith('/acervo/pesquisa/') ||
@@ -199,6 +201,21 @@ final GoRouter router = GoRouter(
         'Conheça a plataforma Obra Livre para consulta e publicação '
             'de obras académicas.',
         child: const PlataformaPage(),
+      ),
+    ),
+
+    // ========================================================
+    // ANUNCIE
+    // ========================================================
+
+    GoRoute(
+      path: '/anuncie',
+      builder: (context, state) => _paginaComSeo(
+        titulo: 'Anuncie — $_tituloBase',
+        descricao:
+        'Divulgue a sua empresa, serviço, projecto ou iniciativa '
+            'na plataforma Obra Livre.',
+        child: const PublicidadePage(),
       ),
     ),
 
@@ -491,9 +508,10 @@ final GoRouter router = GoRouter(
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen((_) {
-      notifyListeners();
-    });
+    _subscription =
+        stream.asBroadcastStream().listen((_) {
+          notifyListeners();
+        });
   }
 
   late final StreamSubscription<dynamic> _subscription;

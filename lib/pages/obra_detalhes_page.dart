@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
@@ -12,6 +13,7 @@ import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
 import '../widgets/comentarios_section.dart';
 import '../widgets/obra_lista_item.dart';
+import '../widgets/coluna_anuncios.dart';
 
 class ObraDetalhesPage extends StatefulWidget {
   final String id;
@@ -26,7 +28,8 @@ class ObraDetalhesPage extends StatefulWidget {
 }
 
 class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
-  final ObrasRepository _repository = ObrasRepository.instancia;
+  final ObrasRepository _repository =
+      ObrasRepository.instancia;
 
   final ObrasImagensRepository _imagensRepository =
       ObrasImagensRepository.instancia;
@@ -40,18 +43,16 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   final SolicitacoesRemocaoRepository _solicitacoesRepository =
       SolicitacoesRemocaoRepository.instancia;
 
-  final AuthService _authService = AuthService.instancia;
+  final AuthService _authService =
+      AuthService.instancia;
 
   Obra? _obra;
 
   List<ObraImagem> _imagens = [];
-
   List<ObraSecao> _secoes = [];
-
   List<Obra> _obrasRelacionadas = [];
 
   bool _carregandoRelacionadas = false;
-
   bool _carregando = true;
   bool _carregandoImagens = false;
   bool _carregandoSecoes = false;
@@ -60,6 +61,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
   bool _estaAutenticado = false;
   bool _ehAdmin = false;
+
+  bool _conteudoPrincipalPronto = false;
 
   Map<String, dynamic>? _solicitacaoPendente;
 
@@ -80,18 +83,24 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     setState(() {
       _carregando = true;
+      _conteudoPrincipalPronto = false;
       _erro = null;
       _obrasRelacionadas = [];
+      _imagens = [];
+      _secoes = [];
+      _solicitacaoPendente = null;
     });
 
     try {
-      final obra = await _repository.carregarPorId(widget.id);
+      final obra =
+      await _repository.carregarPorId(widget.id);
 
       if (!mounted) return;
 
       if (obra == null) {
         setState(() {
           _carregando = false;
+          _conteudoPrincipalPronto = false;
           _erro = 'Obra não encontrada.';
         });
         return;
@@ -99,11 +108,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
       setState(() {
         _obra = obra;
-        _carregando = false;
       });
 
       await _carregarImagens(obra.id);
+
       await _carregarSecoes(obra.id);
+
       await _carregarObrasRelacionadas(obra);
 
       try {
@@ -117,7 +127,15 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       }
 
       await _carregarEstadoAutenticacao();
+
       await _carregarEstadoRemocao(obra.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        _conteudoPrincipalPronto = true;
+        _carregando = false;
+      });
     } catch (e) {
       debugPrint(
         'OBRA DETALHES: erro ao carregar obra: $e',
@@ -127,6 +145,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
       setState(() {
         _carregando = false;
+        _conteudoPrincipalPronto = false;
         _erro = 'Não foi possível carregar esta obra.';
       });
     }
@@ -136,9 +155,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CARREGAR IMAGENS
   // ============================================================
 
-  Future<void> _carregarImagens(
-      String obraId,
-      ) async {
+  Future<void> _carregarImagens(String obraId) async {
     if (!mounted) return;
 
     setState(() {
@@ -151,13 +168,15 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
       final imagensValidas = imagens
           .where(
-            (imagem) => imagem.urlImagem.trim().isNotEmpty,
+            (imagem) =>
+        imagem.urlImagem.trim().isNotEmpty,
       )
           .toList()
         ..sort(
               (a, b) {
             final paragrafoA =
                 a.paragrafoOrdem ?? 999999;
+
             final paragrafoB =
                 b.paragrafoOrdem ?? 999999;
 
@@ -196,9 +215,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CARREGAR SECÇÕES
   // ============================================================
 
-  Future<void> _carregarSecoes(
-      String obraId,
-      ) async {
+  Future<void> _carregarSecoes(String obraId) async {
     if (!mounted) return;
 
     setState(() {
@@ -288,10 +305,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // PALAVRAS IMPORTANTES
   // ============================================================
 
-  Set<String> _palavrasImportantes(
-      String titulo,
-      ) {
-    final normalizado = _normalizarTitulo(titulo);
+  Set<String> _palavrasImportantes(String titulo) {
+    final normalizado =
+    _normalizarTitulo(titulo);
 
     if (normalizado.isEmpty) {
       return {};
@@ -443,82 +459,24 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         obrasPorId[id] = outra;
       }
 
-      final candidatos = <_ObraRelacionada>[];
+      final candidatos =
+      <_ObraRelacionada>[];
 
       for (final outra in obrasPorId.values) {
-        var pontuacao = 0;
-
         final pontuacaoTitulo =
         _pontuacaoTitulo(
           obra.titulo,
           outra.titulo,
         );
 
-        pontuacao += pontuacaoTitulo;
-
-        final categoriaAtual =
-        _normalizarTitulo(
-          obra.categoria,
-        );
-
-        final categoriaOutra =
-        _normalizarTitulo(
-          outra.categoria,
-        );
-
-        final mesmaCategoria =
-            categoriaAtual.isNotEmpty &&
-                categoriaOutra.isNotEmpty &&
-                categoriaAtual == categoriaOutra;
-
-        if (mesmaCategoria) {
-          pontuacao += 20;
-        }
-
-        final autorAtual =
-        _normalizarTitulo(
-          obra.autor,
-        );
-
-        final autorOutro =
-        _normalizarTitulo(
-          outra.autor,
-        );
-
-        final mesmoAutor =
-            autorAtual.isNotEmpty &&
-                autorOutro.isNotEmpty &&
-                autorAtual == autorOutro;
-
-        if (mesmoAutor) {
-          pontuacao += 20;
-        }
-
-        final anoAtual = obra.anoObra;
-        final anoOutro = outra.anoObra;
-
-        if (anoAtual != null &&
-            anoOutro != null) {
-          final diferenca =
-          (anoAtual - anoOutro).abs();
-
-          if (diferenca == 0) {
-            pontuacao += 10;
-          } else if (diferenca == 1) {
-            pontuacao += 6;
-          } else if (diferenca == 2) {
-            pontuacao += 3;
-          }
-        }
-
-        if (pontuacao < 20) {
+        if (pontuacaoTitulo < 20) {
           continue;
         }
 
         candidatos.add(
           _ObraRelacionada(
             obra: outra,
-            pontuacao: pontuacao,
+            pontuacao: pontuacaoTitulo,
           ),
         );
       }
@@ -558,7 +516,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       );
 
       final idsAdicionados = <String>{};
-      final chavesAdicionadas = <String>{};
+      final titulosAdicionados = <String>{};
       final relacionadas = <Obra>[];
 
       for (final candidato in candidatos) {
@@ -576,27 +534,24 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           continue;
         }
 
-        final chave = [
-          _normalizarTitulo(
-            obraRelacionada.titulo,
-          ),
-          _normalizarTitulo(
-            obraRelacionada.autor,
-          ),
-          _normalizarTitulo(
-            obraRelacionada.categoria,
-          ),
-          obraRelacionada.anoObra
-              ?.toString() ??
-              '',
-        ].join('|');
+        final tituloNormalizado =
+        _normalizarTitulo(
+          obraRelacionada.titulo,
+        );
 
-        if (chavesAdicionadas.contains(chave)) {
+        if (tituloNormalizado.isEmpty) {
+          continue;
+        }
+
+        if (titulosAdicionados
+            .contains(tituloNormalizado)) {
           continue;
         }
 
         idsAdicionados.add(id);
-        chavesAdicionadas.add(chave);
+        titulosAdicionados.add(
+          tituloNormalizado,
+        );
 
         relacionadas.add(
           obraRelacionada,
@@ -616,7 +571,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar obras relacionadas: $e',
+        'OBRA DETALHES: erro ao carregar '
+            'obras relacionadas: $e',
       );
 
       if (!mounted) return;
@@ -656,8 +612,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       if (!mounted) return;
 
       setState(() {
-        _estaAutenticado =
-            autenticado;
+        _estaAutenticado = autenticado;
         _ehAdmin = admin;
       });
     } catch (e) {
@@ -719,8 +674,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     if (obra == null) return;
 
     if (!_estaAutenticado) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'É necessário iniciar sessão para solicitar a remoção.',
@@ -758,8 +712,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context)
-                    .pop();
+                Navigator.of(context).pop();
               },
               child: const Text(
                 'Cancelar',
@@ -767,10 +720,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             ),
             FilledButton(
               onPressed: () {
-                Navigator.of(context)
-                    .pop(
-                  motivoController.text
-                      .trim(),
+                Navigator.of(context).pop(
+                  motivoController.text.trim(),
                 );
               },
               child: const Text(
@@ -796,16 +747,14 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     });
 
     try {
-      await _solicitacoesRepository
-          .criarSolicitacao(
+      await _solicitacoesRepository.criarSolicitacao(
         obraId: obra.id,
         motivo: motivo.trim(),
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'Solicitação de remoção enviada.',
@@ -823,8 +772,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Não foi possível enviar a solicitação: $e',
@@ -851,6 +799,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       children: [
         Text(
           obra.titulo,
+          textAlign: TextAlign.justify,
           style: const TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.w700,
@@ -869,8 +818,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                     fontSize: 15,
                     fontWeight:
                     FontWeight.w600,
-                    color:
-                    Color(0xFF202124),
+                    color: Color(0xFF202124),
                   ),
                 ),
                 TextSpan(
@@ -878,8 +826,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                   style: const TextStyle(
                     fontSize: 15,
                     height: 1.5,
-                    color:
-                    Color(0xFF5F6368),
+                    color: Color(0xFF5F6368),
                   ),
                 ),
               ],
@@ -892,9 +839,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            if (obra.categoria
-                .trim()
-                .isNotEmpty)
+            if (obra.categoria.trim().isNotEmpty)
               _buildChip(
                 Icons.category_outlined,
                 obra.categoria,
@@ -902,14 +847,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             if (obra.anoObra != null)
               _buildChip(
                 Icons.calendar_today_outlined,
-                obra.anoObra.toString(),
+                'Ano da obra: ${obra.anoObra}',
               ),
             if (obra.dataPublicacao != null)
               _buildChip(
                 Icons.event_outlined,
-                _formatarData(
-                  obra.dataPublicacao!,
-                ),
+                'Publicado: ${obra.dataPublicacao!.day.toString().padLeft(2, '0')}/${obra.dataPublicacao!.month.toString().padLeft(2, '0')}/${obra.dataPublicacao!.year}',
               ),
           ],
         ),
@@ -926,8 +869,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       String texto,
       ) {
     return Container(
-      padding:
-      const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 8,
       ),
@@ -952,51 +894,10 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             texto,
             style: const TextStyle(
               fontSize: 13,
-              color:
-              Color(0xFF5F6368),
+              color: Color(0xFF5F6368),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // DATA
-  // ============================================================
-
-  String _formatarData(DateTime data) {
-    final dia =
-    data.day.toString().padLeft(2, '0');
-
-    final mes =
-    data.month.toString().padLeft(2, '0');
-
-    return '$dia/$mes/${data.year}';
-  }
-
-  // ============================================================
-  // PUBLICIDADE
-  // ============================================================
-
-  Widget _buildPublicidade() {
-    return Container(
-      width: double.infinity,
-      height: 250,
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: const Color(0xFFE0E0E0),
-        ),
-        borderRadius:
-        BorderRadius.circular(8),
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'Publicidade',
-        style: TextStyle(
-          color: Color(0xFF9AA0A6),
-          fontSize: 13,
-        ),
       ),
     );
   }
@@ -1016,7 +917,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           'Informações técnicas',
           style: TextStyle(
             fontSize: 21,
-            fontWeight: FontWeight.w700,
+            fontWeight:
+            FontWeight.w700,
             color: Color(0xFF202124),
           ),
         ),
@@ -1031,8 +933,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 'Páginas',
                 obra.numeroPaginas.toString(),
               ),
-            if (obra.tamanhoArquivoBytes !=
-                null)
+            if (obra.tamanhoArquivoBytes != null)
               _buildInfoTecnica(
                 Icons.storage_outlined,
                 'Tamanho',
@@ -1080,7 +981,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           valor,
           style: const TextStyle(
             color: Color(0xFF202124),
-            fontWeight: FontWeight.w600,
+            fontWeight:
+            FontWeight.w600,
             fontSize: 14,
           ),
         ),
@@ -1323,7 +1225,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                     stackTrace,
                     ) {
                   debugPrint(
-                    'OBRA DETALHES: erro ao carregar imagem: $error',
+                    'OBRA DETALHES: '
+                        'erro ao carregar imagem: $error',
                   );
 
                   return const Center(
@@ -1338,25 +1241,23 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                           Icon(
                             Icons
                                 .broken_image_outlined,
-                            color: Color(
-                              0xFF9AA0A6,
-                            ),
+                            color:
+                            Color(0xFF9AA0A6),
                             size: 30,
                           ),
                           SizedBox(
                             height: 8,
                           ),
                           Text(
-                            'Não foi possível carregar esta imagem.',
+                            'Não foi possível '
+                                'carregar esta imagem.',
                             textAlign:
-                            TextAlign
-                                .center,
+                            TextAlign.center,
                             style:
                             TextStyle(
                               color:
                               Color(
-                                0xFF5F6368,
-                              ),
+                                  0xFF5F6368),
                               fontSize: 12,
                             ),
                           ),
@@ -1378,7 +1279,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
               fontWeight:
               FontWeight.w600,
               height: 1.4,
-              color: Color(0xFF202124),
+              color:
+              Color(0xFF202124),
             ),
           ),
           if (fonte.isNotEmpty) ...[
@@ -1401,7 +1303,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // GALERIA DE UM GRUPO DE IMAGENS
+  // GALERIA
   // ============================================================
 
   Widget _buildGaleriaDoGrupo(
@@ -1415,9 +1317,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     var numeroColunas = 1;
 
-    if (larguraDisponivel >= 760) {
-      numeroColunas = 3;
-    } else if (larguraDisponivel >= 560) {
+    if (larguraDisponivel >= 560) {
       numeroColunas = 3;
     } else if (larguraDisponivel >= 360) {
       numeroColunas = 2;
@@ -1456,7 +1356,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // TODAS AS IMAGENS DE INÍCIO
+  // IMAGENS DE INÍCIO
   // ============================================================
 
   Widget _buildImagensInicio(
@@ -1618,11 +1518,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         final largura =
             constraints.maxWidth;
 
-        final widgets = <Widget>[];
-
-        // --------------------------------------------------------
-        // IMAGENS ESCOLHIDAS PARA O INÍCIO
-        // --------------------------------------------------------
+        final widgets =
+        <Widget>[];
 
         final imagensInicio =
         _imagensParaInicio();
@@ -1639,15 +1536,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           );
         }
 
-        // --------------------------------------------------------
-        // PARÁGRAFOS DAS SECÇÕES
-        // --------------------------------------------------------
-
         var contadorParagrafo = 0;
 
-        for (var indiceSecao = 0;
+        for (
+        var indiceSecao = 0;
         indiceSecao < _secoes.length;
-        indiceSecao++) {
+        indiceSecao++
+        ) {
           final secao =
           _secoes[indiceSecao];
 
@@ -1676,7 +1571,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                       : 19,
                   fontWeight:
                   FontWeight.w700,
-                  color: const Color(
+                  color:
+                  const Color(
                     0xFF202124,
                   ),
                   height: 1.3,
@@ -1700,9 +1596,11 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
               conteudo,
             );
 
-            for (var i = 0;
+            for (
+            var i = 0;
             i < paragrafos.length;
-            i++) {
+            i++
+            ) {
               contadorParagrafo++;
 
               widgetsSecao.add(
@@ -1711,16 +1609,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 ),
               );
 
-              // --------------------------------------------------
-              // IMAGEM DEPOIS DO PARÁGRAFO ESCOLHIDO
-              // --------------------------------------------------
-
               final imagensDepois =
               _imagensDepoisDoParagrafo(
                 contadorParagrafo,
               );
 
-              if (imagensDepois.isNotEmpty) {
+              if (imagensDepois
+                  .isNotEmpty) {
                 widgetsSecao.add(
                   _buildGaleriaDoGrupo(
                     imagensDepois,
@@ -1751,17 +1646,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
               ),
               child: Column(
                 crossAxisAlignment:
-                CrossAxisAlignment
-                    .start,
-                children: widgetsSecao,
+                CrossAxisAlignment.start,
+                children:
+                widgetsSecao,
               ),
             ),
           );
         }
-
-        // --------------------------------------------------------
-        // IMAGENS NO FINAL
-        // --------------------------------------------------------
 
         final imagensFinal =
         _imagensParaFinal();
@@ -2173,14 +2064,17 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                           obra,
                         ),
                       ),
+
                       const SizedBox(
                         width: 28,
                       ),
-                      SizedBox(
-                        width: 300,
-                        child:
-                        _buildPublicidade(),
-                      ),
+
+                      if (_conteudoPrincipalPronto)
+                        const SizedBox(
+                          width: 300,
+                          child:
+                          ColunaAnuncios(),
+                        ),
                     ],
                   )
                       : Column(
@@ -2191,10 +2085,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                       _buildConteudoPrincipal(
                         obra,
                       ),
-                      const SizedBox(
-                        height: 32,
-                      ),
-                      _buildPublicidade(),
+
+                      if (_conteudoPrincipalPronto) ...[
+                        const SizedBox(
+                          height: 32,
+                        ),
+                        const ColunaAnuncios(),
+                      ],
                     ],
                   ),
                 ),
@@ -2220,4 +2117,3 @@ class _ObraRelacionada {
     required this.pontuacao,
   });
 }
-
