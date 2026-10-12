@@ -471,10 +471,19 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(width: 2),
 
+            // ==================================================
+            // PUBLICAR
+            // ==================================================
+            // Antes:
+            // context.go('/publicar');
+            //
+            // Agora:
+            // context.go('/publicar-opcoes');
+            // ==================================================
             _buildNavButton(
               label: 'Publicar',
               onPressed: () {
-                context.go('/publicar');
+                context.go('/publicar-opcoes');
               },
             ),
           ],
@@ -767,7 +776,8 @@ class _HomePageState extends State<HomePage> {
                         fontSize: 38,
                         fontWeight:
                         FontWeight.w700,
-                        color: Colors.white,
+                        color:
+                        Colors.white,
                         height: 1.18,
                         letterSpacing: -0.8,
                       ),
@@ -785,7 +795,8 @@ class _HomePageState extends State<HomePage> {
                         TextAlign.center,
                         style: TextStyle(
                           fontSize: 17,
-                          color: Colors.white,
+                          color:
+                          Colors.white,
                           height: 1.55,
                         ),
                       ),
@@ -1205,7 +1216,8 @@ class _HomePageState extends State<HomePage> {
                     _consultasRecentes.length,
                         (index) {
                       final consulta =
-                      _consultasRecentes[index];
+                      _consultasRecentes[
+                      index];
 
                       return HistoricoListaItem(
                         obra: consulta,
@@ -1278,7 +1290,8 @@ class _MegafoneAnuncie
 class _MegafoneAnuncieState
     extends State<_MegafoneAnuncie>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final AnimationController
+  _controller;
 
   @override
   void initState() {
@@ -1345,7 +1358,8 @@ class _MegafoneAnuncieState
                     movimento * 2.0,
                     0,
                   ),
-                  child: Transform.scale(
+                  child:
+                  Transform.scale(
                     scale: escala,
                     child: child,
                   ),
@@ -1385,4 +1399,3 @@ class _MegafoneAnuncieState
     );
   }
 }
-

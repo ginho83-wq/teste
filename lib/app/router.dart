@@ -16,6 +16,7 @@ import '../pages/plataforma_page.dart';
 import '../pages/minha_conta_page.dart';
 import '../pages/configuracoes_page.dart';
 import '../pages/publicar_obra_page.dart';
+import '../pages/publicar_opcoes_page.dart';
 import '../pages/historico_obras_page.dart';
 import '../pages/acervo_resultados_page.dart';
 import '../pages/obra_detalhes_page.dart';
@@ -377,6 +378,21 @@ final GoRouter router = GoRouter(
     ),
 
     // ========================================================
+    // OPÇÕES DE PUBLICAÇÃO
+    // ========================================================
+
+    GoRoute(
+      path: '/publicar-opcoes',
+      builder: (context, state) => _paginaComSeo(
+        titulo: 'Como publicar — $_tituloBase',
+        descricao:
+        'Escolha entre a publicação gratuita ou serviços editoriais '
+            'opcionais no Obra Livre.',
+        child: const PublicarOpcoesPage(),
+      ),
+    ),
+
+    // ========================================================
     // PUBLICAR
     // ========================================================
 
@@ -508,10 +524,9 @@ final GoRouter router = GoRouter(
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription =
-        stream.asBroadcastStream().listen((_) {
-          notifyListeners();
-        });
+    _subscription = stream.asBroadcastStream().listen((_) {
+      notifyListeners();
+    });
   }
 
   late final StreamSubscription<dynamic> _subscription;
