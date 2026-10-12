@@ -8,21 +8,16 @@ import '../services/storage_service.dart';
 class ObrasRepository {
   ObrasRepository._();
 
-  static final ObrasRepository instancia =
-  ObrasRepository._();
+  static final ObrasRepository instancia = ObrasRepository._();
 
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  final StorageService _storage =
-      StorageService.instancia;
+  final StorageService _storage = StorageService.instancia;
 
-  final ImagensStorageService
-  _imagensStorage =
+  final ImagensStorageService _imagensStorage =
       ImagensStorageService.instancia;
 
-  final ObrasImagensRepository
-  _obrasImagensRepository =
+  final ObrasImagensRepository _obrasImagensRepository =
       ObrasImagensRepository.instancia;
 
   static const String _campos = '''
@@ -51,33 +46,26 @@ class ObrasRepository {
     int pagina = 1,
     int limite = 10,
   }) async {
-    final inicio =
-        (pagina - 1) * limite;
+    final paginaSegura = pagina < 1 ? 1 : pagina;
+    final limiteSeguro = limite < 1 ? 10 : limite;
 
-    final fim =
-        inicio + limite - 1;
+    final inicio = (paginaSegura - 1) * limiteSeguro;
+    final fim = inicio + limiteSeguro - 1;
 
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .order(
       'data_publicacao',
       ascending: false,
     )
-        .range(
-      inicio,
-      fim,
-    );
+        .range(inicio, fim);
 
     return (resposta as List)
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
     )
         .toList();
   }
@@ -87,8 +75,7 @@ class ObrasRepository {
   // ============================================================
 
   Future<List<Obra>> carregarTodas() async {
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .order(
@@ -98,12 +85,9 @@ class ObrasRepository {
 
     return (resposta as List)
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
     )
         .toList();
   }
@@ -112,11 +96,8 @@ class ObrasRepository {
   // CARREGAR POR ID
   // ============================================================
 
-  Future<Obra?> carregarPorId(
-      String id,
-      ) async {
-    final resposta =
-    await _supabase
+  Future<Obra?> carregarPorId(String id) async {
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .eq('id', id)
@@ -127,9 +108,7 @@ class ObrasRepository {
     }
 
     return Obra.fromMap(
-      Map<String, dynamic>.from(
-        resposta,
-      ),
+      Map<String, dynamic>.from(resposta),
     );
   }
 
@@ -141,8 +120,7 @@ class ObrasRepository {
       String termo, {
         int limite = 50,
       }) async {
-    final termoLimpo =
-    termo.trim();
+    final termoLimpo = termo.trim();
 
     if (termoLimpo.isEmpty) {
       return carregarObras(
@@ -151,30 +129,23 @@ class ObrasRepository {
       );
     }
 
-    final resposta =
-    await _supabase
-        .from('obras')
-        .select(_campos)
-        .or(
-      'titulo.ilike.%$termoLimpo%,'
-          'autor.ilike.%$termoLimpo%,'
-          'descricao.ilike.%$termoLimpo%,'
-          'categoria.ilike.%$termoLimpo%',
-    )
-        .order(
-      'data_publicacao',
-      ascending: false,
-    )
-        .limit(limite);
+    final limiteSeguro = limite.clamp(1, 100);
 
-    return (resposta as List)
+    final resposta = await _supabase.rpc(
+      'pesquisar_obras',
+      params: {
+        'termo': termoLimpo,
+        'limite_resultados': limiteSeguro,
+      },
+    );
+
+    final lista = resposta as List;
+
+    return lista
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item as Map),
+      ),
     )
         .toList();
   }
@@ -183,13 +154,11 @@ class ObrasRepository {
   // CARREGAR POR CATEGORIA
   // ============================================================
 
-  Future<List<Obra>>
-  carregarPorCategoria(
+  Future<List<Obra>> carregarPorCategoria(
       String categoria, {
         int limite = 50,
       }) async {
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .eq(
@@ -204,12 +173,9 @@ class ObrasRepository {
 
     return (resposta as List)
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
     )
         .toList();
   }
@@ -222,11 +188,9 @@ class ObrasRepository {
       String autor, {
         int limite = 50,
       }) async {
-    final autorLimpo =
-    autor.trim();
+    final autorLimpo = autor.trim();
 
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .ilike(
@@ -241,12 +205,9 @@ class ObrasRepository {
 
     return (resposta as List)
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
     )
         .toList();
   }
@@ -259,8 +220,7 @@ class ObrasRepository {
       int ano, {
         int limite = 50,
       }) async {
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .eq(
@@ -275,34 +235,29 @@ class ObrasRepository {
 
     return (resposta as List)
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
     )
         .toList();
   }
 
   // ============================================================
-  // MINHAS OBRAS
+  // CARREGAR MINHAS OBRAS
   // ============================================================
 
-  Future<List<Obra>>
-  carregarMinhasObras(
+  Future<List<Obra>> carregarMinhasObras(
       String userId, {
         int pagina = 1,
         int limite = 10,
       }) async {
-    final inicio =
-        (pagina - 1) * limite;
+    final paginaSegura = pagina < 1 ? 1 : pagina;
+    final limiteSeguro = limite < 1 ? 10 : limite;
 
-    final fim =
-        inicio + limite - 1;
+    final inicio = (paginaSegura - 1) * limiteSeguro;
+    final fim = inicio + limiteSeguro - 1;
 
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select(_campos)
         .eq(
@@ -313,25 +268,19 @@ class ObrasRepository {
       'data_publicacao',
       ascending: false,
     )
-        .range(
-      inicio,
-      fim,
-    );
+        .range(inicio, fim);
 
     return (resposta as List)
         .map(
-          (item) =>
-          Obra.fromMap(
-            Map<String, dynamic>.from(
-              item,
-            ),
-          ),
+          (item) => Obra.fromMap(
+        Map<String, dynamic>.from(item),
+      ),
     )
         .toList();
   }
 
   // ============================================================
-  // DUPLICADO
+  // VERIFICAR DUPLICADO
   // ============================================================
 
   Future<bool> existeDuplicado({
@@ -340,45 +289,30 @@ class ObrasRepository {
     required String nomeArquivo,
     String? hashPdf,
   }) async {
-    final tituloLimpo =
-    titulo.trim();
-
-    final autorLimpo =
-    autor.trim();
-
-    final nomeArquivoLimpo =
-    _nomeArquivo(nomeArquivo);
-
-    final hashLimpo =
-        hashPdf?.trim() ?? '';
+    final tituloLimpo = titulo.trim();
+    final autorLimpo = autor.trim();
+    final nomeArquivoLimpo = _nomeArquivo(nomeArquivo);
+    final hashLimpo = hashPdf?.trim() ?? '';
 
     if (hashLimpo.isNotEmpty) {
-      final respostaHash =
-      await _supabase
+      final respostaHash = await _supabase
           .from('obras')
-          .select(
-        'id, hash_pdf',
-      )
+          .select('id, hash_pdf')
           .eq(
         'hash_pdf',
         hashLimpo,
       )
           .limit(1);
 
-      if ((respostaHash as List)
-          .isNotEmpty) {
+      if ((respostaHash as List).isNotEmpty) {
         return true;
       }
     }
 
-    if (tituloLimpo.isNotEmpty &&
-        autorLimpo.isNotEmpty) {
-      final respostaTituloAutor =
-      await _supabase
+    if (tituloLimpo.isNotEmpty && autorLimpo.isNotEmpty) {
+      final respostaTituloAutor = await _supabase
           .from('obras')
-          .select(
-        'id, titulo, autor',
-      )
+          .select('id, titulo, autor')
           .ilike(
         'titulo',
         tituloLimpo,
@@ -389,28 +323,22 @@ class ObrasRepository {
       )
           .limit(20);
 
-      if ((respostaTituloAutor
-      as List)
-          .isNotEmpty) {
+      if ((respostaTituloAutor as List).isNotEmpty) {
         return true;
       }
     }
 
     if (nomeArquivoLimpo.isNotEmpty) {
-      final respostaArquivo =
-      await _supabase
+      final respostaArquivo = await _supabase
           .from('obras')
-          .select(
-        'id, url_documento',
-      )
+          .select('id, url_documento')
           .ilike(
         'url_documento',
         '%/$nomeArquivoLimpo',
       )
           .limit(20);
 
-      if ((respostaArquivo as List)
-          .isNotEmpty) {
+      if ((respostaArquivo as List).isNotEmpty) {
         return true;
       }
     }
@@ -422,27 +350,21 @@ class ObrasRepository {
   // INSERIR
   // ============================================================
 
-  Future<Obra> inserir(
-      Obra obra,
-      ) async {
-    final dados =
-    obra.toMap();
+  Future<Obra> inserir(Obra obra) async {
+    final dados = obra.toMap();
 
     dados.remove('id');
     dados.remove('created_at');
     dados.remove('updated_at');
 
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .insert(dados)
         .select(_campos)
         .single();
 
     return Obra.fromMap(
-      Map<String, dynamic>.from(
-        resposta,
-      ),
+      Map<String, dynamic>.from(resposta),
     );
   }
 
@@ -450,24 +372,20 @@ class ObrasRepository {
   // ATUALIZAR
   // ============================================================
 
-  Future<Obra> atualizar(
-      Obra obra,
-      ) async {
+  Future<Obra> atualizar(Obra obra) async {
     if (obra.id.isEmpty) {
       throw Exception(
         'O ID da obra é obrigatório para atualização.',
       );
     }
 
-    final dados =
-    obra.toMap();
+    final dados = obra.toMap();
 
     dados.remove('id');
     dados.remove('created_at');
     dados.remove('updated_at');
 
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .update(dados)
         .eq(
@@ -478,9 +396,7 @@ class ObrasRepository {
         .single();
 
     return Obra.fromMap(
-      Map<String, dynamic>.from(
-        resposta,
-      ),
+      Map<String, dynamic>.from(resposta),
     );
   }
 
@@ -488,9 +404,7 @@ class ObrasRepository {
   // EXCLUIR REGISTO
   // ============================================================
 
-  Future<void> excluir(
-      String id,
-      ) async {
+  Future<void> excluir(String id) async {
     await _supabase
         .from('obras')
         .delete()
@@ -504,101 +418,67 @@ class ObrasRepository {
   // EXCLUIR OBRA PUBLICADA COMPLETAMENTE
   // ============================================================
 
-  Future<void> excluirPublicada(
-      String id,
-      ) async {
+  Future<void> excluirPublicada(String id) async {
     if (id.trim().isEmpty) {
-      throw Exception(
-        'ID da obra inválido.',
-      );
+      throw Exception('ID da obra inválido.');
     }
 
-    final obra =
-    await carregarPorId(id);
+    final obra = await carregarPorId(id);
 
     if (obra == null) {
-      throw Exception(
-        'Obra publicada não encontrada.',
-      );
+      throw Exception('Obra publicada não encontrada.');
     }
 
-    // ==========================================================
     // 1. CARREGAR IMAGENS
-    // ==========================================================
 
     final imagens =
-    await _obrasImagensRepository
-        .carregarPorObra(
-      id,
-    );
+    await _obrasImagensRepository.carregarPorObra(id);
 
-    // ==========================================================
     // 2. REMOVER IMAGENS DO STORAGE
-    // ==========================================================
 
-    for (final imagem
-    in imagens) {
-      final caminho =
-      _extrairCaminhoStorage(
+    for (final imagem in imagens) {
+      final caminho = _extrairCaminhoStorage(
         imagem.urlImagem,
-        ImagensStorageService
-            .bucketImagens,
+        ImagensStorageService.bucketImagens,
       );
 
       if (caminho.isEmpty ||
-          caminho.startsWith(
-            'http://',
-          ) ||
-          caminho.startsWith(
-            'https://',
-          )) {
+          caminho.startsWith('http://') ||
+          caminho.startsWith('https://')) {
         continue;
       }
 
       try {
-        await _imagensStorage
-            .removerImagem(
-          caminho,
-        );
-      } catch (_) {}
+        await _imagensStorage.removerImagem(caminho);
+      } catch (_) {
+        // Continua a operação caso uma imagem não possa ser removida.
+      }
     }
 
-    // ==========================================================
     // 3. REMOVER REGISTOS DAS IMAGENS
-    // ==========================================================
 
     try {
-      await _obrasImagensRepository
-          .eliminarPorObra(
-        id,
-      );
-    } catch (_) {}
+      await _obrasImagensRepository.eliminarPorObra(id);
+    } catch (_) {
+      // Continua a operação caso a remoção dos registos falhe.
+    }
 
-    // ==========================================================
     // 4. REMOVER PDF
-    // ==========================================================
 
-    if (obra.urlDocumento
-        .trim()
-        .isNotEmpty) {
-      final caminhoPdf =
-      _extrairCaminhoStorage(
+    if (obra.urlDocumento.trim().isNotEmpty) {
+      final caminhoPdf = _extrairCaminhoStorage(
         obra.urlDocumento,
-        StorageService
-            .bucketObras,
+        StorageService.bucketObras,
       );
 
       try {
-        await _storage
-            .removerDocumentoPublicado(
-          caminhoPdf,
-        );
-      } catch (_) {}
+        await _storage.removerDocumentoPublicado(caminhoPdf);
+      } catch (_) {
+        // Continua a operação caso o ficheiro não possa ser removido.
+      }
     }
 
-    // ==========================================================
     // 5. REMOVER OBRA
-    // ==========================================================
 
     await _supabase
         .from('obras')
@@ -614,8 +494,7 @@ class ObrasRepository {
   // ============================================================
 
   Future<int> contarObras() async {
-    final resposta =
-    await _supabase
+    final resposta = await _supabase
         .from('obras')
         .select('id');
 
@@ -626,11 +505,8 @@ class ObrasRepository {
   // CONTAR MINHAS OBRAS
   // ============================================================
 
-  Future<int> contarMinhasObras(
-      String userId,
-      ) async {
-    final resposta =
-    await _supabase
+  Future<int> contarMinhasObras(String userId) async {
+    final resposta = await _supabase
         .from('obras')
         .select('id')
         .eq(
@@ -649,68 +525,42 @@ class ObrasRepository {
       String valor,
       String bucket,
       ) {
-    final valorLimpo =
-    valor.trim();
+    final valorLimpo = valor.trim();
 
     if (valorLimpo.isEmpty) {
       return '';
     }
 
-    if (!valorLimpo.startsWith(
-      'http://',
-    ) &&
-        !valorLimpo.startsWith(
-          'https://',
-        )) {
+    if (!valorLimpo.startsWith('http://') &&
+        !valorLimpo.startsWith('https://')) {
       return valorLimpo;
     }
 
-    final marcador =
-        '/storage/v1/object/public/$bucket/';
-
-    final indice =
-    valorLimpo.indexOf(
-      marcador,
-    );
+    final marcador = '/storage/v1/object/public/$bucket/';
+    final indice = valorLimpo.indexOf(marcador);
 
     if (indice != -1) {
       return Uri.decodeComponent(
-        valorLimpo.substring(
-          indice +
-              marcador.length,
-        ),
+        valorLimpo.substring(indice + marcador.length),
       );
     }
 
-    final marcadorAlternativo =
-        '/storage/v1/object/$bucket/';
-
+    final marcadorAlternativo = '/storage/v1/object/$bucket/';
     final indiceAlternativo =
-    valorLimpo.indexOf(
-      marcadorAlternativo,
-    );
+    valorLimpo.indexOf(marcadorAlternativo);
 
     if (indiceAlternativo != -1) {
-      var caminho =
-      valorLimpo.substring(
-        indiceAlternativo +
-            marcadorAlternativo.length,
+      var caminho = valorLimpo.substring(
+        indiceAlternativo + marcadorAlternativo.length,
       );
 
-      final indiceQuery =
-      caminho.indexOf('?');
+      final indiceQuery = caminho.indexOf('?');
 
       if (indiceQuery != -1) {
-        caminho =
-            caminho.substring(
-              0,
-              indiceQuery,
-            );
+        caminho = caminho.substring(0, indiceQuery);
       }
 
-      return Uri.decodeComponent(
-        caminho,
-      );
+      return Uri.decodeComponent(caminho);
     }
 
     return valorLimpo;
@@ -720,21 +570,15 @@ class ObrasRepository {
   // NOME DO ARQUIVO
   // ============================================================
 
-  String _nomeArquivo(
-      String caminho,
-      ) {
-    final caminhoLimpo =
-    caminho.trim();
-
-    final indice =
-    caminhoLimpo.lastIndexOf('/');
+  String _nomeArquivo(String caminho) {
+    final caminhoLimpo = caminho.trim();
+    final indice = caminhoLimpo.lastIndexOf('/');
 
     if (indice == -1) {
       return caminhoLimpo;
     }
 
-    return caminhoLimpo.substring(
-      indice + 1,
-    );
+    return caminhoLimpo.substring(indice + 1);
   }
 }
+
