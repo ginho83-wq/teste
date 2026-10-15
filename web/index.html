@@ -17,10 +17,12 @@
 
   <meta name="robots" content="index, follow">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="OL.png">
+  <link
+          rel="icon"
+          type="image/png"
+          href="OL.png"
+  >
 
-  <!-- Open Graph -->
   <meta property="og:type" content="website">
 
   <meta
@@ -43,7 +45,6 @@
           content="Obra Livre — Obras Académicas"
   >
 
-  <!-- Nome do site para mecanismos de pesquisa -->
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -56,34 +57,52 @@
 
   <base href="$FLUTTER_BASE_HREF">
 
-  <!-- Manifesto da aplicação -->
   <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
-<script src='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs' type='module'></script>
-<script type='module'>
+
+<script
+        src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs"
+        type="module">
+</script>
+
+<script type="module">
   var { pdfjsLib } = globalThis;
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
 
   var pdfRenderOptions = {
-    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
-    cMapPacked: true,
-  }
+      cMapUrl:
+          'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
+      cMapPacked: true
+  };
 </script>
 
 <script>
-  // Recupera rota salva pelo 404.html
-  var redirect = sessionStorage.getItem('flutter_redirect');
+  // Recupera a rota guardada pelo 404.html.
+  var redirect = sessionStorage.getItem(
+      'flutter_redirect'
+  );
 
   if (redirect) {
-    sessionStorage.removeItem('flutter_redirect');
-    history.replaceState(null, '', redirect);
+      sessionStorage.removeItem(
+          'flutter_redirect'
+      );
+
+      history.replaceState(
+          null,
+          '',
+          redirect
+      );
   }
 </script>
 
-<script src="flutter_bootstrap.js" async></script>
+<script
+        src="flutter_bootstrap.js"
+        async>
+</script>
 
 </body>
 </html>
-

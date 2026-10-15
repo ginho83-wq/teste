@@ -343,3 +343,4 @@ String _formatarData(DateTime? data) {
 
   return '$dia/$mes/$ano';
 }
+

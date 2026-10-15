@@ -1,33 +1,50 @@
-<!DOCTYPE html><html lang="pt">
+<!DOCTYPE html>
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Obra Livre</title><script>
-    (function () {
-        const pathname = window.location.pathname;
-        const search = window.location.search;
-        const hash = window.location.hash;
 
-        // Callback de autenticação:
-        // preservar a URL completa para o Supabase/Flutter.
-        if (pathname.endsWith('/auth/callback')) {
-            sessionStorage.setItem(
-                'flutter_redirect',
-                pathname + search + hash
-            );
-        } else {
-            // Outras rotas Flutter
-            sessionStorage.setItem(
-                'flutter_redirect',
-                pathname + search + hash
-            );
-        }
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+    >
 
-        // Voltar ao index do projeto.
-        window.location.replace('/teste/');
-    })();
-</script>
+    <title>Obra Livre</title>
 
-</head><body>
-<p>A carregar Obra Livre...</p>
+    <meta
+            name="robots"
+            content="noindex, follow"
+    >
+
+    <script>
+        (function () {
+            var pathname = window.location.pathname;
+            var search = window.location.search;
+            var hash = window.location.hash;
+
+            var rotaOriginal =
+                pathname + search + hash;
+
+            try {
+                // Guarda a rota solicitada para que o
+                // Flutter possa recuperá-la depois.
+                sessionStorage.setItem(
+                    'flutter_redirect',
+                    rotaOriginal
+                );
+            } catch (erro) {
+                console.error(
+                    'Não foi possível guardar a rota:',
+                    erro
+                );
+            }
+
+            // Base do projecto no GitHub Pages.
+            window.location.replace('/teste/');
+        })();
+    </script>
+</head>
+
+<body>
+<p>A carregar a Obra Livre...</p>
 </body>
 </html>
