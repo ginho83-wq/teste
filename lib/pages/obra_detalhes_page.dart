@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
@@ -14,6 +15,7 @@ import '../services/estatisticas_obras_service.dart';
 import '../widgets/comentarios_section.dart';
 import '../widgets/obra_lista_item.dart';
 import '../widgets/coluna_anuncios.dart';
+import 'citacoes_obras_page.dart';
 
 class ObraDetalhesPage extends StatefulWidget {
   final String id;
@@ -48,12 +50,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   final AuthService _authService =
       AuthService.instancia;
 
-  // Serviço de estatísticas.
   final EstatisticasObrasService _estatisticasService =
       EstatisticasObrasService.instancia;
 
-  // Evita registar várias visualizações durante
-  // o mesmo carregamento desta página.
   bool _visualizacaoRegistada = false;
 
   Obra? _obra;
@@ -88,15 +87,19 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // REGISTAR VISUALIZAÇÃO
   // ============================================================
 
-  Future<void> _registarVisualizacao(String obraId) async {
-    if (_visualizacaoRegistada || obraId.trim().isEmpty) {
+  Future<void> _registarVisualizacao(
+      String obraId,
+      ) async {
+    if (_visualizacaoRegistada ||
+        obraId.trim().isEmpty) {
       return;
     }
 
     _visualizacaoRegistada = true;
 
     try {
-      await _estatisticasService.registarVisualizacao(obraId);
+      await _estatisticasService
+          .registarVisualizacao(obraId);
     } catch (e) {
       debugPrint(
         'OBRA DETALHES: erro ao registar visualização: $e',
@@ -140,14 +143,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         _obra = obra;
       });
 
-      // Registar a visualização sem bloquear
-      // o carregamento do conteúdo da obra.
       await _registarVisualizacao(obra.id);
-
       await _carregarImagens(obra.id);
-
       await _carregarSecoes(obra.id);
-
       await _carregarObrasRelacionadas(obra);
 
       try {
@@ -161,7 +159,6 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       }
 
       await _carregarEstadoAutenticacao();
-
       await _carregarEstadoRemocao(obra.id);
 
       if (!mounted) return;
@@ -189,7 +186,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CARREGAR IMAGENS
   // ============================================================
 
-  Future<void> _carregarImagens(String obraId) async {
+  Future<void> _carregarImagens(
+      String obraId,
+      ) async {
     if (!mounted) return;
 
     setState(() {
@@ -198,23 +197,26 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     try {
       final imagens =
-      await _imagensRepository.carregarPorObra(obraId);
+      await _imagensRepository.carregarPorObra(
+        obraId,
+      );
 
       final imagensValidas = imagens
           .where(
-            (imagem) => imagem.urlImagem.trim().isNotEmpty,
+            (imagem) =>
+        imagem.urlImagem.trim().isNotEmpty,
       )
           .toList()
         ..sort((a, b) {
-          final paragrafoA = a.paragrafoOrdem ?? 999999;
-          final paragrafoB = b.paragrafoOrdem ?? 999999;
+          final paragrafoA =
+              a.paragrafoOrdem ?? 999999;
+          final paragrafoB =
+              b.paragrafoOrdem ?? 999999;
 
           final resultado =
           paragrafoA.compareTo(paragrafoB);
 
-          if (resultado != 0) {
-            return resultado;
-          }
+          if (resultado != 0) return resultado;
 
           return a.ordem.compareTo(b.ordem);
         });
@@ -243,7 +245,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CARREGAR SECÇÕES
   // ============================================================
 
-  Future<void> _carregarSecoes(String obraId) async {
+  Future<void> _carregarSecoes(
+      String obraId,
+      ) async {
     if (!mounted) return;
 
     setState(() {
@@ -252,7 +256,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     try {
       final secoes =
-      await _secoesRepository.carregarPorObra(obraId);
+      await _secoesRepository.carregarPorObra(
+        obraId,
+      );
 
       if (!mounted) return;
 
@@ -331,9 +337,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   Set<String> _palavrasImportantes(String titulo) {
     final normalizado = _normalizarTitulo(titulo);
 
-    if (normalizado.isEmpty) {
-      return {};
-    }
+    if (normalizado.isEmpty) return {};
 
     const palavrasIgnoradas = {
       'a',
@@ -366,8 +370,6 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       'se',
       'ao',
       'aos',
-      'à',
-      'às',
       'como',
       'mais',
       'menos',
@@ -415,7 +417,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     }
 
     final palavrasEmComum =
-    palavrasAtuais.intersection(palavrasComparadas);
+    palavrasAtuais.intersection(
+      palavrasComparadas,
+    );
 
     if (palavrasEmComum.length >= 2) {
       pontuacao += 10;
@@ -435,18 +439,16 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       }
     }
 
-    if (pontuacao > 50) {
-      pontuacao = 50;
-    }
-
-    return pontuacao;
+    return pontuacao.clamp(0, 50);
   }
 
   // ============================================================
   // CARREGAR OBRAS RELACIONADAS
   // ============================================================
 
-  Future<void> _carregarObrasRelacionadas(Obra obra) async {
+  Future<void> _carregarObrasRelacionadas(
+      Obra obra,
+      ) async {
     if (!mounted) return;
 
     setState(() {
@@ -471,19 +473,17 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       final candidatos = <_ObraRelacionada>[];
 
       for (final outra in obrasPorId.values) {
-        final pontuacaoTitulo = _pontuacaoTitulo(
+        final pontuacao = _pontuacaoTitulo(
           obra.titulo,
           outra.titulo,
         );
 
-        if (pontuacaoTitulo < 20) {
-          continue;
-        }
+        if (pontuacao < 20) continue;
 
         candidatos.add(
           _ObraRelacionada(
             obra: outra,
-            pontuacao: pontuacaoTitulo,
+            pontuacao: pontuacao,
           ),
         );
       }
@@ -492,21 +492,11 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         final resultado =
         b.pontuacao.compareTo(a.pontuacao);
 
-        if (resultado != 0) {
-          return resultado;
-        }
+        if (resultado != 0) return resultado;
 
-        final dataA = a.obra.dataPublicacao;
-        final dataB = b.obra.dataPublicacao;
-
-        if (dataA != null && dataB != null) {
-          return dataB.compareTo(dataA);
-        }
-
-        if (dataA != null) return -1;
-        if (dataB != null) return 1;
-
-        return 0;
+        return b.obra.dataPublicacao.compareTo(
+          a.obra.dataPublicacao,
+        );
       });
 
       final idsAdicionados = <String>{};
@@ -525,7 +515,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         _normalizarTitulo(obraRelacionada.titulo);
 
         if (tituloNormalizado.isEmpty ||
-            titulosAdicionados.contains(tituloNormalizado)) {
+            titulosAdicionados.contains(
+              tituloNormalizado,
+            )) {
           continue;
         }
 
@@ -533,9 +525,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         titulosAdicionados.add(tituloNormalizado);
         relacionadas.add(obraRelacionada);
 
-        if (relacionadas.length >= 5) {
-          break;
-        }
+        if (relacionadas.length >= 5) break;
       }
 
       if (!mounted) return;
@@ -567,7 +557,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       final utilizador = _authService.usuarioAtual;
       final autenticado = utilizador != null;
 
-      bool admin = false;
+      var admin = false;
 
       if (autenticado) {
         try {
@@ -593,10 +583,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // ESTADO DA SOLICITAÇÃO
+  // ESTADO DA SOLICITAÇÃO DE REMOÇÃO
   // ============================================================
 
-  Future<void> _carregarEstadoRemocao(String obraId) async {
+  Future<void> _carregarEstadoRemocao(
+      String obraId,
+      ) async {
     if (!_estaAutenticado || !mounted) return;
 
     setState(() {
@@ -605,9 +597,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     try {
       final solicitacao =
-      await _solicitacoesRepository.obterSolicitacaoPendente(
-        obraId,
-      );
+      await _solicitacoesRepository
+          .obterSolicitacaoPendente(obraId);
 
       if (!mounted) return;
 
@@ -654,7 +645,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     final motivo = await showDialog<String>(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Solicitar remoção'),
           content: TextField(
@@ -669,17 +660,15 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(),
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(
-                  motivoController.text.trim(),
-                );
-              },
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(
+                    motivoController.text.trim(),
+                  ),
               child: const Text('Enviar'),
             ),
           ],
@@ -731,12 +720,46 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         ),
       );
     } finally {
-      if (!mounted) return;
-
-      setState(() {
-        _enviandoSolicitacao = false;
-      });
+      if (mounted) {
+        setState(() {
+          _enviandoSolicitacao = false;
+        });
+      }
     }
+  }
+
+  // ============================================================
+  // CITAÇÕES — URL DA OBRA
+  // ============================================================
+
+  String _urlDaObra() {
+    return Uri.base
+        .replace(
+      query: '',
+      fragment: '',
+    )
+        .toString();
+  }
+
+  // ============================================================
+  // ABRIR PÁGINA DE CITAÇÕES
+  // ============================================================
+
+  Future<void> _abrirPaginaCitacoes(
+      Obra obra,
+      ) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => CitacoesObrasPage(
+          obraId: obra.id,
+          titulo: obra.titulo,
+          autor: obra.autor,
+          ano: obra.anoObra ??
+              obra.dataPublicacao.year,
+          url: _urlDaObra(),
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -798,11 +821,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 Icons.calendar_today_outlined,
                 'Ano da obra: ${obra.anoObra}',
               ),
-            if (obra.dataPublicacao != null)
-              _buildChip(
-                Icons.event_outlined,
-                'Publicado: ${obra.dataPublicacao!.day.toString().padLeft(2, '0')}/${obra.dataPublicacao!.month.toString().padLeft(2, '0')}/${obra.dataPublicacao!.year}',
-              ),
+            _buildChip(
+              Icons.event_outlined,
+              'Publicado: '
+                  '${obra.dataPublicacao.day.toString().padLeft(2, '0')}/'
+                  '${obra.dataPublicacao.month.toString().padLeft(2, '0')}/'
+                  '${obra.dataPublicacao.year}',
+            ),
           ],
         ),
       ],
@@ -813,7 +838,10 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CHIP
   // ============================================================
 
-  Widget _buildChip(IconData icon, String texto) {
+  Widget _buildChip(
+      IconData icon,
+      String texto,
+      ) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 12,
@@ -930,13 +958,11 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // TAMANHO
+  // TAMANHO DO FICHEIRO
   // ============================================================
 
   String _formatarTamanho(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    }
+    if (bytes < 1024) return '$bytes B';
 
     if (bytes < 1024 * 1024) {
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
@@ -950,22 +976,19 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // BOTÕES DO DOCUMENTO — REGISTO DE CLIQUES
+  // BOTÕES DO DOCUMENTO E CITAÇÃO
   // ============================================================
 
   Widget _buildBotoesDocumento(Obra obra) {
     final urlPdf = obra.urlDocumento.trim();
-
-    if (urlPdf.isEmpty) {
-      return const SizedBox.shrink();
-    }
 
     Future<void> abrirPdf() async {
       final uri = Uri.tryParse(urlPdf);
 
       if (uri == null ||
           !uri.hasScheme ||
-          !(uri.scheme == 'https' || uri.scheme == 'http')) {
+          !(uri.scheme == 'https' ||
+              uri.scheme == 'http')) {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -979,7 +1002,6 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         return;
       }
 
-      // Registar o clique no Supabase.
       try {
         await _estatisticasService.registarCliquePdf(
           obra.id,
@@ -990,7 +1012,6 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         );
       }
 
-      // Abrir o PDF mesmo se o registo falhar.
       try {
         final aberto = await launchUrl(
           uri,
@@ -1027,19 +1048,26 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       spacing: 12,
       runSpacing: 12,
       children: [
-        FilledButton.icon(
-          onPressed: abrirPdf,
-          icon: const Icon(
-            Icons.menu_book_outlined,
+        if (urlPdf.isNotEmpty) ...[
+          FilledButton.icon(
+            onPressed: abrirPdf,
+            icon: const Icon(
+              Icons.menu_book_outlined,
+            ),
+            label: const Text('Ler PDF'),
           ),
-          label: const Text('Ler PDF'),
-        ),
+          OutlinedButton.icon(
+            onPressed: abrirPdf,
+            icon: const Icon(
+              Icons.download_outlined,
+            ),
+            label: const Text('Download PDF'),
+          ),
+        ],
         OutlinedButton.icon(
-          onPressed: abrirPdf,
-          icon: const Icon(
-            Icons.download_outlined,
-          ),
-          label: const Text('Download PDF'),
+          onPressed: () => _abrirPaginaCitacoes(obra),
+          icon: const Icon(Icons.format_quote),
+          label: const Text('Citar'),
         ),
       ],
     );
@@ -1088,15 +1116,13 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   List<ObraImagem> _imagensParaFinal() {
-    return _imagens
-        .where((imagem) {
+    return _imagens.where((imagem) {
       final posicao = imagem.posicao.trim();
 
       return posicao == 'depois_conteudo' ||
           (posicao == 'dentro_conteudo' &&
               imagem.paragrafoOrdem == null);
-    })
-        .toList()
+    }).toList()
       ..sort((a, b) => a.ordem.compareTo(b.ordem));
   }
 
@@ -1114,7 +1140,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // IMAGEM INDIVIDUAL
+  // IMAGEM EDITORIAL
   // ============================================================
 
   Widget _buildImagemEditorial(
@@ -1170,7 +1196,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                     child: Padding(
                       padding: EdgeInsets.all(16),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment:
+                        MainAxisAlignment.center,
                         children: [
                           Icon(
                             Icons.broken_image_outlined,
@@ -1252,7 +1279,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             numeroColunas;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.symmetric(
+        vertical: 24,
+      ),
       child: Wrap(
         spacing: espacamento,
         runSpacing: 24,
@@ -1273,20 +1302,19 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // IMAGENS DE INÍCIO
   // ============================================================
 
-  Widget _buildImagensInicio(double larguraDisponivel) {
+  Widget _buildImagensInicio(
+      double larguraDisponivel,
+      ) {
     final imagens = _imagensParaInicio();
 
     if (imagens.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final numeroFiguraInicial =
-    _numeroFiguraAntesDasImagens(imagens);
-
     return _buildGaleriaDoGrupo(
       imagens,
       larguraDisponivel,
-      numeroFiguraInicial,
+      _numeroFiguraAntesDasImagens(imagens),
     );
   }
 
@@ -1297,31 +1325,26 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   int _numeroFiguraAntesDasImagens(
       List<ObraImagem> grupo,
       ) {
-    if (grupo.isEmpty) {
-      return 1;
-    }
+    if (grupo.isEmpty) return 1;
 
     final idsGrupo = grupo.map((e) => e.id).toSet();
 
     var numero = 1;
 
     for (final imagem in _imagens) {
-      if (idsGrupo.contains(imagem.id)) {
-        break;
-      }
-
+      if (idsGrupo.contains(imagem.id)) break;
       numero++;
     }
 
     return numero;
   }
 
-  int _numeroFiguraDaImagem(ObraImagem imagem) {
+  int _numeroFiguraDaImagem(
+      ObraImagem imagem,
+      ) {
     final indice = _imagens.indexOf(imagem);
 
-    if (indice < 0) {
-      return 1;
-    }
+    if (indice < 0) return 1;
 
     return indice + 1;
   }
@@ -1352,7 +1375,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // IMAGENS NO FINAL
   // ============================================================
 
-  Widget _buildImagensFinal(double larguraDisponivel) {
+  Widget _buildImagensFinal(
+      double larguraDisponivel,
+      ) {
     final imagens = _imagensParaFinal();
 
     if (imagens.isEmpty) {
@@ -1367,7 +1392,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // SECÇÕES REAIS
+  // SECÇÕES DA OBRA
   // ============================================================
 
   Widget _buildSecoesDaObra() {
@@ -1390,8 +1415,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildImagensInicio(constraints.maxWidth),
-              _buildImagensFinal(constraints.maxWidth),
+              _buildImagensInicio(
+                constraints.maxWidth,
+              ),
+              _buildImagensFinal(
+                constraints.maxWidth,
+              ),
             ],
           );
         },
@@ -1410,7 +1439,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             _buildGaleriaDoGrupo(
               imagensInicio,
               largura,
-              _numeroFiguraAntesDasImagens(imagensInicio),
+              _numeroFiguraAntesDasImagens(
+                imagensInicio,
+              ),
             ),
           );
         }
@@ -1451,9 +1482,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           }
 
           if (conteudo.isNotEmpty) {
-            final paragrafos = _obterParagrafos(conteudo);
+            final paragrafos =
+            _obterParagrafos(conteudo);
 
-            for (var i = 0; i < paragrafos.length; i++) {
+            for (var i = 0;
+            i < paragrafos.length;
+            i++) {
               contadorParagrafo++;
 
               widgetsSecao.add(
@@ -1487,9 +1521,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
           widgets.add(
             Padding(
-              padding: const EdgeInsets.only(bottom: 32),
+              padding: const EdgeInsets.only(
+                bottom: 32,
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: widgetsSecao,
               ),
             ),
@@ -1503,7 +1540,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             _buildGaleriaDoGrupo(
               imagensFinal,
               largura,
-              _numeroFiguraDaImagem(imagensFinal.first),
+              _numeroFiguraDaImagem(
+                imagensFinal.first,
+              ),
             ),
           );
         }
@@ -1538,7 +1577,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       );
     }
 
-    final existeSolicitacao = _solicitacaoPendente != null;
+    final existeSolicitacao =
+        _solicitacaoPendente != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1565,8 +1605,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         const SizedBox(height: 14),
         if (!existeSolicitacao)
           OutlinedButton.icon(
-            onPressed:
-            _enviandoSolicitacao ? null : _solicitarRemocao,
+            onPressed: _enviandoSolicitacao
+                ? null
+                : _solicitarRemocao,
             icon: _enviandoSolicitacao
                 ? const SizedBox(
               width: 16,
@@ -1604,7 +1645,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             ),
           ),
           SizedBox(height: 20),
-          Center(child: CircularProgressIndicator()),
+          Center(
+            child: CircularProgressIndicator(),
+          ),
         ],
       );
     }
@@ -1686,7 +1729,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
         _buildInformacoesTecnicas(obra),
 
-        const SizedBox(height: 40),
+        const SizedBox(height: 24),
 
         _buildBotoesDocumento(obra),
 
@@ -1706,7 +1749,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // ERRO
+  // ESTADO DE ERRO
   // ============================================================
 
   Widget _buildEstadoErro() {
@@ -1792,7 +1835,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         ),
         body: LayoutBuilder(
           builder: (context, constraints) {
-            final desktop = constraints.maxWidth >= 1000;
+            final desktop =
+                constraints.maxWidth >= 1000;
 
             return SingleChildScrollView(
               padding: EdgeInsets.symmetric(
@@ -1811,7 +1855,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                     children: [
                       Expanded(
                         flex: 7,
-                        child: _buildConteudoPrincipal(
+                        child:
+                        _buildConteudoPrincipal(
                           obra,
                         ),
                       ),
@@ -1844,9 +1889,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 }
 
-// ================================================================
+// ============================================================
 // MODELO INTERNO PARA CLASSIFICAR OBRAS RELACIONADAS
-// ================================================================
+// ============================================================
 
 class _ObraRelacionada {
   final Obra obra;

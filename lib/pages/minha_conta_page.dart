@@ -16,12 +16,19 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   final AuthService _authService = AuthService.instancia;
 
   bool _carregando = true;
+  bool _carregandoCitacoes = false;
+
   String? _erro;
+  String? _erroCitacoes;
+
   Map<String, dynamic>? _perfil;
 
   List<Map<String, dynamic>> _obras = [];
   List<Map<String, dynamic>> _obrasPendentes = [];
   List<Map<String, dynamic>> _historico = [];
+
+  int _totalCitacoes = 0;
+  Map<String, int> _citacoesPorObra = {};
 
   @override
   void initState() {
@@ -57,7 +64,6 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           .eq('user_id', utilizador.id)
           .order('created_at', ascending: false);
 
-      // As obras pendentes são carregadas separadamente.
       final pendentesResultado = await _supabase
           .from('obras_pendentes')
           .select()
@@ -67,13 +73,23 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
 
       setState(() {
         _perfil = perfilResultado;
-        _obras = List<Map<String, dynamic>>.from(obrasResultado);
-        _obrasPendentes =
-        List<Map<String, dynamic>>.from(pendentesResultado);
+
+        _obras = List<Map<String, dynamic>>.from(
+          obrasResultado,
+        );
+
+        _obrasPendentes = List<Map<String, dynamic>>.from(
+          pendentesResultado,
+        );
+
         _carregando = false;
       });
 
-      await _carregarHistorico(utilizador.id);
+      // Carrega as estatísticas e o histórico separadamente.
+      await Future.wait([
+        _carregarCitacoes(),
+        _carregarHistorico(utilizador.id),
+      ]);
     } catch (e) {
       if (!mounted) return;
 
@@ -83,6 +99,96 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       });
 
       debugPrint('Erro ao carregar MinhaContaPage: $e');
+    }
+  }
+
+  /// Carrega as citações associadas às obras publicadas
+  /// pelo utilizador autenticado.
+  Future<void> _carregarCitacoes() async {
+    if (!mounted) return;
+
+    setState(() {
+      _carregandoCitacoes = true;
+      _erroCitacoes = null;
+    });
+
+    try {
+      final utilizador = _supabase.auth.currentUser;
+
+      if (utilizador == null) {
+        throw Exception('É necessário iniciar sessão.');
+      }
+
+      // Não existem citações a contabilizar sem obras publicadas.
+      if (_obras.isEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _totalCitacoes = 0;
+          _citacoesPorObra = {};
+          _carregandoCitacoes = false;
+        });
+
+        return;
+      }
+
+      final idsObras = _obras
+          .map((obra) => obra['id'])
+          .where((id) => id != null)
+          .map((id) => id.toString())
+          .toSet()
+          .toList();
+
+      if (idsObras.isEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _totalCitacoes = 0;
+          _citacoesPorObra = {};
+          _carregandoCitacoes = false;
+        });
+
+        return;
+      }
+
+      // Consulta os registos da tabela citacoes_obras
+      // associados aos identificadores das obras do utilizador.
+      final resultado = await _supabase
+          .from('citacoes_obras')
+          .select('id, obra_id')
+          .inFilter('obra_id', idsObras);
+
+      final registos = List<Map<String, dynamic>>.from(
+        resultado,
+      );
+
+      final Map<String, int> contagem = {};
+
+      for (final registo in registos) {
+        final obraId = registo['obra_id']?.toString();
+
+        if (obraId == null || obraId.isEmpty) continue;
+
+        contagem[obraId] = (contagem[obraId] ?? 0) + 1;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _citacoesPorObra = contagem;
+        _totalCitacoes = registos.length;
+        _carregandoCitacoes = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _erroCitacoes =
+        'Não foi possível carregar as estatísticas de citações.';
+        _carregandoCitacoes = false;
+      });
+
+      debugPrint('Erro ao carregar citações das obras: $e');
     }
   }
 
@@ -98,7 +204,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       if (!mounted) return;
 
       setState(() {
-        _historico = List<Map<String, dynamic>>.from(resultado);
+        _historico = List<Map<String, dynamic>>.from(
+          resultado,
+        );
       });
     } catch (e) {
       // O histórico não deve impedir a abertura da Minha Conta.
@@ -141,7 +249,10 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
     context.push('/obra/$id');
   }
 
-  String _texto(dynamic valor, {String alternativa = 'Não indicado'}) {
+  String _texto(
+      dynamic valor, {
+        String alternativa = 'Não indicado',
+      }) {
     if (valor == null || valor.toString().trim().isEmpty) {
       return alternativa;
     }
@@ -188,11 +299,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
               case 'conta':
                 _abrirConta();
                 break;
-
               case 'configuracoes':
                 _abrirConfiguracoes();
                 break;
-
               case 'sair':
                 _sair();
                 break;
@@ -285,22 +394,16 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
         children: [
           _construirCabecalho(),
           const SizedBox(height: 24),
-
           _construirResumo(),
           const SizedBox(height: 24),
-
           _construirCartaoEstatisticas(),
           const SizedBox(height: 24),
-
           _construirSecaoPublicacoes(),
           const SizedBox(height: 24),
-
           _construirSecaoPendentes(),
           const SizedBox(height: 24),
-
           _construirSecaoHistorico(),
           const SizedBox(height: 24),
-
           _construirCartaoConfiguracoes(),
         ],
       ),
@@ -313,14 +416,16 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD5E5F5)),
+        border: Border.all(
+          color: const Color(0xFFD5E5F5),
+        ),
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 30,
-            backgroundColor: const Color(0xFFEAF4FF),
-            child: const Icon(
+            backgroundColor: Color(0xFFEAF4FF),
+            child: Icon(
               Icons.person_outline,
               size: 34,
               color: Color(0xFF245A91),
@@ -365,8 +470,7 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
   Widget _construirResumo() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final largura = constraints.maxWidth;
-        final colunas = largura >= 700 ? 3 : 1;
+        final colunas = constraints.maxWidth >= 700 ? 3 : 1;
 
         return GridView.count(
           crossAxisCount: colunas,
@@ -407,7 +511,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD5E5F5)),
+        border: Border.all(
+          color: const Color(0xFFD5E5F5),
+        ),
       ),
       child: Row(
         children: [
@@ -478,26 +584,165 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Consulta as visualizações das tuas obras e os cliques '
-                'nos respetivos documentos PDF.',
+            'Consulta as visualizações das tuas obras, os cliques '
+                'nos documentos PDF e as referências bibliográficas '
+                'registadas na plataforma.',
             style: TextStyle(
               color: Colors.white,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: _abrirEstatisticas,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF17365D),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 14,
+          const SizedBox(height: 20),
+
+          // Resumo das citações registadas.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
               ),
             ),
-            icon: const Icon(Icons.bar_chart),
-            label: const Text('Ver estatísticas'),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.format_quote,
+                  color: Colors.white,
+                  size: 32,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Citações registadas nas tuas obras',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      if (_carregandoCitacoes)
+                        const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      else
+                        Text(
+                          _erroCitacoes == null
+                              ? _totalCitacoes.toString()
+                              : 'Indisponível',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Atualizar citações',
+                  onPressed: _carregandoCitacoes
+                      ? null
+                      : _carregarCitacoes,
+                  icon: const Icon(
+                    Icons.refresh,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (_erroCitacoes != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _erroCitacoes!,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+              ),
+            ),
+          ],
+
+          if (_citacoesPorObra.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Citações por obra',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._obras
+                .where((obra) {
+              final id = obra['id']?.toString();
+              return id != null &&
+                  (_citacoesPorObra[id] ?? 0) > 0;
+            })
+                .map((obra) {
+              final id = obra['id'].toString();
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.description_outlined,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _texto(obra['titulo']),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${_citacoesPorObra[id] ?? 0}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _abrirEstatisticas,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF17365D),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+              ),
+              icon: const Icon(Icons.bar_chart),
+              label: const Text('Ver estatísticas completas'),
+            ),
           ),
         ],
       ),
@@ -529,7 +774,8 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           return _cartaoObra(
             titulo: _texto(obra['titulo']),
             subtitulo:
-            '${_texto(obra['autor'])} • ${_texto(obra['categoria'])}',
+            '${_texto(obra['autor'])} • '
+                '${_texto(obra['categoria'])}',
             onTap: () => _abrirObra(obra['id']),
           );
         }).toList(),
@@ -595,7 +841,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFD5E5F5)),
+        side: const BorderSide(
+          color: Color(0xFFD5E5F5),
+        ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
@@ -633,7 +881,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD5E5F5)),
+        border: Border.all(
+          color: const Color(0xFFD5E5F5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,7 +926,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
       color: const Color(0xFFF8FBFF),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE1EBF5)),
+        side: const BorderSide(
+          color: Color(0xFFE1EBF5),
+        ),
       ),
       child: ListTile(
         leading: const CircleAvatar(
@@ -690,7 +942,9 @@ class _MinhaContaPageState extends State<MinhaContaPage> {
           titulo,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
