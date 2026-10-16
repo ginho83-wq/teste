@@ -103,11 +103,11 @@ def data_iso_valida(valor):
         return None
 
     try:
-        data = datetime.fromisoformat(
+        data_convertida = datetime.fromisoformat(
             valor.replace("Z", "+00:00")
         )
 
-        return data.date()
+        return data_convertida.date()
 
     except (ValueError, TypeError):
         try:
@@ -117,12 +117,12 @@ def data_iso_valida(valor):
 
 
 def formatar_data(valor):
-    data = data_iso_valida(valor)
+    data_convertida = data_iso_valida(valor)
 
-    if not data:
+    if not data_convertida:
         return texto_seguro(valor)
 
-    return data.strftime("%d/%m/%Y")
+    return data_convertida.strftime("%d/%m/%Y")
 
 
 def descricao_seo(descricao, titulo, autor):
@@ -132,7 +132,7 @@ def descricao_seo(descricao, titulo, autor):
     descricao = " ".join(texto_seguro(descricao).split())
 
     if not descricao:
-        descricao = f"Consulte a obra académica {titulo}"
+        descricao = f"Consulte a obra académica «{titulo}»"
 
         if autor:
             descricao += f", de {autor}"
@@ -229,7 +229,8 @@ def formatar_tamanho(valor):
 
 def normalizar_texto(valor):
     """
-    Normaliza espaços para permitir comparar conteúdos.
+    Normaliza espaços e diferenças entre maiúsculas
+    e minúsculas para comparar conteúdos.
     """
     return " ".join(texto_seguro(valor).split()).casefold()
 
@@ -353,7 +354,14 @@ def obter_secoes(obra_id):
 
 
 def gerar_html_secoes(secoes):
+    """
+    Gera o conteúdo das secções sem criar o título
+    exterior 'Secções da obra'.
+
+    Os títulos individuais dos capítulos são preservados.
+    """
     blocos = []
+    conteudos_processados = set()
 
     secoes_ordenadas = sorted(
         secoes,
@@ -373,6 +381,16 @@ def gerar_html_secoes(secoes):
         )
 
         nivel = max(2, min(nivel, 6))
+
+        # Evita repetir exatamente o mesmo conteúdo
+        # quando este surge em várias secções.
+        chave_conteudo = normalizar_texto(conteudo)
+
+        if conteudo and chave_conteudo in conteudos_processados:
+            continue
+
+        if conteudo:
+            conteudos_processados.add(chave_conteudo)
 
         if titulo:
             blocos.append(
@@ -700,10 +718,10 @@ def gerar_json_ld(
     if categoria:
         metadados["genre"] = categoria
 
-    data = data_iso_valida(data_publicacao)
+    data_convertida = data_iso_valida(data_publicacao)
 
-    if data:
-        metadados["datePublished"] = data.isoformat()
+    if data_convertida:
+        metadados["datePublished"] = data_convertida.isoformat()
 
     if url_pdf:
         metadados["encoding"] = {
@@ -768,35 +786,94 @@ def gerar_pagina_obra(obra, todas_obras):
         autor,
     )
 
+    # Consultar secções e imagens.
     secoes = obter_secoes(obra_id)
     imagens = obter_imagens(obra_id)
 
     print(
         f"[SEO] {titulo} | "
-        f"Secções: {len(secoes)} | "
+        f"Secções consultadas: {len(secoes)} | "
         f"Imagens: {len(imagens)}"
     )
 
+    # Gerar o conteúdo das secções.
     html_secoes = gerar_html_secoes(secoes)
+
+    # Gerar as imagens.
     html_imagens = gerar_html_imagens(imagens)
+
+    # ========================================================
+    # CONTEÚDO DA OBRA — APRESENTAR APENAS UMA VEZ
+    # ========================================================
+    #
+    # Prioridade:
+    # 1. Conteúdo das secções, quando existe.
+    # 2. Campo conteudo_texto, apenas quando não existem
+    #    secções com conteúdo.
+    #
+    # Não são criados os títulos exteriores:
+    # "Secções da obra" e "Conteúdo da obra".
+    # ========================================================
 
     conteudo_texto = texto_seguro(
         obra.get("conteudo_texto")
     )
 
-    # Evita apresentar o mesmo conteúdo duas vezes.
-    conteudo_secoes = "\n".join(
+    existe_conteudo_secoes = any(
         texto_seguro(secao.get("conteudo"))
         for secao in secoes
     )
 
-    if (
-        conteudo_texto
-        and conteudo_secoes
-        and normalizar_texto(conteudo_texto)
-        == normalizar_texto(conteudo_secoes)
-    ):
-        conteudo_texto = ""
+    if existe_conteudo_secoes:
+        html_conteudo_final = html_secoes
+
+    elif conteudo_texto:
+        paragrafos = re.split(
+            r"\n\s*\n",
+            conteudo_texto,
+        )
+
+        blocos_conteudo = []
+
+        for paragrafo in paragrafos:
+            paragrafo = paragrafo.strip()
+
+            if not paragrafo:
+                continue
+
+            conteudo_html = escapar(paragrafo).replace(
+                "\n",
+                "<br>\n",
+            )
+
+            blocos_conteudo.append(
+                f"<p>{conteudo_html}</p>"
+            )
+
+        html_conteudo_final = "\n".join(
+            blocos_conteudo
+        )
+
+    else:
+        html_conteudo_final = ""
+
+    # Não criar uma secção exterior com o título
+    # "Secções da obra" nem "Conteúdo da obra".
+
+    html_conteudo = ""
+
+    html_secoes_completo = ""
+
+    # Preservar a apresentação das imagens.
+    if html_imagens:
+        html_imagens_completo = f"""
+        <section class="imagens-obra">
+            <h2>Imagens da obra</h2>
+            {html_imagens}
+        </section>
+        """
+    else:
+        html_imagens_completo = ""
 
     numero_paginas = texto_seguro(
         obra.get("numero_paginas")
@@ -841,40 +918,6 @@ def gerar_pagina_obra(obra, todas_obras):
             O documento PDF não está disponível.
         </p>
         """
-
-    # --------------------------------------------------------
-    # CONTEÚDO TEXTUAL
-    # --------------------------------------------------------
-
-    if conteudo_texto:
-        html_conteudo = f"""
-        <section class="conteudo-obra">
-            <h2>Conteúdo da obra</h2>
-            <div class="texto-obra">{escapar(conteudo_texto)}</div>
-        </section>
-        """
-    else:
-        html_conteudo = ""
-
-    if html_secoes:
-        html_secoes_completo = f"""
-        <section class="secoes-obra">
-            <h2>Secções da obra</h2>
-            {html_secoes}
-        </section>
-        """
-    else:
-        html_secoes_completo = ""
-
-    if html_imagens:
-        html_imagens_completo = f"""
-        <section class="imagens-obra">
-            <h2>Imagens da obra</h2>
-            {html_imagens}
-        </section>
-        """
-    else:
-        html_imagens_completo = ""
 
     # --------------------------------------------------------
     # INFORMAÇÕES TÉCNICAS
@@ -924,6 +967,10 @@ def gerar_pagina_obra(obra, todas_obras):
     else:
         html_tecnico = ""
 
+    # --------------------------------------------------------
+    # DATA DE PUBLICAÇÃO
+    # --------------------------------------------------------
+
     data_publicacao_html = ""
 
     if data_publicacao:
@@ -956,6 +1003,7 @@ def gerar_pagina_obra(obra, todas_obras):
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
+
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
@@ -974,14 +1022,24 @@ def gerar_pagina_obra(obra, todas_obras):
           href="{PROJECT_BASE}OL.png">
 
     <meta property="og:type" content="article">
-    <meta property="og:title" content="{escapar(titulo)}">
+
+    <meta property="og:title"
+          content="{escapar(titulo)}">
+
     <meta property="og:description"
           content="{escapar(descricao_meta)}">
-    <meta property="og:url" content="{escapar(url_pagina)}">
-    <meta property="og:site_name" content="{escapar(NOME_SITE)}">
+
+    <meta property="og:url"
+          content="{escapar(url_pagina)}">
+
+    <meta property="og:site_name"
+          content="{escapar(NOME_SITE)}">
 
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{escapar(titulo)}">
+
+    <meta name="twitter:title"
+          content="{escapar(titulo)}">
+
     <meta name="twitter:description"
           content="{escapar(descricao_meta)}">
 
@@ -1077,20 +1135,21 @@ def gerar_pagina_obra(obra, todas_obras):
             margin: 5px 0;
         }}
 
-        .descricao, .texto-obra {{
+        .descricao {{
             white-space: pre-wrap;
             overflow-wrap: anywhere;
         }}
 
-        .conteudo-obra,
-        .secoes-obra,
+        .descricao-obra {{
+            margin-top: 30px;
+        }}
+
         .imagens-obra,
         .informacoes-tecnicas {{
             margin-top: 30px;
         }}
 
-        .secoes-obra p,
-        .conteudo-obra p {{
+        .imagens-obra p {{
             text-align: justify;
         }}
 
@@ -1212,6 +1271,10 @@ def gerar_pagina_obra(obra, todas_obras):
             font-size: 0.9rem;
         }}
 
+        .documento-completo {{
+            margin-top: 30px;
+        }}
+
         .rodape {{
             margin-top: 35px;
             padding-top: 20px;
@@ -1259,18 +1322,22 @@ def gerar_pagina_obra(obra, todas_obras):
 
 <header>
     <div class="cabecalho-interior">
+
         <a href="{PROJECT_BASE}">
             {escapar(NOME_SITE)}
         </a>
 
-        <a class="link-acervo" href="{PROJECT_BASE}acervo/">
+        <a class="link-acervo"
+           href="{PROJECT_BASE}acervo/">
             Explorar acervo
         </a>
+
     </div>
 </header>
 
 <main>
     <article>
+
         <h1>{escapar(titulo)}</h1>
 
         <section class="metadados"
@@ -1292,16 +1359,22 @@ def gerar_pagina_obra(obra, todas_obras):
             </p>
 
             {data_publicacao_html}
+
         </section>
 
         <section class="descricao-obra">
             <h2>Descrição da obra</h2>
+
             <div class="descricao">{escapar(descricao) if descricao else "Não foi fornecida uma descrição para esta obra."}</div>
         </section>
 
-        {html_conteudo}
-        {html_secoes_completo}
+        <!-- O conteúdo da obra é apresentado apenas uma vez. -->
+        <div class="texto-principal-obra">
+            {html_conteudo_final}
+        </div>
+
         {html_imagens_completo}
+
         {html_tecnico}
 
         <section class="documento-completo">
@@ -1320,6 +1393,7 @@ def gerar_pagina_obra(obra, todas_obras):
     </article>
 
     <footer class="rodape">
+
         <p>
             Publicado na plataforma
             <a href="{PROJECT_BASE}">{escapar(NOME_SITE)}</a>.
@@ -1330,6 +1404,7 @@ def gerar_pagina_obra(obra, todas_obras):
                 Regressar ao acervo
             </a>
         </p>
+
     </footer>
 </main>
 
@@ -1372,14 +1447,14 @@ def gerar_sitemap(obras, urls_obras):
     datas_por_url = {}
 
     for obra, url in zip(obras, urls_obras):
-        data = (
+        data_convertida = (
             data_iso_valida(obra.get("updated_at"))
             or data_iso_valida(obra.get("created_at"))
             or data_iso_valida(obra.get("data_publicacao"))
         )
 
-        if data:
-            datas_por_url[url] = data.isoformat()
+        if data_convertida:
+            datas_por_url[url] = data_convertida.isoformat()
 
     urls = [
         BASE_URL + rota
@@ -1411,8 +1486,6 @@ def gerar_sitemap(obras, urls_obras):
             f"{{{NAMESPACE_SITEMAP}}}lastmod",
         )
 
-        # Nas páginas fixas, a data é a data de geração.
-        # Nas obras, utiliza-se a data de atualização disponível.
         elemento_lastmod.text = datas_por_url.get(
             url,
             hoje,
@@ -1499,4 +1572,3 @@ if __name__ == "__main__":
             file=sys.stderr,
         )
         sys.exit(1)
-
