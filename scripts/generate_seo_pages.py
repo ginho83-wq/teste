@@ -37,17 +37,20 @@ URLS_FIXAS = [
     "/ajuda/",
 ]
 
-NAMESPACE_SITEMAP = (
-    "http://www.sitemaps.org/schemas/sitemap/0.9"
-)
+NAMESPACE_SITEMAP = "http://www.sitemaps.org/schemas/sitemap/0.9"
 
 
 # ============================================================
 # CONFIGURAÇÃO SUPABASE
 # ============================================================
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
+SUPABASE_URL = os.getenv(
+    "SUPABASE_URL", ""
+).strip().rstrip("/")
+
+SUPABASE_ANON_KEY = os.getenv(
+    "SUPABASE_ANON_KEY", ""
+).strip()
 
 
 def carregar_configuracao_flutter():
@@ -67,24 +70,20 @@ def carregar_configuracao_flutter():
     if not pasta_lib.exists():
         return
 
-    padrao_url = re.compile(
-        r"""(?:url|supabaseUrl)\s*=\s*['"]([^'"]+)['"]""",
-        re.IGNORECASE,
-    )
-
-    padrao_chave = re.compile(
-        r"""(?:publishableKey|anonKey|supabaseAnonKey)\s*=\s*['"]([^'"]+)['"]""",
-        re.IGNORECASE,
-    )
-
     for ficheiro in pasta_lib.rglob("*.dart"):
         try:
-            conteudo = ficheiro.read_text(encoding="utf-8-sig")
+            conteudo = ficheiro.read_text(
+                encoding="utf-8-sig"
+            )
         except (OSError, UnicodeError):
             continue
 
         if not SUPABASE_URL:
-            correspondencia_url = padrao_url.search(conteudo)
+            correspondencia_url = re.search(
+                r"""(?:url|supabaseUrl)\s*=\s*['"]([^'"]+)['"]""",
+                conteudo,
+                re.IGNORECASE,
+            )
 
             if correspondencia_url:
                 valor = correspondencia_url.group(1).strip()
@@ -93,7 +92,11 @@ def carregar_configuracao_flutter():
                     SUPABASE_URL = valor.rstrip("/")
 
         if not SUPABASE_ANON_KEY:
-            correspondencia_chave = padrao_chave.search(conteudo)
+            correspondencia_chave = re.search(
+                r"""(?:publishableKey|anonKey|supabaseAnonKey)\s*=\s*['"]([^'"]+)['"]""",
+                conteudo,
+                re.IGNORECASE,
+            )
 
             if correspondencia_chave:
                 SUPABASE_ANON_KEY = (
@@ -203,6 +206,7 @@ def nome_arquivo_pdf(titulo):
     nome = texto_seguro(titulo)
 
     nome = re.sub(r'[\\/:*?"<>|]', "", nome)
+
     nome = "-".join(nome.split()).strip(".-")
 
     if not nome:
@@ -344,7 +348,8 @@ def consultar_tabela(tabela, parametros):
 
     if not isinstance(resultado, list):
         raise RuntimeError(
-            f"A consulta à tabela {tabela} não devolveu uma lista."
+            f"A consulta à tabela {tabela} "
+            "não devolveu uma lista."
         )
 
     return resultado
@@ -536,6 +541,7 @@ def gerar_html_imagens(imagens):
             )
 
         bloco += "</figure>"
+
         blocos.append(bloco)
 
     return "\n".join(blocos)
@@ -551,7 +557,6 @@ def obter_obras_relacionadas(
     limite=5,
 ):
     obra_id = texto_seguro(obra.get("id"))
-
     categoria = texto_seguro(
         obra.get("categoria")
     ).casefold()
@@ -833,16 +838,12 @@ def gerar_javascript_estatisticas(obra_id):
         }}
     }}
 
+    // Registar a visualização da página SEO.
     registarEvento("visualizacao");
 
+    // Registar os cliques nos botões do PDF.
     document.addEventListener("click", function (evento) {{
-        const alvo = evento.target;
-
-        if (!(alvo instanceof Element)) {{
-            return;
-        }}
-
-        const link = alvo.closest("[data-evento-pdf]");
+        const link = evento.target.closest("[data-evento-pdf]");
 
         if (!link) {{
             return;
@@ -1109,27 +1110,22 @@ def gerar_pagina_obra(obra, todas_obras):
     {javascript_estatisticas}
 
     <style>
-        * {{
-            box-sizing: border-box;
-        }}
+        * {{ box-sizing: border-box; }}
 
-        html {{
-            scroll-behavior: smooth;
-        }}
+        html {{ scroll-behavior: smooth; }}
 
         body {{
             margin: 0;
             background: #f4f7fb;
             color: #243247;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 13px;
-            line-height: 1.65;
+            line-height: 1.75;
         }}
 
         header {{
             background: #eaf4ff;
             border-bottom: 1px solid #d5e5f5;
-            padding: 14px 18px;
+            padding: 18px 20px;
         }}
 
         .cabecalho-interior {{
@@ -1138,7 +1134,7 @@ def gerar_pagina_obra(obra, todas_obras):
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 14px;
+            gap: 16px;
             flex-wrap: wrap;
         }}
 
@@ -1146,240 +1142,117 @@ def gerar_pagina_obra(obra, todas_obras):
             color: #124f86;
             text-decoration: none;
             font-weight: bold;
-            font-size: 12px;
         }}
 
         main {{
             width: calc(100% - 32px);
             max-width: 1000px;
-            margin: 24px auto;
-            padding: 26px;
+            margin: 28px auto;
+            padding: 30px;
             background: #fff;
             border: 1px solid #e1e8f0;
             border-radius: 12px;
             box-shadow: 0 3px 14px rgba(25, 55, 85, 0.04);
         }}
 
-        /* TÍTULO PRINCIPAL: MANTIDO */
         h1 {{
             margin-top: 0;
-            margin-bottom: 18px;
             color: #183e62;
             line-height: 1.35;
             overflow-wrap: anywhere;
-            font-size: clamp(1.2rem, 2.8vw, 1.65rem);
-            font-weight: 700;
+            font-size: clamp(1.7rem, 4vw, 2.3rem);
         }}
 
-        /* TÍTULOS DAS SECÇÕES: MANTIDOS */
-        h2,
-        h3,
-        h4,
-        h5,
-        h6 {{
-            margin-top: 22px;
-            margin-bottom: 10px;
+        h2, h3, h4, h5, h6 {{
+            margin-top: 28px;
+            margin-bottom: 12px;
             color: #183e62;
-            line-height: 1.4;
+            line-height: 1.45;
             overflow-wrap: anywhere;
-            text-align: left;
-            font-weight: 700;
-        }}
-
-        h2 {{
-            font-size: 1.1rem;
-        }}
-
-        h3 {{
-            font-size: 1rem;
-        }}
-
-        h4 {{
-            font-size: 0.94rem;
-        }}
-
-        h5 {{
-            font-size: 0.88rem;
-        }}
-
-        h6 {{
-            font-size: 0.83rem;
-        }}
-
-        /*
-         * CONTEÚDO TEXTUAL:
-         * AUMENTADO DE 13 PX PARA 16 PX.
-         * TEXTO MANTIDO JUSTIFICADO.
-         */
-        p,
-        .descricao,
-        .texto-principal-obra,
-        .texto-principal-obra p,
-        .descricao-obra p,
-        .documento-completo p {{
-            text-align: justify;
-            text-justify: inter-word;
-            overflow-wrap: anywhere;
-            hyphens: auto;
-            font-size: 16px;
         }}
 
         p {{
             margin-top: 0;
-            margin-bottom: 13px;
-            line-height: 1.7;
+            margin-bottom: 16px;
+            overflow-wrap: anywhere;
+            text-align: justify;
         }}
 
         .metadados {{
-            padding: 15px;
+            padding: 18px;
             background: #f6f9fc;
             border: 1px solid #e5edf5;
             border-radius: 8px;
-            margin: 20px 0 24px;
+            margin: 22px 0 28px;
         }}
 
-        .metadados p {{
-            margin: 5px 0;
-            text-align: left;
-            font-size: 12px;
-            line-height: 1.55;
-        }}
+        .metadados p {{ margin: 5px 0; }}
 
         .descricao {{
-            display: block;
-            width: 100%;
             white-space: pre-wrap;
-            text-align: justify;
-            text-justify: inter-word;
-            line-height: 1.7;
             overflow-wrap: anywhere;
-            hyphens: auto;
-            font-size: 16px;
         }}
 
         .descricao-obra,
         .imagens-obra,
         .informacoes-tecnicas {{
-            margin-top: 25px;
-        }}
-
-        .texto-principal-obra {{
-            width: 100%;
-            text-align: justify;
-            text-justify: inter-word;
-            line-height: 1.7;
-            overflow-wrap: anywhere;
-            hyphens: auto;
-            font-size: 16px;
-        }}
-
-        .texto-principal-obra p {{
-            margin-top: 0;
-            margin-bottom: 15px;
-            text-align: justify;
-            text-justify: inter-word;
-            line-height: 1.7;
-            overflow-wrap: anywhere;
-            hyphens: auto;
-            font-size: 16px;
-        }}
-
-        /* TÍTULOS INTERNOS: MANTIDOS */
-        .texto-principal-obra h2 {{
-            font-size: 1.05rem;
-            margin-top: 22px;
-            margin-bottom: 9px;
-            color: #183e62;
-            text-align: left;
-        }}
-
-        .texto-principal-obra h3 {{
-            font-size: 0.96rem;
-            margin-top: 19px;
-            margin-bottom: 8px;
-            color: #183e62;
-            text-align: left;
-        }}
-
-        .texto-principal-obra h4 {{
-            font-size: 0.9rem;
-            text-align: left;
-        }}
-
-        .texto-principal-obra h5,
-        .texto-principal-obra h6 {{
-            text-align: left;
+            margin-top: 30px;
         }}
 
         .botoes-pdf {{
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            margin: 18px 0;
+            gap: 12px;
+            margin: 22px 0;
         }}
 
         .botao {{
             display: inline-block;
-            padding: 10px 16px;
+            padding: 12px 19px;
             border-radius: 7px;
             background: #145da0;
             color: #fff;
             text-decoration: none;
             font-weight: bold;
-            font-size: 12px;
             text-align: center;
         }}
 
-        .botao:hover {{
-            background: #0d477e;
-        }}
+        .botao:hover {{ background: #0d477e; }}
 
-        .botao-secundario {{
-            background: #167447;
-        }}
+        .botao-secundario {{ background: #167447; }}
 
-        .botao-secundario:hover {{
-            background: #105a36;
-        }}
+        .botao-secundario:hover {{ background: #105a36; }}
 
         .aviso {{
-            padding: 12px;
+            padding: 14px;
             background: #fff7e6;
             border-radius: 7px;
             color: #795500;
-            font-size: 12px;
         }}
 
         .grelha-tecnica {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
         }}
 
         .item-tecnico {{
-            padding: 12px;
+            padding: 15px;
             background: #f6f9fc;
             border: 1px solid #e5edf5;
             border-radius: 8px;
         }}
 
         .item-tecnico span,
-        .item-tecnico strong {{
-            display: block;
-        }}
+        .item-tecnico strong {{ display: block; }}
 
         .item-tecnico span {{
             color: #526273;
-            font-size: 11px;
-        }}
-
-        .item-tecnico strong {{
-            font-size: 12px;
-            overflow-wrap: anywhere;
+            font-size: .9rem;
         }}
 
         figure {{
-            margin: 22px 0;
+            margin: 26px 0;
             text-align: center;
         }}
 
@@ -1393,31 +1266,31 @@ def gerar_pagina_obra(obra, todas_obras):
         }}
 
         figcaption {{
-            margin-top: 7px;
+            margin-top: 8px;
             color: #526273;
-            font-size: 12px;
+            font-size: .92rem;
         }}
 
         .fonte-imagem {{
             margin-top: 4px;
             color: #65758a;
-            font-size: 11px;
+            font-size: .85rem;
         }}
 
         .relacionadas {{
-            margin-top: 32px;
-            padding-top: 18px;
+            margin-top: 38px;
+            padding-top: 20px;
             border-top: 1px solid #e1e8f0;
         }}
 
         .obra-relacionada {{
-            padding: 12px 0;
+            padding: 15px 0;
             border-bottom: 1px solid #edf1f5;
         }}
 
         .obra-relacionada h3 {{
             margin: 0 0 5px;
-            font-size: 0.92rem;
+            font-size: 1.05rem;
         }}
 
         .obra-relacionada h3 a {{
@@ -1432,121 +1305,36 @@ def gerar_pagina_obra(obra, todas_obras):
         .relacionada-detalhes {{
             margin: 0;
             color: #526273;
-            font-size: 11px;
-            text-align: left;
+            font-size: .9rem;
         }}
 
         .rodape {{
-            margin-top: 30px;
-            padding-top: 18px;
+            margin-top: 35px;
+            padding-top: 20px;
             border-top: 1px solid #e1e8f0;
             color: #526273;
-            font-size: 12px;
+            font-size: .95rem;
         }}
 
-        .rodape p {{
-            font-size: 12px;
-        }}
+        .rodape a {{ color: #145da0; }}
 
-        .rodape a {{
-            color: #145da0;
-        }}
+        a {{ overflow-wrap: anywhere; }}
 
-        a {{
-            overflow-wrap: anywhere;
-        }}
-
-        /* AJUSTES PARA TELEMÓVEIS */
         @media (max-width: 600px) {{
-            body {{
-                font-size: 12px;
-                line-height: 1.65;
-            }}
-
-            header {{
-                padding: 12px;
-            }}
-
-            header a {{
-                font-size: 11px;
-            }}
+            header {{ padding: 14px; }}
 
             main {{
-                width: calc(100% - 16px);
-                margin: 10px auto;
-                padding: 15px;
+                width: calc(100% - 20px);
+                margin: 12px auto;
+                padding: 18px;
                 border-radius: 8px;
             }}
 
-            /* TÍTULOS: MANTIDOS */
-            h1 {{
-                font-size: 1.2rem;
-                line-height: 1.4;
-            }}
+            .botoes-pdf {{ flex-direction: column; }}
 
-            h2 {{
-                font-size: 1.02rem;
-            }}
+            .botao {{ width: 100%; }}
 
-            h3 {{
-                font-size: 0.94rem;
-            }}
-
-            h4 {{
-                font-size: 0.88rem;
-            }}
-
-            h5 {{
-                font-size: 0.84rem;
-            }}
-
-            h6 {{
-                font-size: 0.8rem;
-            }}
-
-            /*
-             * CONTEÚDO TEXTUAL NO TELEMÓVEL:
-             * AUMENTADO DE 12 PX PARA 14 PX.
-             */
-            p,
-            .descricao,
-            .texto-principal-obra,
-            .texto-principal-obra p,
-            .descricao-obra p,
-            .documento-completo p {{
-                font-size: 14px;
-                line-height: 1.7;
-            }}
-
-            .metadados {{
-                padding: 12px;
-            }}
-
-            .metadados p {{
-                font-size: 11px;
-            }}
-
-            .botoes-pdf {{
-                flex-direction: column;
-            }}
-
-            .botao {{
-                width: 100%;
-                padding: 10px 12px;
-                font-size: 12px;
-            }}
-
-            .grelha-tecnica {{
-                grid-template-columns: 1fr;
-            }}
-
-            .item-tecnico {{
-                padding: 10px;
-            }}
-
-            .rodape p {{
-                font-size: 11px;
-            }}
+            .metadados {{ padding: 14px; }}
         }}
     </style>
 </head>
@@ -1773,3 +1561,4 @@ if __name__ == "__main__":
         )
 
         sys.exit(1)
+
