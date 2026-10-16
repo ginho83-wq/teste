@@ -37,7 +37,9 @@ URLS_FIXAS = [
     "/ajuda/",
 ]
 
-NAMESPACE_SITEMAP = "http://www.sitemaps.org/schemas/sitemap/0.9"
+NAMESPACE_SITEMAP = (
+    "http://www.sitemaps.org/schemas/sitemap/0.9"
+)
 
 
 # ============================================================
@@ -1158,7 +1160,7 @@ def gerar_pagina_obra(obra, todas_obras):
             box-shadow: 0 3px 14px rgba(25, 55, 85, 0.04);
         }}
 
-        /* Título principal reduzido */
+        /* TÍTULO PRINCIPAL: MANTIDO */
         h1 {{
             margin-top: 0;
             margin-bottom: 18px;
@@ -1169,7 +1171,7 @@ def gerar_pagina_obra(obra, todas_obras):
             font-weight: 700;
         }}
 
-        /* Títulos das secções reduzidos */
+        /* TÍTULOS DAS SECÇÕES: MANTIDOS */
         h2,
         h3,
         h4,
@@ -1205,7 +1207,9 @@ def gerar_pagina_obra(obra, todas_obras):
         }}
 
         /*
-         * Texto geral e parágrafos justificados.
+         * CONTEÚDO TEXTUAL:
+         * AUMENTADO DE 13 PX PARA 16 PX.
+         * TEXTO MANTIDO JUSTIFICADO.
          */
         p,
         .descricao,
@@ -1217,7 +1221,7 @@ def gerar_pagina_obra(obra, todas_obras):
             text-justify: inter-word;
             overflow-wrap: anywhere;
             hyphens: auto;
-            font-size: 13px;
+            font-size: 16px;
         }}
 
         p {{
@@ -1250,7 +1254,7 @@ def gerar_pagina_obra(obra, todas_obras):
             line-height: 1.7;
             overflow-wrap: anywhere;
             hyphens: auto;
-            font-size: 13px;
+            font-size: 16px;
         }}
 
         .descricao-obra,
@@ -1266,7 +1270,7 @@ def gerar_pagina_obra(obra, todas_obras):
             line-height: 1.7;
             overflow-wrap: anywhere;
             hyphens: auto;
-            font-size: 13px;
+            font-size: 16px;
         }}
 
         .texto-principal-obra p {{
@@ -1277,9 +1281,10 @@ def gerar_pagina_obra(obra, todas_obras):
             line-height: 1.7;
             overflow-wrap: anywhere;
             hyphens: auto;
-            font-size: 13px;
+            font-size: 16px;
         }}
 
+        /* TÍTULOS INTERNOS: MANTIDOS */
         .texto-principal-obra h2 {{
             font-size: 1.05rem;
             margin-top: 22px;
@@ -1451,7 +1456,7 @@ def gerar_pagina_obra(obra, todas_obras):
             overflow-wrap: anywhere;
         }}
 
-        /* Ajustes para telemóveis */
+        /* AJUSTES PARA TELEMÓVEIS */
         @media (max-width: 600px) {{
             body {{
                 font-size: 12px;
@@ -1473,6 +1478,7 @@ def gerar_pagina_obra(obra, todas_obras):
                 border-radius: 8px;
             }}
 
+            /* TÍTULOS: MANTIDOS */
             h1 {{
                 font-size: 1.2rem;
                 line-height: 1.4;
@@ -1498,13 +1504,17 @@ def gerar_pagina_obra(obra, todas_obras):
                 font-size: 0.8rem;
             }}
 
+            /*
+             * CONTEÚDO TEXTUAL NO TELEMÓVEL:
+             * AUMENTADO DE 12 PX PARA 14 PX.
+             */
             p,
             .descricao,
             .texto-principal-obra,
             .texto-principal-obra p,
             .descricao-obra p,
             .documento-completo p {{
-                font-size: 12px;
+                font-size: 14px;
                 line-height: 1.7;
             }}
 
@@ -1763,4 +1773,3 @@ if __name__ == "__main__":
         )
 
         sys.exit(1)
-
