@@ -1,21 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../models/historico_obra.dart';
-import '../models/obra.dart';
-import '../models/obra_pendente.dart';
-import '../repositories/comentarios_repository.dart';
-import '../repositories/obras_pendentes_repository.dart';
-import '../repositories/obras_repository.dart';
-import '../repositories/solicitacoes_remocao_repository.dart';
 import '../services/auth_service.dart';
-import '../services/historico_obras_service.dart';
-import '../widgets/avatar_utilizador.dart';
-import '../widgets/obra_lista_item.dart';
 
 class MinhaContaPage extends StatefulWidget {
   const MinhaContaPage({super.key});
@@ -25,1319 +12,733 @@ class MinhaContaPage extends StatefulWidget {
 }
 
 class _MinhaContaPageState extends State<MinhaContaPage> {
-  final _supabase = Supabase.instance.client;
-  final _authService = AuthService.instancia;
-
-  final _obrasRepository = ObrasRepository.instancia;
-  final _obrasPendentesRepository =
-      ObrasPendentesRepository.instancia;
-  final _comentariosRepository =
-      ComentariosRepository.instancia;
-  final _solicitacoesRepository =
-      SolicitacoesRemocaoRepository.instancia;
-  final _historicoService =
-      HistoricoObrasService.instancia;
-
-  Map<String, dynamic>? _perfil;
-
-  List<Obra> _minhasObras = [];
-  List<ObraPendente> _minhasObrasPendentes = [];
-  List<Map<String, dynamic>> _comentarios = [];
-  List<Map<String, dynamic>> _solicitacoes = [];
-  List<HistoricoObra> _historico = [];
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final AuthService _authService = AuthService.instancia;
 
   bool _carregando = true;
   String? _erro;
+  Map<String, dynamic>? _perfil;
 
-  bool _ehAdmin = false;
-  bool _carregandoPerfil = false;
-
-  StreamSubscription<AuthState>? _authSubscription;
+  List<Map<String, dynamic>> _obras = [];
+  List<Map<String, dynamic>> _obrasPendentes = [];
+  List<Map<String, dynamic>> _historico = [];
 
   @override
   void initState() {
     super.initState();
-
-    _authSubscription = _authService.eventosAuth.listen(
-      _tratarAlteracaoAutenticacao,
-    );
-
     _carregarDados();
-    _verificarAdministrador();
-  }
-
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _tratarAlteracaoAutenticacao(
-      AuthState estado,
-      ) async {
-    if (!mounted) return;
-
-    if (estado.session == null) {
-      setState(() {
-        _ehAdmin = false;
-        _carregandoPerfil = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _carregandoPerfil = true;
-    });
-
-    await _verificarAdministrador();
-    await _carregarDados();
-
-    if (mounted) {
-      setState(() {
-        _carregandoPerfil = false;
-      });
-    }
-  }
-
-  Future<void> _verificarAdministrador() async {
-    final usuario = _supabase.auth.currentUser;
-
-    if (usuario == null) {
-      if (mounted) {
-        setState(() {
-          _ehAdmin = false;
-        });
-      }
-      return;
-    }
-
-    try {
-      final admin = await _authService.ehAdmin();
-
-      if (!mounted) return;
-
-      setState(() {
-        _ehAdmin = admin;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _ehAdmin = false;
-      });
-    }
   }
 
   Future<void> _carregarDados() async {
-    if (!mounted) return;
-
-    setState(() {
-      _carregando = true;
-      _erro = null;
-    });
+    if (mounted) {
+      setState(() {
+        _carregando = true;
+        _erro = null;
+      });
+    }
 
     try {
-      final usuario = _supabase.auth.currentUser;
+      final utilizador = _supabase.auth.currentUser;
 
-      if (usuario == null) {
-        throw Exception('Utilizador não autenticado.');
+      if (utilizador == null) {
+        if (mounted) context.go('/login');
+        return;
       }
 
-      final perfil = await _supabase
+      final perfilResultado = await _supabase
           .from('profiles')
           .select()
-          .eq('id', usuario.id)
+          .eq('id', utilizador.id)
           .maybeSingle();
 
-      final minhasObras =
-      await _obterMinhasObras(usuario.id);
+      final obrasResultado = await _supabase
+          .from('obras')
+          .select('id, titulo, autor, categoria, created_at')
+          .eq('user_id', utilizador.id)
+          .order('created_at', ascending: false);
 
-      List<ObraPendente> minhasObrasPendentes = [];
+      // As obras pendentes são carregadas separadamente.
+      final pendentesResultado = await _supabase
+          .from('obras_pendentes')
+          .select()
+          .eq('user_id', utilizador.id);
 
-      try {
-        minhasObrasPendentes =
-        await _obrasPendentesRepository.carregarDoUsuario(
-          usuario.id,
-        );
-      } catch (_) {
-        minhasObrasPendentes = [];
+      if (!mounted) return;
+
+      setState(() {
+        _perfil = perfilResultado;
+        _obras = List<Map<String, dynamic>>.from(obrasResultado);
+        _obrasPendentes =
+        List<Map<String, dynamic>>.from(pendentesResultado);
+        _carregando = false;
+      });
+
+      await _carregarHistorico(utilizador.id);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _erro = 'Não foi possível carregar os dados da conta.';
+        _carregando = false;
+      });
+
+      debugPrint('Erro ao carregar MinhaContaPage: $e');
+    }
+  }
+
+  Future<void> _carregarHistorico(String utilizadorId) async {
+    try {
+      final resultado = await _supabase
+          .from('historico_obras_consultadas')
+          .select()
+          .eq('user_id', utilizadorId)
+          .order('data_consulta', ascending: false)
+          .limit(5);
+
+      if (!mounted) return;
+
+      setState(() {
+        _historico = List<Map<String, dynamic>>.from(resultado);
+      });
+    } catch (e) {
+      // O histórico não deve impedir a abertura da Minha Conta.
+      debugPrint('Não foi possível carregar o histórico: $e');
+    }
+  }
+
+  Future<void> _sair() async {
+    try {
+      await _supabase.auth.signOut();
+
+      if (mounted) {
+        context.go('/login');
       }
-
-      final comentarios =
-      await _comentariosRepository
-          .obterComentariosDasMinhasObras(
-        usuario.id,
-      );
-
-      final solicitacoes =
-      await _solicitacoesRepository.obterMinhasSolicitacoes();
-
-      final historico =
-      await _historicoService.obterConsultasRecentes(
-        limite: 5,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _perfil = perfil;
-        _minhasObras = minhasObras;
-        _minhasObrasPendentes = minhasObrasPendentes;
-        _comentarios = comentarios;
-        _solicitacoes = solicitacoes;
-        _historico = historico;
-        _carregando = false;
-      });
     } catch (e) {
       if (!mounted) return;
 
-      setState(() {
-        _erro = e.toString();
-        _carregando = false;
-      });
-    }
-  }
-
-  Future<List<Obra>> _obterMinhasObras(
-      String userId,
-      ) async {
-    final resposta = await _supabase
-        .from('obras')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
-
-    return (resposta as List)
-        .map(
-          (item) => Obra.fromMap(
-        Map<String, dynamic>.from(item),
-      ),
-    )
-        .toList();
-  }
-
-  // ============================================================
-  // ABRIR OBRA PUBLICADA
-  // ============================================================
-
-  Future<void> _abrirObra(Obra obra) async {
-    if (!mounted) return;
-
-    await context.push('/obra/${obra.id}');
-  }
-
-  // ============================================================
-  // DETALHES DA OBRA PENDENTE
-  // ============================================================
-
-  Future<void> _abrirDetalhesObraPendente(
-      ObraPendente obra,
-      ) async {
-    if (!mounted) return;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          titlePadding: const EdgeInsets.fromLTRB(
-            24,
-            22,
-            24,
-            8,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(
-            24,
-            8,
-            24,
-            8,
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(
-            16,
-            8,
-            16,
-            12,
-          ),
-          title: Text(
-            obra.titulo,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                const Divider(height: 20),
-                _linhaDetalhePendente(
-                  dialogContext,
-                  'Autor',
-                  obra.autor,
-                ),
-                _linhaDetalhePendente(
-                  dialogContext,
-                  'Categoria',
-                  obra.categoria,
-                ),
-                _linhaDetalhePendente(
-                  dialogContext,
-                  'Data de envio',
-                  _formatarData(obra.createdAt),
-                ),
-                const SizedBox(height: 4),
-                _linhaEstadoPendente(dialogContext),
-                const SizedBox(height: 20),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7E6),
-                    borderRadius:
-                    BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFFF2D59C),
-                    ),
-                  ),
-                  child: const Row(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 21,
-                        color: Colors.orange,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Esta obra foi enviada e está pendente de aprovação.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black87,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Fechar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _linhaDetalhePendente(
-      BuildContext context,
-      String titulo,
-      String? valor,
-      ) {
-    if (valor == null || valor.trim().isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
-        children: [
-          Text(
-            titulo,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            valor,
-            style: Theme.of(context)
-                .textTheme
-                .bodyLarge
-                ?.copyWith(
-              color: Colors.black87,
-              fontSize: 15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _linhaEstadoPendente(
-      BuildContext context,
-      ) {
-    return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Estado',
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível terminar a sessão.'),
         ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF1D6),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.hourglass_empty,
-                size: 17,
-                color: Colors.orange,
-              ),
-              SizedBox(width: 7),
-              Text(
-                'Pendente',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // SOLICITAR REMOÇÃO
-  // ============================================================
-
-  Future<void> _solicitarRemocao(Obra obra) async {
-    final controlador = TextEditingController();
-
-    final motivo = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Solicitar remoção'),
-          content: TextField(
-            controller: controlador,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Motivo',
-              hintText:
-              'Explique o motivo da solicitação...',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final texto =
-                controlador.text.trim();
-
-                if (texto.isEmpty) {
-                  return;
-                }
-
-                Navigator.of(context).pop(texto);
-              },
-              child: const Text('Enviar'),
-            ),
-          ],
-        );
-      },
-    );
-
-    controlador.dispose();
-
-    if (motivo == null || motivo.trim().isEmpty) {
-      return;
-    }
-
-    try {
-      await _solicitacoesRepository.criarSolicitacao(
-        obraId: obra.id,
-        motivo: motivo.trim(),
-      );
-
-      if (!mounted) return;
-
-      _mostrarMensagem(
-        'Solicitação de remoção enviada.',
-      );
-
-      await _carregarDados();
-    } catch (e) {
-      if (!mounted) return;
-
-      _mostrarMensagem(
-        'Não foi possível enviar a solicitação.',
-        erro: true,
       );
     }
   }
 
-  // ============================================================
-  // HISTÓRICO
-  // ============================================================
-
-  Future<void> _abrirHistorico() async {
-    await context.push('/historico-obras');
-
-    if (!mounted) return;
-
-    await _carregarHistorico();
+  void _abrirConta() {
+    context.go('/minha-conta');
   }
 
-  Future<void> _carregarHistorico() async {
-    try {
-      final historico =
-      await _historicoService.obterConsultasRecentes(
-        limite: 5,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _historico = historico;
-      });
-    } catch (_) {}
+  void _abrirConfiguracoes() {
+    context.push('/configuracoes');
   }
 
-  Future<void> _removerConsulta(
-      HistoricoObra item,
-      ) async {
-    try {
-      await _historicoService.removerConsulta(
-        id: item.id,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        _historico.removeWhere(
-              (historico) => historico.id == item.id,
-        );
-      });
-
-      _mostrarMensagem(
-        'Consulta removida do histórico.',
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      _mostrarMensagem(
-        'Não foi possível remover a consulta.',
-        erro: true,
-      );
-    }
+  void _abrirEstatisticas() {
+    context.push('/estatisticas');
   }
 
-  Future<void> _limparHistorico() async {
-    if (_historico.isEmpty) return;
-
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Limpar histórico'),
-          content: const Text(
-            'Tem a certeza de que deseja remover todo o histórico de obras consultadas?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(true),
-              child: const Text('Limpar'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmar != true) return;
-
-    try {
-      await _historicoService.limparHistorico();
-
-      if (!mounted) return;
-
-      setState(() {
-        _historico.clear();
-      });
-
-      _mostrarMensagem(
-        'Histórico limpo com sucesso.',
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      _mostrarMensagem(
-        'Não foi possível limpar o histórico.',
-        erro: true,
-      );
-    }
+  void _abrirObra(dynamic id) {
+    if (id == null) return;
+    context.push('/obra/$id');
   }
 
-  String _formatarData(DateTime? data) {
-    if (data == null) {
-      return '—';
+  String _texto(dynamic valor, {String alternativa = 'Não indicado'}) {
+    if (valor == null || valor.toString().trim().isEmpty) {
+      return alternativa;
     }
 
-    final dia = data.day.toString().padLeft(2, '0');
-    final mes = data.month.toString().padLeft(2, '0');
-    final ano = data.year.toString();
-
-    return '$dia/$mes/$ano';
+    return valor.toString();
   }
 
-  // ============================================================
-  // TÍTULO DE SECÇÃO
-  // ============================================================
+  String _nomeUtilizador() {
+    final nome = _perfil?['nome'] ??
+        _perfil?['nome_completo'] ??
+        _perfil?['full_name'];
 
-  Widget _tituloSecao(String titulo) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 2,
-        bottom: 12,
-      ),
-      child: Text(
-        titulo,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
-  Widget _tituloSecaoHistorico() {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: 2,
-        bottom: 12,
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'Histórico recente',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (_historico.isNotEmpty)
-            TextButton(
-              onPressed: _limparHistorico,
-              child: const Text('Limpar histórico'),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // CARTÃO DE OBRA PUBLICADA
-  // ============================================================
-
-  Widget _cartaoObraPublicada(Obra obra) {
-    final mobile =
-        MediaQuery.sizeOf(context).width < 600;
-
-    return ObraListaItem(
-      obra: obra,
-      mobile: mobile,
-      onTap: () => _abrirObra(obra),
-    );
-  }
-
-  // ============================================================
-  // CARTÃO DE OBRA PENDENTE
-  // ============================================================
-
-  Widget _cartaoObraPendente(
-      ObraPendente obra,
-      ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(
-            Icons.hourglass_empty,
-            color: Colors.orange,
-          ),
-        ),
-        title: Text(
-          obra.titulo,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-          children: [
-            if (obra.autor.trim().isNotEmpty)
-              Text(obra.autor),
-            if (obra.categoria.trim().isNotEmpty)
-              Text(obra.categoria),
-            Text(
-              'Enviada em ${_formatarData(obra.createdAt)}',
-            ),
-          ],
-        ),
-        trailing: IconButton(
-          tooltip: 'Ver detalhes',
-          icon: const Icon(Icons.more_vert),
-          onPressed: () =>
-              _abrirDetalhesObraPendente(obra),
-        ),
-        onTap: () =>
-            _abrirDetalhesObraPendente(obra),
-      ),
-    );
-  }
-
-  // ============================================================
-  // LISTA DE OBRAS
-  // ============================================================
-
-  Widget _listaObras() {
-    if (_minhasObras.isEmpty &&
-        _minhasObrasPendentes.isEmpty) {
-      return _caixaVazia(
-        'Ainda não publicou nenhuma obra.',
-        Icons.menu_book_outlined,
-      );
+    if (nome != null && nome.toString().trim().isNotEmpty) {
+      return nome.toString();
     }
 
-    return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
-      children: [
-        if (_minhasObrasPendentes.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(
-              left: 2,
-              bottom: 10,
-            ),
-            child: Text(
-              'Publicações pendentes',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ..._minhasObrasPendentes.map(
-            _cartaoObraPendente,
-          ),
-          if (_minhasObras.isNotEmpty)
-            const SizedBox(height: 18),
-        ],
-        if (_minhasObras.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.only(
-              left: 2,
-              bottom: 10,
-            ),
-            child: Text(
-              'Publicações aprovadas',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ..._minhasObras.map(
-            _cartaoObraPublicada,
-          ),
-        ],
-      ],
+    return _supabase.auth.currentUser?.email ?? 'Utilizador';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F8FC),
+      appBar: _construirAppBar(),
+      body: _construirCorpo(),
     );
   }
 
-  // ============================================================
-  // COMENTÁRIOS
-  // ============================================================
-
-  Widget _listaComentarios() {
-    if (_comentarios.isEmpty) {
-      return _caixaVazia(
-        'Ainda não existem comentários nas suas obras.',
-        Icons.comment_outlined,
-      );
-    }
-
-    return Column(
-      children:
-      _comentarios.map((comentario) {
-        final obraDados = comentario['obras'];
-
-        final tituloObra = obraDados is Map
-            ? (obraDados['titulo']?.toString() ??
-            'Obra')
-            : 'Obra';
-
-        final obraId =
-        comentario['obra_id']?.toString();
-
-        final texto =
-            comentario['comentario']?.toString() ??
-                comentario['texto']?.toString() ??
-                '';
-
-        final data =
-        comentario['created_at']?.toString();
-
-        return Card(
-          margin:
-          const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.comment_outlined),
-            ),
-            title: Text(
-              tituloObra,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                if (texto.isNotEmpty)
-                  Text(texto),
-                if (data != null)
-                  Text(
-                    _formatarData(
-                      DateTime.tryParse(data),
-                    ),
-                  ),
-              ],
-            ),
-            onTap: obraId == null
-                ? null
-                : () async {
-              try {
-                final dados = await _supabase
-                    .from('obras')
-                    .select()
-                    .eq('id', obraId)
-                    .maybeSingle();
-
-                if (dados == null ||
-                    !mounted) {
-                  return;
-                }
-
-                final obra = Obra.fromMap(
-                  Map<String, dynamic>.from(
-                    dados,
-                  ),
-                );
-
-                await _abrirObra(obra);
-              } catch (_) {}
-            },
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ============================================================
-  // HISTÓRICO
-  // ============================================================
-
-  Widget _listaHistorico() {
-    if (_historico.isEmpty) {
-      return _caixaVazia(
-        'Ainda não existem consultas recentes.',
-        Icons.history,
-      );
-    }
-
-    return Column(
-      children: _historico.map((item) {
-        return Card(
-          margin:
-          const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.history),
-            ),
-            title: Text(
-              item.titulo,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              _formatarData(item.createdAt),
-            ),
-            trailing: IconButton(
-              tooltip: 'Remover do histórico',
-              icon: const Icon(Icons.close),
-              onPressed: () =>
-                  _removerConsulta(item),
-            ),
-            onTap: () {
-              context.push(
-                '/obra/${item.obraId}',
-              );
-            },
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ============================================================
-  // SOLICITAÇÕES DE REMOÇÃO
-  // ============================================================
-
-  Widget _listaSolicitacoes() {
-    if (_solicitacoes.isEmpty) {
-      return _caixaVazia(
-        'Ainda não existem solicitações de remoção.',
-        Icons.delete_outline,
-      );
-    }
-
-    return Column(
-      children:
-      _solicitacoes.map((solicitacao) {
-        final obraDados =
-        solicitacao['obras'];
-
-        final tituloObra = obraDados is Map
-            ? (obraDados['titulo']?.toString() ??
-            'Obra')
-            : 'Obra';
-
-        final motivo =
-            solicitacao['motivo']?.toString() ??
-                '';
-
-        final status =
-            solicitacao['status']?.toString() ??
-                '';
-
-        final data =
-        solicitacao['created_at']?.toString();
-
-        return Card(
-          margin:
-          const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.delete_outline),
-            ),
-            title: Text(
-              tituloObra,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Column(
-              crossAxisAlignment:
-              CrossAxisAlignment.start,
-              children: [
-                if (status.isNotEmpty)
-                  Text(
-                    _formatarStatusSolicitacao(
-                      status,
-                    ),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                if (motivo.isNotEmpty)
-                  Text(motivo),
-                if (data != null)
-                  Text(
-                    _formatarData(
-                      DateTime.tryParse(data),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  String _formatarStatusSolicitacao(
-      String status,
-      ) {
-    switch (status.toLowerCase()) {
-      case 'pendente':
-        return 'Pendente';
-
-      case 'aprovada':
-        return 'Aprovada';
-
-      case 'rejeitada':
-        return 'Rejeitada';
-
-      case 'concluida':
-        return 'Concluída';
-
-      default:
-        return status;
-    }
-  }
-
-  // ============================================================
-  // CAIXA VAZIA
-  // ============================================================
-
-  Widget _caixaVazia(
-      String mensagem,
-      IconData icone,
-      ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        vertical: 28,
-        horizontal: 20,
-      ),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: const Color(0xFFDDE7F0),
-        ),
-        borderRadius:
-        BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icone,
-            size: 34,
-            color: Colors.grey,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            mensagem,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.grey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // APP BAR
-  // ============================================================
-
-  PreferredSizeWidget _buildAppBar() {
-    final estaAutenticado =
-        _supabase.auth.currentUser != null;
-
+  PreferredSizeWidget _construirAppBar() {
     return AppBar(
-      backgroundColor:
-      const Color(0xFFEAF4FF),
+      backgroundColor: const Color(0xFFEAF4FF),
+      foregroundColor: const Color(0xFF17365D),
       elevation: 0,
-      surfaceTintColor:
-      const Color(0xFFEAF4FF),
-      automaticallyImplyLeading: false,
-      toolbarHeight: 60,
-      titleSpacing: 28,
       title: const Text(
         'Minha Conta',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold),
       ),
       actions: [
-        if (estaAutenticado)
-          Padding(
-            padding:
-            const EdgeInsets.only(right: 20),
-            child: PopupMenuButton<String>(
-              tooltip: 'Conta',
-              offset: const Offset(0, 48),
-              onSelected: (valor) {
-                switch (valor) {
-                  case 'conta':
-                    _abrirConta();
-                    break;
+        PopupMenuButton<String>(
+          tooltip: 'Menu da conta',
+          icon: const Icon(Icons.account_circle_outlined),
+          onSelected: (valor) {
+            switch (valor) {
+              case 'conta':
+                _abrirConta();
+                break;
 
-                  case 'configuracoes':
-                    context.go('/minha-conta');
-                    break;
+              case 'configuracoes':
+                _abrirConfiguracoes();
+                break;
 
-                  case 'sair':
-                    _sair();
-                    break;
-                }
-              },
-              itemBuilder: (context) {
-                return [
-                  PopupMenuItem<String>(
-                    value: 'conta',
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.person_outline,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          _ehAdmin
-                              ? 'Administração'
-                              : 'Minha conta',
-                        ),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'configuracoes',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.manage_accounts_outlined,
-                        ),
-                        SizedBox(width: 10),
-                        Text('Minha conta'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
-                    value: 'sair',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout),
-                        SizedBox(width: 10),
-                        Text('Sair'),
-                      ],
-                    ),
-                  ),
-                ];
-              },
-              child: const AvatarUtilizador(
-                radius: 20,
+              case 'sair':
+                _sair();
+                break;
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem<String>(
+              value: 'conta',
+              child: ListTile(
+                leading: Icon(Icons.person_outline),
+                title: Text('Minha conta'),
+                contentPadding: EdgeInsets.zero,
               ),
             ),
-          ),
+            PopupMenuItem<String>(
+              value: 'configuracoes',
+              child: ListTile(
+                leading: Icon(Icons.settings_outlined),
+                title: Text('Configurações'),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuDivider(),
+            PopupMenuItem<String>(
+              value: 'sair',
+              child: ListTile(
+                leading: Icon(Icons.logout, color: Colors.red),
+                title: Text(
+                  'Terminar sessão',
+                  style: TextStyle(color: Colors.red),
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 8),
       ],
       bottom: const PreferredSize(
         preferredSize: Size.fromHeight(1),
         child: Divider(
           height: 1,
-          thickness: 1,
           color: Color(0xFFD5E5F5),
         ),
       ),
     );
   }
 
-  // ============================================================
-  // SAIR
-  // ============================================================
-
-  Future<void> _sair() async {
-    try {
-      await _authService.sair();
-
-      if (!mounted) return;
-
-      context.go('/login');
-    } catch (e) {
-      if (!mounted) return;
-
-      _mostrarMensagem(
-        'Não foi possível terminar a sessão.',
-        erro: true,
-      );
-    }
-  }
-
-  // ============================================================
-  // CONTA / ADMINISTRAÇÃO
-  // ============================================================
-
-  void _abrirConta() {
-    if (_ehAdmin) {
-      context.go('/admin-obras');
-    } else {
-      context.go('/minha-conta');
-    }
-  }
-
-  // ============================================================
-  // MENSAGEM
-  // ============================================================
-
-  void _mostrarMensagem(
-      String mensagem, {
-        bool erro = false,
-      }) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(mensagem),
-          backgroundColor:
-          erro ? Colors.red : null,
-        ),
-      );
-  }
-
-  // ============================================================
-  // CONTEÚDO
-  // ============================================================
-
-  Widget _conteudo() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 1100,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            24,
-            20,
-            24,
-            40,
-          ),
-          child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-            children: [
-              _tituloSecao(
-                'Minhas publicações',
-              ),
-
-              _listaObras(),
-
-              const SizedBox(height: 32),
-
-              _tituloSecao(
-                'Comentários',
-              ),
-
-              _listaComentarios(),
-
-              const SizedBox(height: 32),
-
-              _tituloSecao(
-                'Solicitações de remoção',
-              ),
-
-              _listaSolicitacoes(),
-
-              const SizedBox(height: 32),
-
-              _tituloSecaoHistorico(),
-
-              _listaHistorico(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor:
-      const Color(0xFFFCFCFC),
-      appBar: _buildAppBar(),
-      body: _carregando
-          ? const Center(
+  Widget _construirCorpo() {
+    if (_carregando) {
+      return const Center(
         child: CircularProgressIndicator(),
-      )
-          : _erro != null
-          ? Center(
+      );
+    }
+
+    if (_erro != null) {
+      return Center(
         child: Padding(
-          padding:
-          const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize:
-            MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(
                 Icons.error_outline,
-                size: 42,
                 color: Colors.red,
+                size: 48,
               ),
               const SizedBox(height: 12),
               Text(
                 _erro!,
-                textAlign:
-                TextAlign.center,
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed:
-                _carregarDados,
-                icon: const Icon(
-                  Icons.refresh,
-                ),
-                label: const Text(
-                  'Tentar novamente',
-                ),
+                onPressed: _carregarDados,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar novamente'),
               ),
             ],
           ),
         ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _carregarDados,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          _construirCabecalho(),
+          const SizedBox(height: 24),
+
+          _construirResumo(),
+          const SizedBox(height: 24),
+
+          _construirCartaoEstatisticas(),
+          const SizedBox(height: 24),
+
+          _construirSecaoPublicacoes(),
+          const SizedBox(height: 24),
+
+          _construirSecaoPendentes(),
+          const SizedBox(height: 24),
+
+          _construirSecaoHistorico(),
+          const SizedBox(height: 24),
+
+          _construirCartaoConfiguracoes(),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirCabecalho() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD5E5F5)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: const Color(0xFFEAF4FF),
+            child: const Icon(
+              Icons.person_outline,
+              size: 34,
+              color: Color(0xFF245A91),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bem-vindo à tua conta',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _nomeUtilizador(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF17365D),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _supabase.auth.currentUser?.email ?? '',
+                  style: const TextStyle(
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirResumo() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largura = constraints.maxWidth;
+        final colunas = largura >= 700 ? 3 : 1;
+
+        return GridView.count(
+          crossAxisCount: colunas,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: colunas == 1 ? 4.0 : 2.0,
+          children: [
+            _cartaoResumo(
+              titulo: 'Minhas publicações',
+              valor: _obras.length.toString(),
+              icone: Icons.menu_book_outlined,
+            ),
+            _cartaoResumo(
+              titulo: 'Obras pendentes',
+              valor: _obrasPendentes.length.toString(),
+              icone: Icons.hourglass_empty,
+            ),
+            _cartaoResumo(
+              titulo: 'Histórico recente',
+              valor: _historico.length.toString(),
+              icone: Icons.history,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _cartaoResumo({
+    required String titulo,
+    required String valor,
+    required IconData icone,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD5E5F5)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icone,
+            size: 30,
+            color: const Color(0xFF245A91),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  valor,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF17365D),
+                  ),
+                ),
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirCartaoEstatisticas() {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF17365D),
+            Color(0xFF2868A6),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.analytics_outlined,
+            size: 38,
+            color: Colors.white,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Estatísticas das minhas obras',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Consulta as visualizações das tuas obras e os cliques '
+                'nos respetivos documentos PDF.',
+            style: TextStyle(
+              color: Colors.white,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: _abrirEstatisticas,
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF17365D),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 14,
+              ),
+            ),
+            icon: const Icon(Icons.bar_chart),
+            label: const Text('Ver estatísticas'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirSecaoPublicacoes() {
+    return _construirSecao(
+      titulo: 'Minhas publicações',
+      icone: Icons.menu_book_outlined,
+      acao: TextButton.icon(
+        onPressed: () => context.push('/publicar-opcoes'),
+        icon: const Icon(Icons.add),
+        label: const Text('Publicar obra'),
+      ),
+      conteudo: _obras.isEmpty
+          ? _mensagemVazia(
+        'Ainda não tens obras publicadas.',
+        'Podes começar por publicar a tua primeira obra.',
+        Icons.library_books_outlined,
+        botao: FilledButton.icon(
+          onPressed: () => context.push('/publicar-opcoes'),
+          icon: const Icon(Icons.add),
+          label: const Text('Publicar obra'),
+        ),
       )
-          : RefreshIndicator(
-        onRefresh: _carregarDados,
-        child: SingleChildScrollView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
-          child: _conteudo(),
+          : Column(
+        children: _obras.map((obra) {
+          return _cartaoObra(
+            titulo: _texto(obra['titulo']),
+            subtitulo:
+            '${_texto(obra['autor'])} • ${_texto(obra['categoria'])}',
+            onTap: () => _abrirObra(obra['id']),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _construirSecaoPendentes() {
+    return _construirSecao(
+      titulo: 'Obras pendentes',
+      icone: Icons.hourglass_empty,
+      conteudo: _obrasPendentes.isEmpty
+          ? _mensagemVazia(
+        'Não tens obras pendentes de análise.',
+        'As obras submetidas para análise aparecerão aqui.',
+        Icons.check_circle_outline,
+      )
+          : Column(
+        children: _obrasPendentes.map((obra) {
+          return _cartaoObra(
+            titulo: _texto(obra['titulo']),
+            subtitulo: 'A aguardar análise',
+            onTap: () {
+              final id = obra['id'];
+              if (id != null) {
+                context.push('/obra/$id');
+              }
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _construirSecaoHistorico() {
+    return _construirSecao(
+      titulo: 'Histórico recente',
+      icone: Icons.history,
+      conteudo: _historico.isEmpty
+          ? _mensagemVazia(
+        'O teu histórico está vazio.',
+        'As obras consultadas poderão aparecer aqui.',
+        Icons.history,
+      )
+          : Column(
+        children: _historico.map((item) {
+          return _cartaoObra(
+            titulo: _texto(
+              item['titulo'],
+              alternativa: 'Obra consultada',
+            ),
+            subtitulo: 'Obra consultada recentemente',
+            onTap: () => _abrirObra(item['obra_id']),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _construirCartaoConfiguracoes() {
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFD5E5F5)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 10,
+        ),
+        leading: const CircleAvatar(
+          backgroundColor: Color(0xFFEAF4FF),
+          child: Icon(
+            Icons.settings_outlined,
+            color: Color(0xFF245A91),
+          ),
+        ),
+        title: const Text(
+          'Configurações',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: const Text(
+          'Gerir as definições da tua conta.',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: _abrirConfiguracoes,
+      ),
+    );
+  }
+
+  Widget _construirSecao({
+    required String titulo,
+    required IconData icone,
+    required Widget conteudo,
+    Widget? acao,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD5E5F5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icone,
+                color: const Color(0xFF245A91),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF17365D),
+                  ),
+                ),
+              ),
+              if (acao != null) acao,
+            ],
+          ),
+          const SizedBox(height: 16),
+          conteudo,
+        ],
+      ),
+    );
+  }
+
+  Widget _cartaoObra({
+    required String titulo,
+    required String subtitulo,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      color: const Color(0xFFF8FBFF),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Color(0xFFE1EBF5)),
+      ),
+      child: ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: Color(0xFFEAF4FF),
+          child: Icon(
+            Icons.description_outlined,
+            color: Color(0xFF245A91),
+          ),
+        ),
+        title: Text(
+          titulo,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(subtitulo),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _mensagemVazia(
+      String titulo,
+      String descricao,
+      IconData icone, {
+        Widget? botao,
+      }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              icone,
+              size: 38,
+              color: Colors.blueGrey,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              titulo,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              descricao,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.black54,
+              ),
+            ),
+            if (botao != null) ...[
+              const SizedBox(height: 14),
+              botao,
+            ],
+          ],
         ),
       ),
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/obra.dart';
@@ -11,6 +10,7 @@ import '../repositories/obra_secoes_repository.dart';
 import '../repositories/solicitacoes_remocao_repository.dart';
 import '../services/auth_service.dart';
 import '../services/historico_obras_service.dart';
+import '../services/estatisticas_obras_service.dart';
 import '../widgets/comentarios_section.dart';
 import '../widgets/obra_lista_item.dart';
 import '../widgets/coluna_anuncios.dart';
@@ -24,7 +24,8 @@ class ObraDetalhesPage extends StatefulWidget {
   });
 
   @override
-  State<ObraDetalhesPage> createState() => _ObraDetalhesPageState();
+  State<ObraDetalhesPage> createState() =>
+      _ObraDetalhesPageState();
 }
 
 class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
@@ -40,11 +41,20 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
-  final SolicitacoesRemocaoRepository _solicitacoesRepository =
+  final SolicitacoesRemocaoRepository
+  _solicitacoesRepository =
       SolicitacoesRemocaoRepository.instancia;
 
   final AuthService _authService =
       AuthService.instancia;
+
+  // Serviço de estatísticas.
+  final EstatisticasObrasService _estatisticasService =
+      EstatisticasObrasService.instancia;
+
+  // Evita registar várias visualizações durante
+  // o mesmo carregamento desta página.
+  bool _visualizacaoRegistada = false;
 
   Obra? _obra;
 
@@ -72,6 +82,26 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   void initState() {
     super.initState();
     _carregarObra();
+  }
+
+  // ============================================================
+  // REGISTAR VISUALIZAÇÃO
+  // ============================================================
+
+  Future<void> _registarVisualizacao(String obraId) async {
+    if (_visualizacaoRegistada || obraId.trim().isEmpty) {
+      return;
+    }
+
+    _visualizacaoRegistada = true;
+
+    try {
+      await _estatisticasService.registarVisualizacao(obraId);
+    } catch (e) {
+      debugPrint(
+        'OBRA DETALHES: erro ao registar visualização: $e',
+      );
+    }
   }
 
   // ============================================================
@@ -109,6 +139,10 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       setState(() {
         _obra = obra;
       });
+
+      // Registar a visualização sem bloquear
+      // o carregamento do conteúdo da obra.
+      await _registarVisualizacao(obra.id);
 
       await _carregarImagens(obra.id);
 
@@ -168,28 +202,22 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
       final imagensValidas = imagens
           .where(
-            (imagem) =>
-        imagem.urlImagem.trim().isNotEmpty,
+            (imagem) => imagem.urlImagem.trim().isNotEmpty,
       )
           .toList()
-        ..sort(
-              (a, b) {
-            final paragrafoA =
-                a.paragrafoOrdem ?? 999999;
+        ..sort((a, b) {
+          final paragrafoA = a.paragrafoOrdem ?? 999999;
+          final paragrafoB = b.paragrafoOrdem ?? 999999;
 
-            final paragrafoB =
-                b.paragrafoOrdem ?? 999999;
+          final resultado =
+          paragrafoA.compareTo(paragrafoB);
 
-            final resultado =
-            paragrafoA.compareTo(paragrafoB);
+          if (resultado != 0) {
+            return resultado;
+          }
 
-            if (resultado != 0) {
-              return resultado;
-            }
-
-            return a.ordem.compareTo(b.ordem);
-          },
-        );
+          return a.ordem.compareTo(b.ordem);
+        });
 
       if (!mounted) return;
 
@@ -279,14 +307,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       'ç': 'c',
     };
 
-    substituicoes.forEach(
-          (original, substituto) {
-        valor = valor.replaceAll(
-          original,
-          substituto,
-        );
-      },
-    );
+    substituicoes.forEach((original, substituto) {
+      valor = valor.replaceAll(original, substituto);
+    });
 
     valor = valor.replaceAll(
       RegExp(r'[^a-z0-9\s]'),
@@ -306,8 +329,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // ============================================================
 
   Set<String> _palavrasImportantes(String titulo) {
-    final normalizado =
-    _normalizarTitulo(titulo);
+    final normalizado = _normalizarTitulo(titulo);
 
     if (normalizado.isEmpty) {
       return {};
@@ -393,9 +415,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     }
 
     final palavrasEmComum =
-    palavrasAtuais.intersection(
-      palavrasComparadas,
-    );
+    palavrasAtuais.intersection(palavrasComparadas);
 
     if (palavrasEmComum.length >= 2) {
       pontuacao += 10;
@@ -405,14 +425,10 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       pontuacao += 10;
     }
 
-    final titulo1 =
-    _normalizarTitulo(tituloAtual);
+    final titulo1 = _normalizarTitulo(tituloAtual);
+    final titulo2 = _normalizarTitulo(tituloComparado);
 
-    final titulo2 =
-    _normalizarTitulo(tituloComparado);
-
-    if (titulo1.isNotEmpty &&
-        titulo2.isNotEmpty) {
+    if (titulo1.isNotEmpty && titulo2.isNotEmpty) {
       if (titulo1.contains(titulo2) ||
           titulo2.contains(titulo1)) {
         pontuacao += 20;
@@ -430,9 +446,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CARREGAR OBRAS RELACIONADAS
   // ============================================================
 
-  Future<void> _carregarObrasRelacionadas(
-      Obra obra,
-      ) async {
+  Future<void> _carregarObrasRelacionadas(Obra obra) async {
     if (!mounted) return;
 
     setState(() {
@@ -440,31 +454,24 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     });
 
     try {
-      final todas =
-      await _repository.carregarTodas();
+      final todas = await _repository.carregarTodas();
 
       final obrasPorId = <String, Obra>{};
 
       for (final outra in todas) {
         final id = outra.id.trim();
 
-        if (id.isEmpty) {
-          continue;
-        }
-
-        if (id == obra.id.trim()) {
+        if (id.isEmpty || id == obra.id.trim()) {
           continue;
         }
 
         obrasPorId[id] = outra;
       }
 
-      final candidatos =
-      <_ObraRelacionada>[];
+      final candidatos = <_ObraRelacionada>[];
 
       for (final outra in obrasPorId.values) {
-        final pontuacaoTitulo =
-        _pontuacaoTitulo(
+        final pontuacaoTitulo = _pontuacaoTitulo(
           obra.titulo,
           outra.titulo,
         );
@@ -481,81 +488,50 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         );
       }
 
-      candidatos.sort(
-            (a, b) {
-          final resultado =
-          b.pontuacao.compareTo(
-            a.pontuacao,
-          );
+      candidatos.sort((a, b) {
+        final resultado =
+        b.pontuacao.compareTo(a.pontuacao);
 
-          if (resultado != 0) {
-            return resultado;
-          }
+        if (resultado != 0) {
+          return resultado;
+        }
 
-          final dataA =
-              a.obra.dataPublicacao;
+        final dataA = a.obra.dataPublicacao;
+        final dataB = b.obra.dataPublicacao;
 
-          final dataB =
-              b.obra.dataPublicacao;
+        if (dataA != null && dataB != null) {
+          return dataB.compareTo(dataA);
+        }
 
-          if (dataA != null &&
-              dataB != null) {
-            return dataB.compareTo(dataA);
-          }
+        if (dataA != null) return -1;
+        if (dataB != null) return 1;
 
-          if (dataA != null) {
-            return -1;
-          }
-
-          if (dataB != null) {
-            return 1;
-          }
-
-          return 0;
-        },
-      );
+        return 0;
+      });
 
       final idsAdicionados = <String>{};
       final titulosAdicionados = <String>{};
       final relacionadas = <Obra>[];
 
       for (final candidato in candidatos) {
-        final obraRelacionada =
-            candidato.obra;
+        final obraRelacionada = candidato.obra;
+        final id = obraRelacionada.id.trim();
 
-        final id =
-        obraRelacionada.id.trim();
-
-        if (id.isEmpty) {
-          continue;
-        }
-
-        if (idsAdicionados.contains(id)) {
+        if (id.isEmpty || idsAdicionados.contains(id)) {
           continue;
         }
 
         final tituloNormalizado =
-        _normalizarTitulo(
-          obraRelacionada.titulo,
-        );
+        _normalizarTitulo(obraRelacionada.titulo);
 
-        if (tituloNormalizado.isEmpty) {
-          continue;
-        }
-
-        if (titulosAdicionados
-            .contains(tituloNormalizado)) {
+        if (tituloNormalizado.isEmpty ||
+            titulosAdicionados.contains(tituloNormalizado)) {
           continue;
         }
 
         idsAdicionados.add(id);
-        titulosAdicionados.add(
-          tituloNormalizado,
-        );
-
-        relacionadas.add(
-          obraRelacionada,
-        );
+        titulosAdicionados.add(tituloNormalizado);
+        relacionadas.add(obraRelacionada);
 
         if (relacionadas.length >= 5) {
           break;
@@ -565,14 +541,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       if (!mounted) return;
 
       setState(() {
-        _obrasRelacionadas =
-            relacionadas;
+        _obrasRelacionadas = relacionadas;
         _carregandoRelacionadas = false;
       });
     } catch (e) {
       debugPrint(
-        'OBRA DETALHES: erro ao carregar '
-            'obras relacionadas: $e',
+        'OBRA DETALHES: erro ao carregar obras relacionadas: $e',
       );
 
       if (!mounted) return;
@@ -590,18 +564,14 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
   Future<void> _carregarEstadoAutenticacao() async {
     try {
-      final utilizador =
-          _authService.usuarioAtual;
-
-      final autenticado =
-          utilizador != null;
+      final utilizador = _authService.usuarioAtual;
+      final autenticado = utilizador != null;
 
       bool admin = false;
 
       if (autenticado) {
         try {
-          admin =
-          await _authService.ehAdmin();
+          admin = await _authService.ehAdmin();
         } catch (e) {
           debugPrint(
             'OBRA DETALHES: erro ao verificar admin: $e',
@@ -626,12 +596,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // ESTADO DA SOLICITAÇÃO
   // ============================================================
 
-  Future<void> _carregarEstadoRemocao(
-      String obraId,
-      ) async {
-    if (!_estaAutenticado) return;
-
-    if (!mounted) return;
+  Future<void> _carregarEstadoRemocao(String obraId) async {
+    if (!_estaAutenticado || !mounted) return;
 
     setState(() {
       _carregandoSolicitacao = true;
@@ -639,16 +605,14 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     try {
       final solicitacao =
-      await _solicitacoesRepository
-          .obterSolicitacaoPendente(
+      await _solicitacoesRepository.obterSolicitacaoPendente(
         obraId,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _solicitacaoPendente =
-            solicitacao;
+        _solicitacaoPendente = solicitacao;
         _carregandoSolicitacao = false;
       });
     } catch (e) {
@@ -686,27 +650,21 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     if (_enviandoSolicitacao) return;
 
-    final motivoController =
-    TextEditingController();
+    final motivoController = TextEditingController();
 
-    final motivo =
-    await showDialog<String>(
+    final motivo = await showDialog<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text(
-            'Solicitar remoção',
-          ),
+          title: const Text('Solicitar remoção'),
           content: TextField(
             controller: motivoController,
             maxLines: 5,
-            decoration:
-            const InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Motivo',
               hintText:
               'Explique o motivo da solicitação...',
-              border:
-              OutlineInputBorder(),
+              border: OutlineInputBorder(),
             ),
           ),
           actions: [
@@ -714,9 +672,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text(
-                'Cancelar',
-              ),
+              child: const Text('Cancelar'),
             ),
             FilledButton(
               onPressed: () {
@@ -724,9 +680,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                   motivoController.text.trim(),
                 );
               },
-              child: const Text(
-                'Enviar',
-              ),
+              child: const Text('Enviar'),
             ),
           ],
         );
@@ -735,8 +689,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     motivoController.dispose();
 
-    if (motivo == null ||
-        motivo.trim().isEmpty) {
+    if (motivo == null || motivo.trim().isEmpty) {
       return;
     }
 
@@ -762,9 +715,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         ),
       );
 
-      await _carregarEstadoRemocao(
-        obra.id,
-      );
+      await _carregarEstadoRemocao(obra.id);
     } catch (e) {
       debugPrint(
         'OBRA DETALHES: erro ao solicitar remoção: $e',
@@ -794,8 +745,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
   Widget _buildCabecalho(Obra obra) {
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           obra.titulo,
@@ -816,8 +766,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                   text: 'Autor(es): ',
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight:
-                    FontWeight.w600,
+                    fontWeight: FontWeight.w600,
                     color: Color(0xFF202124),
                   ),
                 ),
@@ -864,10 +813,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CHIP
   // ============================================================
 
-  Widget _buildChip(
-      IconData icon,
-      String texto,
-      ) {
+  Widget _buildChip(IconData icon, String texto) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 12,
@@ -877,8 +823,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         border: Border.all(
           color: const Color(0xFFDADCE0),
         ),
-        borderRadius:
-        BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -886,8 +831,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           Icon(
             icon,
             size: 16,
-            color:
-            const Color(0xFF5F6368),
+            color: const Color(0xFF5F6368),
           ),
           const SizedBox(width: 6),
           Text(
@@ -906,19 +850,15 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // INFORMAÇÕES TÉCNICAS
   // ============================================================
 
-  Widget _buildInformacoesTecnicas(
-      Obra obra,
-      ) {
+  Widget _buildInformacoesTecnicas(Obra obra) {
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Informações técnicas',
           style: TextStyle(
             fontSize: 21,
-            fontWeight:
-            FontWeight.w700,
+            fontWeight: FontWeight.w700,
             color: Color(0xFF202124),
           ),
         ),
@@ -981,8 +921,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           valor,
           style: const TextStyle(
             color: Color(0xFF202124),
-            fontWeight:
-            FontWeight.w600,
+            fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
         ),
@@ -1011,17 +950,77 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   }
 
   // ============================================================
-  // BOTÕES DO DOCUMENTO
+  // BOTÕES DO DOCUMENTO — REGISTO DE CLIQUES
   // ============================================================
 
-  Widget _buildBotoesDocumento(
-      Obra obra,
-      ) {
-    final urlPdf =
-    obra.urlDocumento.trim();
+  Widget _buildBotoesDocumento(Obra obra) {
+    final urlPdf = obra.urlDocumento.trim();
 
     if (urlPdf.isEmpty) {
       return const SizedBox.shrink();
+    }
+
+    Future<void> abrirPdf() async {
+      final uri = Uri.tryParse(urlPdf);
+
+      if (uri == null ||
+          !uri.hasScheme ||
+          !(uri.scheme == 'https' || uri.scheme == 'http')) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'O endereço do PDF é inválido.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      // Registar o clique no Supabase.
+      try {
+        await _estatisticasService.registarCliquePdf(
+          obra.id,
+        );
+      } catch (e) {
+        debugPrint(
+          'OBRA DETALHES: erro ao registar clique no PDF: $e',
+        );
+      }
+
+      // Abrir o PDF mesmo se o registo falhar.
+      try {
+        final aberto = await launchUrl(
+          uri,
+          webOnlyWindowName: '_blank',
+        );
+
+        if (!aberto && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Não foi possível abrir o PDF.',
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          'OBRA DETALHES: erro ao abrir PDF: $e',
+        );
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Ocorreu um erro ao abrir o PDF.',
+            ),
+          ),
+        );
+      }
     }
 
     return Wrap(
@@ -1029,42 +1028,18 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       runSpacing: 12,
       children: [
         FilledButton.icon(
-          onPressed: () async {
-            final uri =
-            Uri.tryParse(urlPdf);
-
-            if (uri == null) return;
-
-            await launchUrl(
-              uri,
-              webOnlyWindowName: '_blank',
-            );
-          },
+          onPressed: abrirPdf,
           icon: const Icon(
             Icons.menu_book_outlined,
           ),
-          label: const Text(
-            'Ler PDF',
-          ),
+          label: const Text('Ler PDF'),
         ),
         OutlinedButton.icon(
-          onPressed: () async {
-            final uri =
-            Uri.tryParse(urlPdf);
-
-            if (uri == null) return;
-
-            await launchUrl(
-              uri,
-              webOnlyWindowName: '_blank',
-            );
-          },
+          onPressed: abrirPdf,
           icon: const Icon(
             Icons.download_outlined,
           ),
-          label: const Text(
-            'Download PDF',
-          ),
+          label: const Text('Download PDF'),
         ),
       ],
     );
@@ -1074,19 +1049,11 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // PARÁGRAFOS
   // ============================================================
 
-  List<String> _obterParagrafos(
-      String texto,
-      ) {
+  List<String> _obterParagrafos(String texto) {
     return texto
-        .split(
-      RegExp(r'\n\s*\n'),
-    )
-        .map(
-          (p) => p.trim(),
-    )
-        .where(
-          (p) => p.isNotEmpty,
-    )
+        .split(RegExp(r'\n\s*\n'))
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
         .toList();
   }
 
@@ -1094,9 +1061,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CONTEÚDO DE PARÁGRAFO
   // ============================================================
 
-  Widget _buildParagrafo(
-      String texto,
-      ) {
+  Widget _buildParagrafo(String texto) {
     return SelectableText(
       texto,
       textAlign: TextAlign.justify,
@@ -1116,36 +1081,23 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     return _imagens
         .where(
           (imagem) =>
-      imagem.posicao.trim() ==
-          'inicio_conteudo',
+      imagem.posicao.trim() == 'inicio_conteudo',
     )
         .toList()
-      ..sort(
-            (a, b) =>
-            a.ordem.compareTo(b.ordem),
-      );
+      ..sort((a, b) => a.ordem.compareTo(b.ordem));
   }
 
   List<ObraImagem> _imagensParaFinal() {
     return _imagens
-        .where(
-          (imagem) {
-        final posicao =
-        imagem.posicao.trim();
+        .where((imagem) {
+      final posicao = imagem.posicao.trim();
 
-        return posicao ==
-            'depois_conteudo' ||
-            (posicao ==
-                'dentro_conteudo' &&
-                imagem.paragrafoOrdem ==
-                    null);
-      },
-    )
+      return posicao == 'depois_conteudo' ||
+          (posicao == 'dentro_conteudo' &&
+              imagem.paragrafoOrdem == null);
+    })
         .toList()
-      ..sort(
-            (a, b) =>
-            a.ordem.compareTo(b.ordem),
-      );
+      ..sort((a, b) => a.ordem.compareTo(b.ordem));
   }
 
   List<ObraImagem> _imagensDepoisDoParagrafo(
@@ -1154,16 +1106,11 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     return _imagens
         .where(
           (imagem) =>
-      imagem.posicao.trim() ==
-          'dentro_conteudo' &&
-          imagem.paragrafoOrdem ==
-              paragrafoOrdem,
+      imagem.posicao.trim() == 'dentro_conteudo' &&
+          imagem.paragrafoOrdem == paragrafoOrdem,
     )
         .toList()
-      ..sort(
-            (a, b) =>
-            a.ordem.compareTo(b.ordem),
-      );
+      ..sort((a, b) => a.ordem.compareTo(b.ordem));
   }
 
   // ============================================================
@@ -1175,28 +1122,21 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       int numeroFigura,
       double largura,
       ) {
-    final legenda =
-        imagem.legenda?.trim() ?? '';
-
-    final fonte =
-        imagem.fonte?.trim() ?? '';
+    final legenda = imagem.legenda?.trim() ?? '';
+    final fonte = imagem.fonte?.trim() ?? '';
 
     return SizedBox(
       width: largura,
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color:
-              const Color(0xFFF8F9FA),
-              borderRadius:
-              BorderRadius.circular(6),
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(6),
             ),
-            clipBehavior:
-            Clip.antiAlias,
+            clipBehavior: Clip.antiAlias,
             child: AspectRatio(
               aspectRatio: 4 / 3,
               child: Image.network(
@@ -1209,14 +1149,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                     child,
                     loadingProgress,
                     ) {
-                  if (loadingProgress ==
-                      null) {
+                  if (loadingProgress == null) {
                     return child;
                   }
 
                   return const Center(
-                    child:
-                    CircularProgressIndicator(),
+                    child: CircularProgressIndicator(),
                   );
                 },
                 errorBuilder: (
@@ -1225,39 +1163,26 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                     stackTrace,
                     ) {
                   debugPrint(
-                    'OBRA DETALHES: '
-                        'erro ao carregar imagem: $error',
+                    'OBRA DETALHES: erro ao carregar imagem: $error',
                   );
 
                   return const Center(
                     child: Padding(
-                      padding:
-                      EdgeInsets.all(16),
+                      padding: EdgeInsets.all(16),
                       child: Column(
-                        mainAxisAlignment:
-                        MainAxisAlignment
-                            .center,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons
-                                .broken_image_outlined,
-                            color:
-                            Color(0xFF9AA0A6),
+                            Icons.broken_image_outlined,
+                            color: Color(0xFF9AA0A6),
                             size: 30,
                           ),
-                          SizedBox(
-                            height: 8,
-                          ),
+                          SizedBox(height: 8),
                           Text(
-                            'Não foi possível '
-                                'carregar esta imagem.',
-                            textAlign:
-                            TextAlign.center,
-                            style:
-                            TextStyle(
-                              color:
-                              Color(
-                                  0xFF5F6368),
+                            'Não foi possível carregar esta imagem.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF5F6368),
                               fontSize: 12,
                             ),
                           ),
@@ -1276,11 +1201,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 : 'Fig. $numeroFigura',
             style: const TextStyle(
               fontSize: 13,
-              fontWeight:
-              FontWeight.w600,
+              fontWeight: FontWeight.w600,
               height: 1.4,
-              color:
-              Color(0xFF202124),
+              color: Color(0xFF202124),
             ),
           ),
           if (fonte.isNotEmpty) ...[
@@ -1290,10 +1213,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.4,
-                fontStyle:
-                FontStyle.italic,
-                color:
-                Color(0xFF5F6368),
+                fontStyle: FontStyle.italic,
+                color: Color(0xFF5F6368),
               ),
             ),
           ],
@@ -1327,24 +1248,17 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
     final larguraImagem =
         (larguraDisponivel -
-            ((numeroColunas - 1) *
-                espacamento)) /
+            ((numeroColunas - 1) * espacamento)) /
             numeroColunas;
 
     return Padding(
-      padding:
-      const EdgeInsets.symmetric(
-        vertical: 24,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Wrap(
         spacing: espacamento,
         runSpacing: 24,
-        alignment:
-        WrapAlignment.start,
+        alignment: WrapAlignment.start,
         children: [
-          for (var i = 0;
-          i < imagens.length;
-          i++)
+          for (var i = 0; i < imagens.length; i++)
             _buildImagemEditorial(
               imagens[i],
               numeroFiguraInicial + i,
@@ -1359,20 +1273,15 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // IMAGENS DE INÍCIO
   // ============================================================
 
-  Widget _buildImagensInicio(
-      double larguraDisponivel,
-      ) {
-    final imagens =
-    _imagensParaInicio();
+  Widget _buildImagensInicio(double larguraDisponivel) {
+    final imagens = _imagensParaInicio();
 
     if (imagens.isEmpty) {
       return const SizedBox.shrink();
     }
 
     final numeroFiguraInicial =
-    _numeroFiguraAntesDasImagens(
-      imagens,
-    );
+    _numeroFiguraAntesDasImagens(imagens);
 
     return _buildGaleriaDoGrupo(
       imagens,
@@ -1392,8 +1301,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       return 1;
     }
 
-    final idsGrupo =
-    grupo.map((e) => e.id).toSet();
+    final idsGrupo = grupo.map((e) => e.id).toSet();
 
     var numero = 1;
 
@@ -1408,11 +1316,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     return numero;
   }
 
-  int _numeroFiguraDaImagem(
-      ObraImagem imagem,
-      ) {
-    final indice =
-    _imagens.indexOf(imagem);
+  int _numeroFiguraDaImagem(ObraImagem imagem) {
+    final indice = _imagens.indexOf(imagem);
 
     if (indice < 0) {
       return 1;
@@ -1430,9 +1335,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       double larguraDisponivel,
       ) {
     final imagens =
-    _imagensDepoisDoParagrafo(
-      paragrafoOrdem,
-    );
+    _imagensDepoisDoParagrafo(paragrafoOrdem);
 
     if (imagens.isEmpty) {
       return const SizedBox.shrink();
@@ -1441,9 +1344,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     return _buildGaleriaDoGrupo(
       imagens,
       larguraDisponivel,
-      _numeroFiguraDaImagem(
-        imagens.first,
-      ),
+      _numeroFiguraDaImagem(imagens.first),
     );
   }
 
@@ -1451,11 +1352,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // IMAGENS NO FINAL
   // ============================================================
 
-  Widget _buildImagensFinal(
-      double larguraDisponivel,
-      ) {
-    final imagens =
-    _imagensParaFinal();
+  Widget _buildImagensFinal(double larguraDisponivel) {
+    final imagens = _imagensParaFinal();
 
     if (imagens.isEmpty) {
       return const SizedBox.shrink();
@@ -1464,9 +1362,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     return _buildGaleriaDoGrupo(
       imagens,
       larguraDisponivel,
-      _numeroFiguraDaImagem(
-        imagens.first,
-      ),
+      _numeroFiguraDaImagem(imagens.first),
     );
   }
 
@@ -1478,12 +1374,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     if (_carregandoSecoes) {
       return const Center(
         child: Padding(
-          padding:
-          EdgeInsets.symmetric(
-            vertical: 30,
-          ),
-          child:
-          CircularProgressIndicator(),
+          padding: EdgeInsets.symmetric(vertical: 30),
+          child: CircularProgressIndicator(),
         ),
       );
     }
@@ -1494,18 +1386,12 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       }
 
       return LayoutBuilder(
-        builder:
-            (context, constraints) {
+        builder: (context, constraints) {
           return Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildImagensInicio(
-                constraints.maxWidth,
-              ),
-              _buildImagensFinal(
-                constraints.maxWidth,
-              ),
+              _buildImagensInicio(constraints.maxWidth),
+              _buildImagensFinal(constraints.maxWidth),
             ],
           );
         },
@@ -1513,100 +1399,65 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     }
 
     return LayoutBuilder(
-      builder:
-          (context, constraints) {
-        final largura =
-            constraints.maxWidth;
+      builder: (context, constraints) {
+        final largura = constraints.maxWidth;
+        final widgets = <Widget>[];
 
-        final widgets =
-        <Widget>[];
-
-        final imagensInicio =
-        _imagensParaInicio();
+        final imagensInicio = _imagensParaInicio();
 
         if (imagensInicio.isNotEmpty) {
           widgets.add(
             _buildGaleriaDoGrupo(
               imagensInicio,
               largura,
-              _numeroFiguraAntesDasImagens(
-                imagensInicio,
-              ),
+              _numeroFiguraAntesDasImagens(imagensInicio),
             ),
           );
         }
 
         var contadorParagrafo = 0;
 
-        for (
-        var indiceSecao = 0;
+        for (var indiceSecao = 0;
         indiceSecao < _secoes.length;
-        indiceSecao++
-        ) {
-          final secao =
-          _secoes[indiceSecao];
+        indiceSecao++) {
+          final secao = _secoes[indiceSecao];
+          final titulo = secao.titulo.trim();
+          final conteudo = secao.conteudo?.trim() ?? '';
 
-          final titulo =
-          secao.titulo.trim();
-
-          final conteudo =
-              secao.conteudo?.trim() ?? '';
-
-          if (titulo.isEmpty &&
-              conteudo.isEmpty) {
+          if (titulo.isEmpty && conteudo.isEmpty) {
             continue;
           }
 
-          final widgetsSecao =
-          <Widget>[];
+          final widgetsSecao = <Widget>[];
 
           if (titulo.isNotEmpty) {
             widgetsSecao.add(
               Text(
                 titulo,
                 style: TextStyle(
-                  fontSize:
-                  secao.nivel <= 1
-                      ? 22
-                      : 19,
-                  fontWeight:
-                  FontWeight.w700,
-                  color:
-                  const Color(
-                    0xFF202124,
-                  ),
+                  fontSize: secao.nivel <= 1 ? 22 : 19,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF202124),
                   height: 1.3,
                 ),
               ),
             );
           }
 
-          if (titulo.isNotEmpty &&
-              conteudo.isNotEmpty) {
+          if (titulo.isNotEmpty && conteudo.isNotEmpty) {
             widgetsSecao.add(
-              const SizedBox(
-                height: 14,
-              ),
+              const SizedBox(height: 14),
             );
           }
 
           if (conteudo.isNotEmpty) {
-            final paragrafos =
-            _obterParagrafos(
-              conteudo,
-            );
+            final paragrafos = _obterParagrafos(conteudo);
 
-            for (
-            var i = 0;
-            i < paragrafos.length;
-            i++
-            ) {
+            for (var i = 0; i < paragrafos.length; i++) {
               contadorParagrafo++;
 
               widgetsSecao.add(
-                _buildParagrafo(
-                  paragrafos[i],
-                ),
+                _buildParagrafo(paragrafos[i]),
               );
 
               final imagensDepois =
@@ -1614,8 +1465,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 contadorParagrafo,
               );
 
-              if (imagensDepois
-                  .isNotEmpty) {
+              if (imagensDepois.isNotEmpty) {
                 widgetsSecao.add(
                   _buildGaleriaDoGrupo(
                     imagensDepois,
@@ -1627,12 +1477,9 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
                 );
               }
 
-              if (i <
-                  paragrafos.length - 1) {
+              if (i < paragrafos.length - 1) {
                 widgetsSecao.add(
-                  const SizedBox(
-                    height: 18,
-                  ),
+                  const SizedBox(height: 18),
                 );
               }
             }
@@ -1640,31 +1487,23 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
 
           widgets.add(
             Padding(
-              padding:
-              const EdgeInsets.only(
-                bottom: 32,
-              ),
+              padding: const EdgeInsets.only(bottom: 32),
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.start,
-                children:
-                widgetsSecao,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: widgetsSecao,
               ),
             ),
           );
         }
 
-        final imagensFinal =
-        _imagensParaFinal();
+        final imagensFinal = _imagensParaFinal();
 
         if (imagensFinal.isNotEmpty) {
           widgets.add(
             _buildGaleriaDoGrupo(
               imagensFinal,
               largura,
-              _numeroFiguraDaImagem(
-                imagensFinal.first,
-              ),
+              _numeroFiguraDaImagem(imagensFinal.first),
             ),
           );
         }
@@ -1674,8 +1513,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
         }
 
         return Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: widgets,
         );
       },
@@ -1686,14 +1524,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // REMOÇÃO
   // ============================================================
 
-  Widget _buildSolicitacaoRemocao(
-      Obra obra,
-      ) {
-    if (_ehAdmin) {
-      return const SizedBox.shrink();
-    }
-
-    if (!_estaAutenticado) {
+  Widget _buildSolicitacaoRemocao(Obra obra) {
+    if (_ehAdmin || !_estaAutenticado) {
       return const SizedBox.shrink();
     }
 
@@ -1701,27 +1533,22 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       return const SizedBox(
         height: 50,
         child: Center(
-          child:
-          CircularProgressIndicator(),
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
-    final existeSolicitacao =
-        _solicitacaoPendente != null;
+    final existeSolicitacao = _solicitacaoPendente != null;
 
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Remoção da obra',
           style: TextStyle(
             fontSize: 19,
-            fontWeight:
-            FontWeight.w700,
-            color:
-            Color(0xFF202124),
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF202124),
           ),
         ),
         const SizedBox(height: 10),
@@ -1732,31 +1559,23 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           style: const TextStyle(
             fontSize: 14,
             height: 1.6,
-            color:
-            Color(0xFF5F6368),
+            color: Color(0xFF5F6368),
           ),
         ),
         const SizedBox(height: 14),
         if (!existeSolicitacao)
           OutlinedButton.icon(
             onPressed:
-            _enviandoSolicitacao
-                ? null
-                : _solicitarRemocao,
-            icon:
-            _enviandoSolicitacao
+            _enviandoSolicitacao ? null : _solicitarRemocao,
+            icon: _enviandoSolicitacao
                 ? const SizedBox(
               width: 16,
               height: 16,
-              child:
-              CircularProgressIndicator(
+              child: CircularProgressIndicator(
                 strokeWidth: 2,
               ),
             )
-                : const Icon(
-              Icons
-                  .report_outlined,
-            ),
+                : const Icon(Icons.report_outlined),
             label: Text(
               _enviandoSolicitacao
                   ? 'A enviar...'
@@ -1774,41 +1593,32 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   Widget _buildObrasRelacionadas() {
     if (_carregandoRelacionadas) {
       return const Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Obras relacionadas',
             style: TextStyle(
               fontSize: 21,
-              fontWeight:
-              FontWeight.w700,
-              color:
-              Color(0xFF202124),
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF202124),
             ),
           ),
           SizedBox(height: 20),
-          Center(
-            child:
-            CircularProgressIndicator(),
-          ),
+          Center(child: CircularProgressIndicator()),
         ],
       );
     }
 
     if (_obrasRelacionadas.isEmpty) {
       return const Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Obras relacionadas',
             style: TextStyle(
               fontSize: 21,
-              fontWeight:
-              FontWeight.w700,
-              color:
-              Color(0xFF202124),
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF202124),
             ),
           ),
           SizedBox(height: 14),
@@ -1816,8 +1626,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
             'Ainda não existem outras obras suficientemente relacionadas a esta publicação.',
             style: TextStyle(
               fontSize: 14,
-              color:
-              Color(0xFF5F6368),
+              color: Color(0xFF5F6368),
             ),
           ),
         ],
@@ -1825,45 +1634,35 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     }
 
     final mobile =
-        MediaQuery.of(context)
-            .size
-            .width <
-            600;
+        MediaQuery.of(context).size.width < 600;
 
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Obras relacionadas',
           style: TextStyle(
             fontSize: 21,
-            fontWeight:
-            FontWeight.w700,
-            color:
-            Color(0xFF202124),
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF202124),
           ),
         ),
         const SizedBox(height: 8),
-        ..._obrasRelacionadas.map(
-              (obra) {
-            return ObraListaItem(
-              obra: obra,
-              mobile: mobile,
-              onTap: () {
-                Navigator.of(context)
-                    .push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ObraDetalhesPage(
-                          id: obra.id,
-                        ),
+        ..._obrasRelacionadas.map((obra) {
+          return ObraListaItem(
+            obra: obra,
+            mobile: mobile,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ObraDetalhesPage(
+                    id: obra.id,
                   ),
-                );
-              },
-            );
-          },
-        ),
+                ),
+              );
+            },
+          );
+        }),
       ],
     );
   }
@@ -1872,44 +1671,32 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // CONTEÚDO PRINCIPAL
   // ============================================================
 
-  Widget _buildConteudoPrincipal(
-      Obra obra,
-      ) {
+  Widget _buildConteudoPrincipal(Obra obra) {
     return Column(
-      crossAxisAlignment:
-      CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildCabecalho(obra),
 
-        if (_secoes.isNotEmpty ||
-            _imagens.isNotEmpty) ...[
+        if (_secoes.isNotEmpty || _imagens.isNotEmpty) ...[
           const SizedBox(height: 36),
           _buildSecoesDaObra(),
         ],
 
         const SizedBox(height: 40),
 
-        _buildInformacoesTecnicas(
-          obra,
-        ),
+        _buildInformacoesTecnicas(obra),
 
         const SizedBox(height: 40),
 
-        _buildBotoesDocumento(
-          obra,
-        ),
+        _buildBotoesDocumento(obra),
 
         const SizedBox(height: 40),
 
-        _buildSolicitacaoRemocao(
-          obra,
-        ),
+        _buildSolicitacaoRemocao(obra),
 
         const SizedBox(height: 40),
 
-        ComentariosSection(
-          obraId: obra.id,
-        ),
+        ComentariosSection(obraId: obra.id),
 
         const SizedBox(height: 40),
 
@@ -1925,50 +1712,33 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   Widget _buildEstadoErro() {
     return Scaffold(
       appBar: AppBar(
-        title:
-        const Text('Obra Livre'),
+        title: const Text('Obra Livre'),
       ),
       body: Center(
         child: Padding(
-          padding:
-          const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisSize:
-            MainAxisSize.min,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(
                 Icons.error_outline,
                 size: 48,
-                color:
-                Color(0xFF9AA0A6),
+                color: Color(0xFF9AA0A6),
               ),
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 16),
               Text(
-                _erro ??
-                    'Ocorreu um erro.',
-                textAlign:
-                TextAlign.center,
-                style:
-                const TextStyle(
+                _erro ?? 'Ocorreu um erro.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 16,
-                  color:
-                  Color(0xFF5F6368),
+                  color: Color(0xFF5F6368),
                 ),
               ),
-              const SizedBox(
-                height: 18,
-              ),
+              const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed:
-                _carregarObra,
-                icon: const Icon(
-                  Icons.refresh,
-                ),
-                label: const Text(
-                  'Tentar novamente',
-                ),
+                onPressed: _carregarObra,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tentar novamente'),
               ),
             ],
           ),
@@ -1982,18 +1752,14 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // ============================================================
 
   @override
-  Widget build(
-      BuildContext context,
-      ) {
+  Widget build(BuildContext context) {
     if (_carregando) {
       return Scaffold(
         appBar: AppBar(
-          title:
-          const Text('Obra Livre'),
+          title: const Text('Obra Livre'),
         ),
         body: const Center(
-          child:
-          CircularProgressIndicator(),
+          child: CircularProgressIndicator(),
         ),
       );
     }
@@ -2007,89 +1773,63 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     if (obra == null) {
       return Scaffold(
         appBar: AppBar(
-          title:
-          const Text('Obra Livre'),
+          title: const Text('Obra Livre'),
         ),
         body: const Center(
-          child: Text(
-            'Obra não encontrada.',
-          ),
+          child: Text('Obra não encontrada.'),
         ),
       );
     }
 
     return Title(
-      title:
-      '${obra.titulo} — Obra Livre',
-      color:
-      const Color(0xFF1A73E8),
+      title: '${obra.titulo} — Obra Livre',
+      color: const Color(0xFF1A73E8),
       child: Scaffold(
         appBar: AppBar(
-          title:
-          const Text('Obra Livre'),
-          backgroundColor:
-          const Color(0xFFEAF4FF),
+          title: const Text('Obra Livre'),
+          backgroundColor: const Color(0xFFEAF4FF),
           elevation: 0,
         ),
         body: LayoutBuilder(
-          builder:
-              (context, constraints) {
-            final desktop =
-                constraints.maxWidth >=
-                    1000;
+          builder: (context, constraints) {
+            final desktop = constraints.maxWidth >= 1000;
 
             return SingleChildScrollView(
-              padding:
-              EdgeInsets.symmetric(
-                horizontal:
-                desktop ? 32 : 16,
+              padding: EdgeInsets.symmetric(
+                horizontal: desktop ? 32 : 16,
                 vertical: 32,
               ),
               child: Center(
                 child: ConstrainedBox(
-                  constraints:
-                  const BoxConstraints(
+                  constraints: const BoxConstraints(
                     maxWidth: 1280,
                   ),
                   child: desktop
                       ? Row(
                     crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         flex: 7,
-                        child:
-                        _buildConteudoPrincipal(
+                        child: _buildConteudoPrincipal(
                           obra,
                         ),
                       ),
-
-                      const SizedBox(
-                        width: 28,
-                      ),
-
+                      const SizedBox(width: 28),
                       if (_conteudoPrincipalPronto)
                         const SizedBox(
                           width: 300,
-                          child:
-                          ColunaAnuncios(),
+                          child: ColunaAnuncios(),
                         ),
                     ],
                   )
                       : Column(
                     crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.start,
                     children: [
-                      _buildConteudoPrincipal(
-                        obra,
-                      ),
-
+                      _buildConteudoPrincipal(obra),
                       if (_conteudoPrincipalPronto) ...[
-                        const SizedBox(
-                          height: 32,
-                        ),
+                        const SizedBox(height: 32),
                         const ColunaAnuncios(),
                       ],
                     ],

@@ -6,6 +6,13 @@ class EstatisticasObrasService {
   EstatisticasObrasService({SupabaseClient? client})
       : _client = client ?? Supabase.instance.client;
 
+  // ============================================================
+  // INSTÂNCIA ÚNICA
+  // ============================================================
+
+  static final EstatisticasObrasService instancia =
+  EstatisticasObrasService();
+
   final SupabaseClient _client;
 
   static const String _tabelaObras = 'obras';
@@ -15,9 +22,9 @@ class EstatisticasObrasService {
   static const String _eventoVisualizacao = 'visualizacao';
   static const String _eventoCliquePdf = 'clique_pdf';
 
-  // =========================================================
+  // ============================================================
   // UTILIZADOR AUTENTICADO
-  // =========================================================
+  // ============================================================
 
   String _obterUtilizadorId() {
     final utilizador = _client.auth.currentUser;
@@ -31,9 +38,9 @@ class EstatisticasObrasService {
     return utilizador.id;
   }
 
-  // =========================================================
+  // ============================================================
   // REGISTAR VISUALIZAÇÃO
-  // =========================================================
+  // ============================================================
 
   Future<void> registarVisualizacao(String obraId) async {
     await _registarEvento(
@@ -42,9 +49,9 @@ class EstatisticasObrasService {
     );
   }
 
-  // =========================================================
+  // ============================================================
   // REGISTAR CLIQUE NO PDF
-  // =========================================================
+  // ============================================================
 
   Future<void> registarCliquePdf(String obraId) async {
     await _registarEvento(
@@ -53,21 +60,25 @@ class EstatisticasObrasService {
     );
   }
 
-  // =========================================================
+  // ============================================================
   // REGISTAR EVENTO ATRAVÉS DA FUNÇÃO SQL
-  // =========================================================
+  // ============================================================
 
   Future<void> _registarEvento({
     required String obraId,
     required String tipoEvento,
   }) async {
     if (obraId.trim().isEmpty) {
-      throw ArgumentError('O identificador da obra é obrigatório.');
+      throw ArgumentError(
+        'O identificador da obra é obrigatório.',
+      );
     }
 
     if (tipoEvento != _eventoVisualizacao &&
         tipoEvento != _eventoCliquePdf) {
-      throw ArgumentError('Tipo de evento inválido.');
+      throw ArgumentError(
+        'Tipo de evento inválido.',
+      );
     }
 
     await _client.rpc(
@@ -79,9 +90,9 @@ class EstatisticasObrasService {
     );
   }
 
-  // =========================================================
+  // ============================================================
   // OBTER ESTATÍSTICAS DE TODAS AS OBRAS DO AUTOR
-  // =========================================================
+  // ============================================================
 
   Future<List<EstatisticasObra>> obterEstatisticasAutor() async {
     final utilizadorId = _obterUtilizadorId();
@@ -93,7 +104,9 @@ class EstatisticasObrasService {
         .eq('user_id', utilizadorId)
         .order('titulo');
 
-    final obras = List<Map<String, dynamic>>.from(respostaObras);
+    final obras = List<Map<String, dynamic>>.from(
+      respostaObras,
+    );
 
     if (obras.isEmpty) {
       return [];
@@ -124,7 +137,9 @@ class EstatisticasObrasService {
         .select('obra_id, tipo_evento, data_evento')
         .inFilter('obra_id', idsObras);
 
-    final eventos = List<Map<String, dynamic>>.from(respostaEventos);
+    final eventos = List<Map<String, dynamic>>.from(
+      respostaEventos,
+    );
 
     for (final evento in eventos) {
       final obraId = evento['obra_id']?.toString();
@@ -159,15 +174,22 @@ class EstatisticasObrasService {
       }
     }
 
-    return estatisticas.values
-        .map((dados) => EstatisticasObra.fromMap(dados))
-        .toList()
-      ..sort((a, b) => b.totalEventos.compareTo(a.totalEventos));
+    final resultado = estatisticas.values
+        .map(
+          (dados) => EstatisticasObra.fromMap(dados),
+    )
+        .toList();
+
+    resultado.sort(
+          (a, b) => b.totalEventos.compareTo(a.totalEventos),
+    );
+
+    return resultado;
   }
 
-  // =========================================================
+  // ============================================================
   // OBTER ESTATÍSTICAS DE UMA OBRA ESPECÍFICA
-  // =========================================================
+  // ============================================================
 
   Future<EstatisticasObra> obterEstatisticasObra(
       String obraId,
@@ -175,7 +197,9 @@ class EstatisticasObrasService {
     final utilizadorId = _obterUtilizadorId();
 
     if (obraId.trim().isEmpty) {
-      throw ArgumentError('O identificador da obra é obrigatório.');
+      throw ArgumentError(
+        'O identificador da obra é obrigatório.',
+      );
     }
 
     // Confirmar que a obra pertence ao utilizador autenticado.
@@ -198,7 +222,9 @@ class EstatisticasObrasService {
         .select('tipo_evento, data_evento')
         .eq('obra_id', obraId);
 
-    final eventos = List<Map<String, dynamic>>.from(respostaEventos);
+    final eventos = List<Map<String, dynamic>>.from(
+      respostaEventos,
+    );
 
     int visualizacoes = 0;
     int cliquesPdf = 0;

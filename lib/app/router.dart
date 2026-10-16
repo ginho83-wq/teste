@@ -1,6 +1,3 @@
-
-
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -35,6 +32,10 @@ import '../pages/cookies_page.dart';
 import '../pages/contacto_page.dart';
 import '../pages/ajuda_page.dart';
 import '../pages/publicidade_page.dart';
+
+// NOVAS PÁGINAS DE ESTATÍSTICAS
+import '../pages/estatisticas_autor_page.dart';
+import '../pages/estatisticas_obra_page.dart';
 
 final AuthService _authService = AuthService.instancia;
 
@@ -131,10 +132,13 @@ final GoRouter router = GoRouter(
     final String caminho = state.uri.path;
     final bool rotaPublica = _ehRotaPublica(caminho);
 
+    // Exigir autenticação nas rotas privadas.
     if (!estaAutenticado && !rotaPublica) {
       return '/login';
     }
 
+    // Impedir que um utilizador autenticado volte ao login
+    // ou ao cadastro sem necessidade.
     if (estaAutenticado &&
         (caminho == '/login' || caminho == '/cadastro')) {
       return '/';
@@ -243,8 +247,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/categoria/:tipo',
       builder: (context, state) {
-        final String tipo =
-            state.pathParameters['tipo'] ?? '';
+        final String tipo = state.pathParameters['tipo'] ?? '';
 
         return _paginaComSeo(
           titulo: '$tipo — $_tituloBase',
@@ -263,8 +266,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/acervo',
       builder: (context, state) {
-        final String? obraId =
-        state.uri.queryParameters['obra'];
+        final String? obraId = state.uri.queryParameters['obra'];
 
         return _paginaComSeo(
           titulo: 'Obra Livre — Acervo',
@@ -285,8 +287,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/obra/:id',
       builder: (context, state) {
-        final String id =
-            state.pathParameters['id'] ?? '';
+        final String id = state.pathParameters['id'] ?? '';
 
         return _paginaComSeo(
           titulo: 'Obra Livre — Detalhes da obra',
@@ -307,13 +308,11 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/acervo/pesquisa/:query',
       builder: (context, state) {
-        final String query =
-            state.pathParameters['query'] ?? '';
+        final String query = state.pathParameters['query'] ?? '';
 
         return _paginaComSeo(
           titulo: 'Pesquisa no Acervo — $_tituloBase',
-          descricao:
-          'Pesquise obras académicas no acervo da Obra Livre.',
+          descricao: 'Pesquise obras académicas no acervo da Obra Livre.',
           child: AcervoPesquisaResultadosPage(
             query: query,
           ),
@@ -328,8 +327,7 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/search/:query',
       builder: (context, state) {
-        final String query =
-            state.pathParameters['query'] ?? '';
+        final String query = state.pathParameters['query'] ?? '';
 
         return _paginaComSeo(
           titulo: 'Pesquisa — $_tituloBase',
@@ -353,8 +351,7 @@ final GoRouter router = GoRouter(
           return '/login';
         }
 
-        final bool ehAdministrador =
-        await _authService.ehAdmin();
+        final bool ehAdministrador = await _authService.ehAdmin();
 
         if (ehAdministrador) {
           return '/admin-obras';
@@ -366,6 +363,36 @@ final GoRouter router = GoRouter(
         titulo: 'Minha conta — $_tituloBase',
         child: const MinhaContaPage(),
       ),
+    ),
+
+    // ========================================================
+    // ESTATÍSTICAS DO AUTOR
+    // ========================================================
+
+    GoRoute(
+      path: '/estatisticas',
+      builder: (context, state) => _paginaComTitulo(
+        titulo: 'Estatísticas das minhas obras — $_tituloBase',
+        child: const EstatisticasAutorPage(),
+      ),
+    ),
+
+    // ========================================================
+    // ESTATÍSTICAS DE UMA OBRA
+    // ========================================================
+
+    GoRoute(
+      path: '/estatisticas/obra/:id',
+      builder: (context, state) {
+        final String id = state.pathParameters['id'] ?? '';
+
+        return _paginaComTitulo(
+          titulo: 'Estatísticas da obra — $_tituloBase',
+          child: EstatisticasObraPage(
+            obraId: id,
+          ),
+        );
+      },
     ),
 
     // ========================================================
