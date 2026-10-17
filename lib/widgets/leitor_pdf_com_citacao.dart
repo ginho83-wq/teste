@@ -18,12 +18,10 @@ class LeitorPdfComCitacao extends StatefulWidget {
   });
 
   @override
-  State<LeitorPdfComCitacao> createState() =>
-      _LeitorPdfComCitacaoState();
+  State<LeitorPdfComCitacao> createState() => _LeitorPdfComCitacaoState();
 }
 
-class _LeitorPdfComCitacaoState
-    extends State<LeitorPdfComCitacao> {
+class _LeitorPdfComCitacaoState extends State<LeitorPdfComCitacao> {
   String _trechoSelecionado = '';
 
   int? _paginaSelecionada;
@@ -33,21 +31,16 @@ class _LeitorPdfComCitacaoState
 
   String? _erro;
 
-  final PdfViewerController _pdfController =
-  PdfViewerController();
+  final PdfViewerController _pdfController = PdfViewerController();
 
-  static const BorderRadius _raio =
-  BorderRadius.all(Radius.circular(6));
+  static const BorderRadius _raio = BorderRadius.all(Radius.circular(6));
 
   /// Actualiza o texto seleccionado no PDF.
-  void _actualizarSelecao(
-      PdfTextSelectionChangedDetails detalhes,
-      ) {
+  void _actualizarSelecao(PdfTextSelectionChangedDetails detalhes) {
     if (!mounted) return;
 
     setState(() {
-      _trechoSelecionado =
-          detalhes.selectedText?.trim() ?? '';
+      _trechoSelecionado = detalhes.selectedText?.trim() ?? '';
     });
   }
 
@@ -60,9 +53,7 @@ class _LeitorPdfComCitacaoState
     if (trecho.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Seleccione primeiro o trecho que pretende citar.',
-          ),
+          content: Text('Seleccione primeiro o trecho que pretende citar.'),
         ),
       );
       return;
@@ -77,8 +68,7 @@ class _LeitorPdfComCitacaoState
         context,
         autor: widget.obra.autor,
         titulo: widget.obra.titulo,
-        ano: (widget.obra.anoObra ??
-            widget.obra.dataPublicacao.year)
+        ano: (widget.obra.anoObra ?? widget.obra.dataPublicacao.year)
             .toString(),
         pagina: _paginaSelecionada,
         trecho: trecho,
@@ -88,9 +78,7 @@ class _LeitorPdfComCitacaoState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Não foi possível abrir a criação da citação.',
-            ),
+            content: Text('Não foi possível abrir a criação da citação.'),
           ),
         );
       }
@@ -120,14 +108,9 @@ class _LeitorPdfComCitacaoState
         children: [
           // Cabeçalho do leitor.
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: _raio,
             ),
             child: Row(
@@ -140,9 +123,7 @@ class _LeitorPdfComCitacaoState
                     widget.obra.titulo,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
 
@@ -162,57 +143,50 @@ class _LeitorPdfComCitacaoState
           Expanded(
             child: _erro != null
                 ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  _erro!,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(_erro!, textAlign: TextAlign.center),
+                    ),
+                  )
                 : Stack(
-              children: [
-                SfPdfViewer.network(
-                  widget.urlPdf,
-                  controller: _pdfController,
-                  enableTextSelection: true,
-                  interactionMode:
-                  PdfInteractionMode.selection,
+                    children: [
+                      SfPdfViewer.network(
+                        widget.urlPdf,
+                        controller: _pdfController,
+                        enableTextSelection: true,
+                        interactionMode: PdfInteractionMode.selection,
 
-                  // PDF carregado.
-                  onDocumentLoaded: (_) {
-                    if (!mounted) return;
+                        // PDF carregado.
+                        onDocumentLoaded: (_) {
+                          if (!mounted) return;
 
-                    setState(() {
-                      _carregando = false;
-                      _erro = null;
-                    });
-                  },
+                          setState(() {
+                            _carregando = false;
+                            _erro = null;
+                          });
+                        },
 
-                  // Erro ao carregar o PDF.
-                  onDocumentLoadFailed: (_) {
-                    if (!mounted) return;
+                        // Erro ao carregar o PDF.
+                        onDocumentLoadFailed: (_) {
+                          if (!mounted) return;
 
-                    setState(() {
-                      _carregando = false;
-                      _erro =
-                      'Não foi possível carregar o PDF. '
-                          'Verifique a ligação à Internet '
-                          'ou tente novamente mais tarde.';
-                    });
-                  },
+                          setState(() {
+                            _carregando = false;
+                            _erro =
+                                'Não foi possível carregar o PDF. '
+                                'Verifique a ligação à Internet '
+                                'ou tente novamente mais tarde.';
+                          });
+                        },
 
-                  // Captura o trecho seleccionado.
-                  onTextSelectionChanged:
-                  _actualizarSelecao,
-                ),
+                        // Captura o trecho seleccionado.
+                        onTextSelectionChanged: _actualizarSelecao,
+                      ),
 
-                if (_carregando)
-                  const Center(
-                    child: CircularProgressIndicator(),
+                      if (_carregando)
+                        const Center(child: CircularProgressIndicator()),
+                    ],
                   ),
-              ],
-            ),
           ),
 
           // Área de criação da citação.
@@ -220,13 +194,9 @@ class _LeitorPdfComCitacaoState
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerLow,
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).dividerColor,
-                ),
+                top: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
             child: Column(
@@ -237,22 +207,16 @@ class _LeitorPdfComCitacaoState
                   _trechoSelecionado.isEmpty
                       ? 'Seleccione um trecho do PDF para criar uma citação.'
                       : 'Trecho seleccionado:',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 6),
 
                 if (_trechoSelecionado.isNotEmpty)
                   ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxHeight: 90,
-                    ),
+                    constraints: const BoxConstraints(maxHeight: 90),
                     child: SingleChildScrollView(
-                      child: SelectableText(
-                        _trechoSelecionado,
-                      ),
+                      child: SelectableText(_trechoSelecionado),
                     ),
                   ),
 
@@ -262,21 +226,13 @@ class _LeitorPdfComCitacaoState
                   alignment: Alignment.bottomRight,
                   child: FilledButton.tonalIcon(
                     onPressed:
-                    _trechoSelecionado.trim().isEmpty ||
-                        _abrindoCitacao
+                        _trechoSelecionado.trim().isEmpty || _abrindoCitacao
                         ? null
                         : _citarTrecho,
-                    icon: const Icon(
-                      Icons.format_quote,
-                      size: 16,
-                    ),
+                    icon: const Icon(Icons.format_quote, size: 16),
                     label: Text(
-                      _abrindoCitacao
-                          ? 'A abrir...'
-                          : 'Citar',
-                      style: const TextStyle(
-                        fontSize: 12,
-                      ),
+                      _abrindoCitacao ? 'A abrir...' : 'Citar',
+                      style: const TextStyle(fontSize: 12),
                     ),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -284,12 +240,10 @@ class _LeitorPdfComCitacaoState
                         vertical: 6,
                       ),
                       minimumSize: Size.zero,
-                      tapTargetSize:
-                      MaterialTapTargetSize.shrinkWrap,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       visualDensity: VisualDensity.compact,
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                        BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
                   ),
@@ -302,4 +256,3 @@ class _LeitorPdfComCitacaoState
     );
   }
 }
-
