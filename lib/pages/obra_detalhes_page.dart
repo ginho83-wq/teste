@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../models/obra.dart';
 import '../models/obra_imagem.dart';
 import '../models/obra_secao.dart';
@@ -15,7 +15,11 @@ import '../services/estatisticas_obras_service.dart';
 import '../widgets/comentarios_section.dart';
 import '../widgets/obra_lista_item.dart';
 import '../widgets/coluna_anuncios.dart';
+import '../widgets/selecao_citacao.dart';
+import '../widgets/dialogo_citacao.dart';
+import '../widgets/leitor_pdf_com_citacao.dart';
 import 'citacoes_obras_page.dart';
+
 
 class ObraDetalhesPage extends StatefulWidget {
   final String id;
@@ -82,6 +86,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
     super.initState();
     _carregarObra();
   }
+
+
 
   // ============================================================
   // REGISTAR VISUALIZAÇÃO
@@ -761,6 +767,66 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       ),
     );
   }
+// ============================================================ // ABRIR LEITOR PDF COM SELEÇÃO DE TRECHOS PARA CITAÇÃO // ============================================================
+  Future _abrirLeitorPdf(Obra obra) async { final urlPdf = obra.urlDocumento.trim();
+  if (urlPdf.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('O documento PDF não está disponível.'),
+      ),
+    );
+    return;
+  }
+
+  final uri = Uri.tryParse(urlPdf);
+
+  if (uri == null ||
+      !uri.hasScheme ||
+      (uri.scheme != 'http' && uri.scheme != 'https')) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('O endereço do PDF é inválido.'),
+      ),
+    );
+    return;
+  }
+
+  try {
+    await _estatisticasService.registarCliquePdf(obra.id);
+
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          child: SizedBox(
+            width: 1000,
+            height: MediaQuery.of(dialogContext).size.height * 0.9,
+            child: LeitorPdfComCitacao(
+              obra: obra,
+              urlPdf: urlPdf,
+              urlObra: _urlDaObra(),
+            ),
+          ),
+        );
+      },
+    );
+  } catch (e) {
+    debugPrint('Erro ao abrir o leitor PDF: $e');
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Não foi possível abrir o leitor PDF.'),
+      ),
+    );
+  }
+  }
+
 
   // ============================================================
   // CABEÇALHO
@@ -980,90 +1046,66 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // ============================================================
 
   Widget _buildBotoesDocumento(Obra obra) {
-    final urlPdf = obra.urlDocumento.trim();
+    final String urlPdf = obra.urlDocumento.trim();
 
     Future<void> abrirPdf() async {
-      final uri = Uri.tryParse(urlPdf);
-
-      if (uri == null ||
-          !uri.hasScheme ||
-          !(uri.scheme == 'https' ||
-              uri.scheme == 'http')) {
-        if (!mounted) return;
-
+      if (urlPdf.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'O endereço do PDF é inválido.',
-            ),
+            content: Text('O documento PDF não está disponível.'),
           ),
         );
-
         return;
       }
 
-      try {
-        await _estatisticasService.registarCliquePdf(
-          obra.id,
-        );
-      } catch (e) {
-        debugPrint(
-          'OBRA DETALHES: erro ao registar clique no PDF: $e',
-        );
-      }
+      final Uri? uri = Uri.tryParse(urlPdf);
 
-      try {
-        final aberto = await launchUrl(
-          uri,
-          webOnlyWindowName: '_blank',
-        );
-
-        if (!aberto && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Não foi possível abrir o PDF.',
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint(
-          'OBRA DETALHES: erro ao abrir PDF: $e',
-        );
-
-        if (!mounted) return;
-
+      if (uri == null ||
+          !uri.hasScheme ||
+          (uri.scheme != 'http' && uri.scheme != 'https')) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Ocorreu um erro ao abrir o PDF.',
-            ),
+            content: Text('O endereço do PDF é inválido.'),
           ),
         );
+        return;
       }
+
+      await _estatisticasService.registarCliquePdf(obra.id);
+
+      if (!mounted) return;
+
+      await launchUrl(
+        uri,
+        webOnlyWindowName: '_blank',
+      );
     }
 
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        if (urlPdf.isNotEmpty) ...[
-          FilledButton.icon(
-            onPressed: abrirPdf,
-            icon: const Icon(
-              Icons.menu_book_outlined,
-            ),
-            label: const Text('Ler PDF'),
-          ),
-          OutlinedButton.icon(
-            onPressed: abrirPdf,
-            icon: const Icon(
-              Icons.download_outlined,
-            ),
-            label: const Text('Download PDF'),
-          ),
-        ],
+        FilledButton.icon(
+          onPressed: () {
+            if (urlPdf.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('O documento PDF não está disponível.'),
+                ),
+              );
+              return;
+            }
+
+            _abrirLeitorPdf(obra);
+          },
+          icon: const Icon(Icons.menu_book),
+          label: const Text('Ler PDF'),
+        ),
+        OutlinedButton.icon(
+          onPressed: abrirPdf,
+          icon: const Icon(Icons.download),
+          label: const Text('Download PDF'),
+        ),
         OutlinedButton.icon(
           onPressed: () => _abrirPaginaCitacoes(obra),
           icon: const Icon(Icons.format_quote),
@@ -1072,6 +1114,8 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
       ],
     );
   }
+
+
 
   // ============================================================
   // PARÁGRAFOS
@@ -1090,16 +1134,21 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
   // ============================================================
 
   Widget _buildParagrafo(String texto) {
-    return SelectableText(
-      texto,
-      textAlign: TextAlign.justify,
-      style: const TextStyle(
-        fontSize: 16,
-        height: 1.8,
-        color: Color(0xFF3C4043),
-      ),
+    final obra = _obra;
+
+    if (obra == null) {
+      return const SizedBox.shrink();
+    }
+
+    return SelecaoCitacao(
+      texto: texto,
+      autor: obra.autor,
+      titulo: obra.titulo,
+      ano: (obra.anoObra ?? obra.dataPublicacao.year).toString(),
+      url: _urlDaObra(),
     );
   }
+
 
   // ============================================================
   // IMAGENS POR POSIÇÃO
