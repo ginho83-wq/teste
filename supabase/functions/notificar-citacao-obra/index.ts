@@ -1,231 +1,182 @@
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json; charset=utf-8",
 };
 
-const jsonResponse = (
-  data: Record<string, unknown>,
+function respostaJSON(
+  dados: Record<string, unknown>,
   status = 200,
-) => {
-  return new Response(JSON.stringify(data), {
+): Response {
+  return new Response(JSON.stringify(dados), {
     status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
+    headers: corsHeaders,
   });
-};
+}
+
+function escaparHTML(valor: string): string {
+  return valor
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function uuidValido(valor: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    .test(valor);
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", {
+      status: 200,
       headers: corsHeaders,
     });
   }
 
   if (req.method !== "POST") {
-    return jsonResponse(
-      { success: false, error: "Método não permitido." },
+    return respostaJSON(
+      {
+        success: false,
+        error: "Método não permitido.",
+      },
       405,
     );
   }
 
   try {
-    // --------------------------------------------------
-    // 1. Configuração do servidor
-    // --------------------------------------------------
+    // 1. Configuração do Supabase e do Resend.
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const supabaseServiceRoleKey = Deno.env.get(
-      "SUPABASE_SERVICE_ROLE_KEY",
-    );
-
+    const supabasePublishableKey =
+      Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+    const serviceRoleKey =
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const emailFrom = Deno.env.get("EMAIL_FROM");
 
     if (
       !supabaseUrl ||
       !supabaseAnonKey ||
-      !supabaseServiceRoleKey
+      !serviceRoleKey ||
+      !resendApiKey ||
+      !emailFrom
     ) {
-      console.error("Configuração do Supabase incompleta.");
+      console.error("Faltam variáveis de ambiente obrigatórias.");
 
-      return jsonResponse(
+      return respostaJSON(
         {
           success: false,
-          error: "Configuração do servidor incompleta.",
+          error: "Configuração do serviço incompleta.",
         },
         500,
       );
     }
 
-    if (!resendApiKey || !emailFrom) {
-      console.error("Configuração de email incompleta.");
-
-      return jsonResponse(
-        {
-          success: false,
-          error: "Serviço de notificações não configurado.",
-        },
-        503,
-      );
-    }
-
-    // --------------------------------------------------
-    // 2. Validar a sessão do utilizador
-    // --------------------------------------------------
+    // 2. Identificar o utilizador, quando existir sessão.
+    // Visitantes continuam com userId = null.
 
     const authorization = req.headers.get("Authorization");
+    let userId: string | null = null;
 
-    if (!authorization?.startsWith("Bearer ")) {
-      return jsonResponse(
-        {
-          success: false,
-          error: "Autenticação obrigatória.",
-        },
-        401,
-      );
-    }
+    if (authorization?.startsWith("Bearer ")) {
+      const token = authorization.substring(7).trim();
 
-    const supabaseUser = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        global: {
-          headers: {
-            Authorization: authorization,
+      const chavesPublicas = [
+        supabaseAnonKey,
+        supabasePublishableKey,
+      ].filter((key): key is string => Boolean(key));
+
+      const tokenPublico =
+        chavesPublicas.includes(token) ||
+        token.startsWith("sb_publishable_");
+
+      if (!tokenPublico) {
+        const supabaseUser = createClient(
+          supabaseUrl,
+          supabaseAnonKey,
+          {
+            global: {
+              headers: {
+                Authorization: authorization,
+              },
+            },
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+            },
           },
-        },
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      },
-    );
+        );
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseUser.auth.getUser();
+        const {
+          data: { user },
+          error,
+        } = await supabaseUser.auth.getUser();
 
-    if (userError || !user) {
-      console.error(
-        "Falha na validação da sessão:",
-        userError?.message ?? "Utilizador não encontrado.",
-      );
+        if (error || !user) {
+          console.error(
+            "Falha ao validar a sessão:",
+            error?.message,
+          );
 
-      return jsonResponse(
-        {
-          success: false,
-          error: "Sessão inválida ou expirada.",
-        },
-        401,
-      );
+          return respostaJSON(
+            {
+              success: false,
+              error: "Sessão de utilizador inválida.",
+            },
+            401,
+          );
+        }
+
+        userId = user.id;
+      }
     }
 
-    // --------------------------------------------------
-    // 3. Ler e validar os dados recebidos
-    // --------------------------------------------------
+    // 3. Validar os dados recebidos.
 
-    let body: Record<string, unknown>;
+    let body: {
+      obra_id?: unknown;
+      referencia?: unknown;
+      formato?: unknown;
+    };
 
     try {
-      const dadosRecebidos: unknown = await req.json();
-
-      if (
-        dadosRecebidos === null ||
-        typeof dadosRecebidos !== "object" ||
-        Array.isArray(dadosRecebidos)
-      ) {
-        return jsonResponse(
-          {
-            success: false,
-            error: "O corpo do pedido deve ser um objeto JSON.",
-          },
-          400,
-        );
-      }
-
-      body = dadosRecebidos as Record<string, unknown>;
+      body = await req.json();
     } catch {
-      return jsonResponse(
+      return respostaJSON(
         {
           success: false,
-          error: "O corpo do pedido contém JSON inválido.",
+          error: "Pedido JSON inválido.",
         },
         400,
       );
     }
 
-    const obraId = String(body.obra_id ?? "").trim();
-    const referencia = String(body.referencia ?? "").trim();
-    const formato = String(body.formato ?? "APA").trim().toUpperCase();
+    const obraId =
+      typeof body.obra_id === "string"
+        ? body.obra_id.trim()
+        : "";
 
-    // Diagnóstico: não registar o texto completo da citação.
-    console.log(
-      "DEBUG CITAÇÃO:",
-      JSON.stringify({
-        obraId,
-        referenciaPresente: referencia.length > 0,
-        referenciaTamanho: referencia.length,
-        formato,
-        utilizadorId: user.id,
-      }),
-    );
+    const referencia =
+      typeof body.referencia === "string"
+        ? body.referencia.trim()
+        : "";
 
-    if (!obraId) {
-      console.error("Validação falhou: obra_id vazio.");
+    const formatoRecebido =
+      typeof body.formato === "string"
+        ? body.formato.trim()
+        : "";
 
-      return jsonResponse(
-        {
-          success: false,
-          error: "O identificador da obra é obrigatório.",
-          code: "OBRA_ID_VAZIO",
-        },
-        400,
-      );
-    }
-
-    // Validar o formato UUID do identificador.
-    const formatoUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-    if (!formatoUuid.test(obraId)) {
-      console.error("Validação falhou: obra_id não é um UUID válido.");
-
-      return jsonResponse(
-        {
-          success: false,
-          error: "O identificador da obra é inválido.",
-          code: "OBRA_ID_INVALIDO",
-        },
-        400,
-      );
-    }
-
-    if (!referencia || referencia.length > 5000) {
-      console.error(
-        "Validação falhou: referência vazia ou demasiado longa.",
-      );
-
-      return jsonResponse(
-        {
-          success: false,
-          error:
-            "A referência bibliográfica está vazia ou ultrapassa 5.000 caracteres.",
-          code: "REFERENCIA_INVALIDA",
-        },
-        400,
-      );
-    }
-
-    const formatosAceites = [
+    const formatosPermitidos = [
       "APA",
+      "APA 7",
       "ABNT",
       "VANCOUVER",
       "IEEE",
@@ -233,27 +184,47 @@ Deno.serve(async (req: Request) => {
       "OUTRO",
     ];
 
-    if (!formatosAceites.includes(formato)) {
-      console.error("Validação falhou: formato não suportado.", formato);
-
-      return jsonResponse(
+    if (!uuidValido(obraId)) {
+      return respostaJSON(
         {
           success: false,
-          error: "Formato bibliográfico não suportado.",
-          code: "FORMATO_INVALIDO",
-          formatos_aceites: formatosAceites,
+          error: "Identificador da obra inválido.",
         },
         400,
       );
     }
 
-    // --------------------------------------------------
-    // 4. Criar cliente administrativo
-    // --------------------------------------------------
+    if (!referencia || referencia.length > 5000) {
+      return respostaJSON(
+        {
+          success: false,
+          error: "A referência é obrigatória e deve ter até 5000 caracteres.",
+        },
+        400,
+      );
+    }
+
+    if (!formatosPermitidos.includes(formatoRecebido)) {
+      return respostaJSON(
+        {
+          success: false,
+          error: "Formato de citação inválido.",
+        },
+        400,
+      );
+    }
+
+    const formato =
+      formatoRecebido === "APA 7"
+        ? "APA"
+        : formatoRecebido;
+
+    // 4. Cliente administrativo.
+    // A chave SERVICE_ROLE permanece exclusivamente no servidor.
 
     const supabaseAdmin = createClient(
       supabaseUrl,
-      supabaseServiceRoleKey,
+      serviceRoleKey,
       {
         auth: {
           persistSession: false,
@@ -262,26 +233,21 @@ Deno.serve(async (req: Request) => {
       },
     );
 
-    // --------------------------------------------------
-    // 5. Consultar a obra
-    // --------------------------------------------------
+    // 5. Consultar a obra.
 
     const {
       data: obra,
-      error: obraError,
+      error: erroObra,
     } = await supabaseAdmin
       .from("obras")
       .select("id, titulo, autor, user_id")
       .eq("id", obraId)
       .maybeSingle();
 
-    if (obraError) {
-      console.error(
-        "Erro ao consultar a obra:",
-        obraError.message,
-      );
+    if (erroObra) {
+      console.error("Erro ao consultar obra:", erroObra.message);
 
-      return jsonResponse(
+      return respostaJSON(
         {
           success: false,
           error: "Não foi possível consultar a obra.",
@@ -291,78 +257,38 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!obra) {
-      console.error("Obra não encontrada:", obraId);
-
-      return jsonResponse(
+      return respostaJSON(
         {
           success: false,
-          error: "A obra indicada não foi encontrada.",
-          code: "OBRA_NAO_ENCONTRADA",
+          error: "Obra não encontrada.",
         },
         404,
       );
     }
 
-    // --------------------------------------------------
-    // 6. Impedir que o autor cite a própria obra
-    // --------------------------------------------------
+    // 6. Impedir que um utilizador autenticado cite a própria obra.
 
-    if (obra.user_id && obra.user_id === user.id) {
-      console.warn(
-        "Citação própria rejeitada.",
-        JSON.stringify({
-          obraId: obra.id,
-          utilizadorId: user.id,
-        }),
-      );
-
-      return jsonResponse(
+    if (userId && obra.user_id === userId) {
+      return respostaJSON(
         {
           success: false,
-          error:
-            "Não é possível registar uma citação da própria obra.",
-          code: "CITACAO_PROPRIA",
+          error: "Não é permitido citar a própria obra.",
         },
-        400,
+        403,
       );
     }
 
-    // --------------------------------------------------
-    // 7. Obter o email do autor
-    // --------------------------------------------------
-
-    let emailAutor: string | null = null;
-
-    if (obra.user_id) {
-      const {
-        data: autorUser,
-        error: autorError,
-      } = await supabaseAdmin.auth.admin.getUserById(
-        obra.user_id,
-      );
-
-      if (autorError) {
-        console.error(
-          "Não foi possível consultar o email do autor:",
-          autorError.message,
-        );
-      } else {
-        emailAutor = autorUser.user?.email ?? null;
-      }
-    }
-
-    // --------------------------------------------------
-    // 8. Registar a citação nas colunas reais da tabela
-    // --------------------------------------------------
+    // 7. Registar a citação.
+    // user_id será NULL para visitantes.
 
     const {
       data: citacao,
-      error: citacaoError,
+      error: erroInsercao,
     } = await supabaseAdmin
       .from("citacoes_obras")
       .insert({
         obra_id: obra.id,
-        user_id: user.id,
+        user_id: userId,
         texto_citacao: referencia,
         tipo_citacao: formato,
         url_citacao: null,
@@ -370,77 +296,116 @@ Deno.serve(async (req: Request) => {
       .select("id")
       .single();
 
-    if (citacaoError) {
+    if (erroInsercao || !citacao) {
       console.error(
         "Erro ao registar citação:",
-        JSON.stringify({
-          message: citacaoError.message,
-          code: citacaoError.code,
-          details: citacaoError.details,
-          hint: citacaoError.hint,
-        }),
+        erroInsercao?.message,
       );
 
-      return jsonResponse(
+      return respostaJSON(
         {
           success: false,
           error: "Não foi possível registar a citação.",
-          details: citacaoError.message,
         },
         500,
       );
     }
 
     console.log(
-      "Citação registada:",
-      JSON.stringify({
-        citationId: citacao.id,
-        obraId: obra.id,
-      }),
+      `Citação ${citacao.id} registada; ` +
+      `tipo de utilizador: ${userId ? "autenticado" : "visitante"}.`,
     );
 
-    // --------------------------------------------------
-    // 9. Se não existir email do autor, manter o registo
-    // --------------------------------------------------
+    // 8. Obter o email do autor da obra.
 
-    if (!emailAutor) {
-      console.warn(
-        "Citação registada, mas não foi encontrado email do autor.",
-        JSON.stringify({
-          obraId: obra.id,
-          citationId: citacao.id,
-        }),
-      );
-
-      return jsonResponse({
+    if (!obra.user_id) {
+      return respostaJSON({
         success: true,
+        citation_id: citacao.id,
         notification_sent: false,
         message:
-          "Citação registada, mas não foi possível obter o email do autor.",
-        citation_id: citacao.id,
+          "Citação registada, mas a obra não tem autor associado para notificação.",
       });
     }
 
-    // --------------------------------------------------
-    // 10. Preparar o endereço da obra
-    // --------------------------------------------------
+    const {
+      data: resultadoAutor,
+      error: erroAutor,
+    } = await supabaseAdmin.auth.admin.getUserById(
+      obra.user_id,
+    );
 
-    const siteUrl = (
-      Deno.env.get("SITE_URL") ??
-      "https://ginho83-wq.github.io/teste/"
-    ).replace(/\/+$/, "");
+    if (erroAutor || !resultadoAutor.user?.email) {
+      console.error(
+        "Email do autor indisponível:",
+        erroAutor?.message,
+      );
 
-    const obraUrl =
-      `${siteUrl}/obra/${encodeURIComponent(obra.id)}`;
+      return respostaJSON({
+        success: true,
+        citation_id: citacao.id,
+        notification_sent: false,
+        message:
+          "Citação registada, mas não foi possível obter o email do autor.",
+      });
+    }
 
-    // --------------------------------------------------
-    // 11. Enviar email através do Resend
-    // --------------------------------------------------
+    // 9. Preparar a mensagem.
 
-    let emailResponse: Response;
+    const tituloObra = String(obra.titulo ?? "Obra académica");
+    const nomeAutor = String(obra.autor ?? "Autor");
+
+    const htmlEmail = `
+      <!DOCTYPE html>
+      <html lang="pt">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+      </head>
+      <body style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+        <div style="max-width:650px;margin:auto;padding:20px">
+          <h2 style="color:#176B45">A sua obra foi citada!</h2>
+
+          <p>Olá, ${escaparHTML(nomeAutor)}.</p>
+
+          <p>
+            A sua obra
+            <strong>${escaparHTML(tituloObra)}</strong>
+            foi utilizada para criar uma citação na plataforma Obra Livre.
+          </p>
+
+          <p>
+            <strong>Formato:</strong>
+            ${escaparHTML(formato)}
+          </p>
+
+          <div style="background:#f5f5f5;padding:16px;border-radius:8px">
+            <strong>Referência registada:</strong>
+            <p style="white-space:pre-wrap">${escaparHTML(referencia)}</p>
+          </div>
+
+          <p>
+            Esta mensagem confirma o registo de uma citação na plataforma;
+            não significa necessariamente que a obra tenha sido citada
+            numa publicação externa.
+          </p>
+
+          <hr style="border:none;border-top:1px solid #ddd;margin:24px 0">
+
+          <p style="font-size:13px;color:#666">
+            Mensagem automática da plataforma Obra Livre.
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // 10. Enviar o email pelo Resend.
+
+    let respostaEmail: Response;
 
     try {
-      emailResponse = await fetch(
+      respostaEmail = await fetch(
         "https://api.resend.com/emails",
         {
           method: "POST",
@@ -450,93 +415,70 @@ Deno.serve(async (req: Request) => {
           },
           body: JSON.stringify({
             from: emailFrom,
-            to: [emailAutor],
-            subject: "A tua obra foi citada — Obra Livre",
-            text: [
-              `Olá${obra.autor ? ` ${obra.autor}` : ""},`,
-              "",
-              "Uma obra publicada por ti na plataforma Obra Livre foi citada.",
-              "",
-              `Obra: ${obra.titulo}`,
-              `Formato bibliográfico: ${formato}`,
-              "",
-              "Referência bibliográfica registada:",
-              referencia,
-              "",
-              `Consultar a obra: ${obraUrl}`,
-              "",
-              "Esta é uma notificação automática da plataforma Obra Livre.",
-            ].join("\n"),
+            to: [resultadoAutor.user.email],
+            subject: `A sua obra foi citada — ${tituloObra}`,
+            html: htmlEmail,
           }),
         },
       );
-    } catch (emailErro) {
+    } catch (error) {
       console.error(
-        "Falha de ligação ao serviço Resend:",
-        emailErro instanceof Error
-          ? emailErro.message
-          : String(emailErro),
+        "Erro de ligação ao serviço de email:",
+        error instanceof Error ? error.message : String(error),
       );
 
-      return jsonResponse({
+      return respostaJSON({
         success: true,
-        notification_sent: false,
-        message:
-          "Citação registada, mas não foi possível contactar o serviço de email.",
         citation_id: citacao.id,
+        notification_sent: false,
+        message: "Citação registada, mas o serviço de email não respondeu.",
       });
     }
 
-    if (!emailResponse.ok) {
-      const emailError = await emailResponse.text();
+    if (!respostaEmail.ok) {
+      const detalhe = await respostaEmail.text();
 
       console.error(
-        "Erro devolvido pelo Resend:",
-        JSON.stringify({
-          status: emailResponse.status,
-          response: emailError,
-        }),
+        "Falha no envio de email:",
+        respostaEmail.status,
+        detalhe,
       );
 
-      return jsonResponse({
+      return respostaJSON({
         success: true,
-        notification_sent: false,
-        message:
-          "Citação registada, mas o serviço de email não confirmou o envio.",
         citation_id: citacao.id,
+        notification_sent: false,
+        message: "Citação registada, mas o email não foi enviado.",
       });
     }
 
-    // --------------------------------------------------
-    // 12. Sucesso
-    // --------------------------------------------------
+    const resultadoEmail = await respostaEmail.json();
 
     console.log(
-      "Notificação enviada ao serviço de email.",
-      JSON.stringify({
-        obraId: obra.id,
-        citationId: citacao.id,
-      }),
+      `Email enviado para o autor da obra ${obra.id}.`,
     );
 
-    return jsonResponse({
+    // 11. Resultado final.
+
+    return respostaJSON({
       success: true,
-      notification_sent: true,
-      message: "Citação registada e email enviado ao serviço de email.",
       citation_id: citacao.id,
+      notification_sent: true,
+      notification_id: resultadoEmail.id ?? null,
+      message: userId
+        ? "Citação registada e autor notificado."
+        : "Citação de visitante registada e autor notificado.",
     });
   } catch (error) {
     console.error(
-      "Erro inesperado na função:",
-      error instanceof Error
-        ? error.message
-        : String(error),
+      "Erro inesperado:",
+      error instanceof Error ? error.message : String(error),
     );
 
-    return jsonResponse(
+    return respostaJSON(
       {
         success: false,
-        error: "Ocorreu um erro interno ao processar a citação.",
+        error: "Erro interno ao processar a citação.",
       },
       500,
     );
