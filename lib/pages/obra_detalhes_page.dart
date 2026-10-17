@@ -1106,11 +1106,7 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           icon: const Icon(Icons.download),
           label: const Text('Download PDF'),
         ),
-        OutlinedButton.icon(
-          onPressed: () => _abrirPaginaCitacoes(obra),
-          icon: const Icon(Icons.format_quote),
-          label: const Text('Citar'),
-        ),
+
       ],
     );
   }

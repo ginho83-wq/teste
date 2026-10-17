@@ -10,54 +10,178 @@ class LeitorPdfComCitacao extends StatefulWidget {
   final String urlPdf;
   final String? urlObra;
 
+  /// Indica se o leitor deve iniciar em ecrã inteiro.
+  final bool modoEcraInteiro;
+
   const LeitorPdfComCitacao({
     super.key,
     required this.obra,
     required this.urlPdf,
     this.urlObra,
+    this.modoEcraInteiro = false,
   });
 
   @override
-  State<LeitorPdfComCitacao> createState() => _LeitorPdfComCitacaoState();
+  State<LeitorPdfComCitacao> createState() =>
+      _LeitorPdfComCitacaoState();
 }
 
-class _LeitorPdfComCitacaoState extends State<LeitorPdfComCitacao> {
+class _LeitorPdfComCitacaoState
+    extends State<LeitorPdfComCitacao> {
+  final PdfViewerController _pdfController =
+  PdfViewerController();
+
   String _trechoSelecionado = '';
 
-  int? _paginaSelecionada;
+  int _paginaAtual = 1;
+  int _totalPaginas = 0;
 
   bool _carregando = true;
   bool _abrindoCitacao = false;
 
   String? _erro;
 
-  final PdfViewerController _pdfController = PdfViewerController();
+  static const BorderRadius _raio =
+  BorderRadius.all(Radius.circular(6));
 
-  static const BorderRadius _raio = BorderRadius.all(Radius.circular(6));
+  /// Abre o leitor numa rota que ocupa todo o ecrã.
+  void _alternarMaximizacao() {
+    if (widget.modoEcraInteiro) {
+      Navigator.of(context).pop();
+      return;
+    }
 
-  /// Actualiza o texto seleccionado no PDF.
-  void _actualizarSelecao(PdfTextSelectionChangedDetails detalhes) {
+    Navigator.of(context, rootNavigator: true).push(
+      PageRouteBuilder<void>(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return LeitorPdfComCitacao(
+            obra: widget.obra,
+            urlPdf: widget.urlPdf,
+            urlObra: widget.urlObra,
+            modoEcraInteiro: true,
+          );
+        },
+        transitionsBuilder:
+            (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
+  /// Actualiza o trecho seleccionado no PDF.
+  void _actualizarSelecao(
+      PdfTextSelectionChangedDetails detalhes,
+      ) {
     if (!mounted) return;
 
     setState(() {
-      _trechoSelecionado = detalhes.selectedText?.trim() ?? '';
+      _trechoSelecionado =
+          detalhes.selectedText?.trim() ?? '';
     });
+  }
+
+  /// Actualiza o indicador da página actual.
+  void _actualizarPagina(
+      PdfPageChangedDetails detalhes,
+      ) {
+    if (!mounted) return;
+
+    setState(() {
+      _paginaAtual = detalhes.newPageNumber;
+    });
+  }
+
+  /// Regista o carregamento do documento PDF.
+  void _documentoCarregado(
+      PdfDocumentLoadedDetails detalhes,
+      ) {
+    if (!mounted) return;
+
+    setState(() {
+      _carregando = false;
+      _erro = null;
+      _totalPaginas = detalhes.document.pages.count;
+      _paginaAtual = _pdfController.pageNumber;
+    });
+  }
+
+  /// Apresenta uma mensagem quando o PDF falha.
+  void _documentoFalhou(
+      PdfDocumentLoadFailedDetails detalhes,
+      ) {
+    if (!mounted) return;
+
+    setState(() {
+      _carregando = false;
+      _erro =
+      'Não foi possível carregar o PDF.\n\n'
+          'Verifique a ligação à Internet ou tente '
+          'novamente mais tarde.';
+    });
+  }
+
+  /// Acrescenta reticências quando o trecho parece incompleto.
+  String _formatarTrechoParaCitacao(String texto) {
+    String trecho = texto.trim();
+
+    if (trecho.isEmpty) return '';
+
+    trecho = trecho.replaceAll(RegExp(r'\s+'), ' ');
+
+    final bool temReticenciasInicio =
+        trecho.startsWith('...') ||
+            trecho.startsWith('…');
+
+    final bool temReticenciasFim =
+        trecho.endsWith('...') ||
+            trecho.endsWith('…');
+
+    final bool pareceInicioParcial =
+        RegExp(r'^[a-záàâãéèêíóôõúç0-9,;:]')
+            .hasMatch(trecho) &&
+            !temReticenciasInicio;
+
+    final bool pareceFimParcial =
+        !RegExp(r'[.!?…»”"\)\]]$').hasMatch(trecho) &&
+            !temReticenciasFim;
+
+    if (pareceInicioParcial) {
+      trecho = '...$trecho';
+    }
+
+    if (pareceFimParcial) {
+      trecho = '$trecho...';
+    }
+
+    return trecho;
   }
 
   /// Abre o diálogo de criação da citação.
   Future<void> _citarTrecho() async {
     if (_abrindoCitacao) return;
 
-    final trecho = _trechoSelecionado.trim();
+    final String trechoOriginal =
+    _trechoSelecionado.trim();
 
-    if (trecho.isEmpty) {
+    if (trechoOriginal.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Seleccione primeiro o trecho que pretende citar.'),
+          content: Text(
+            'Seleccione primeiro o trecho que pretende citar.',
+          ),
         ),
       );
       return;
     }
+
+    final String trechoFormatado =
+    _formatarTrechoParaCitacao(trechoOriginal);
 
     setState(() {
       _abrindoCitacao = true;
@@ -68,17 +192,20 @@ class _LeitorPdfComCitacaoState extends State<LeitorPdfComCitacao> {
         context,
         autor: widget.obra.autor,
         titulo: widget.obra.titulo,
-        ano: (widget.obra.anoObra ?? widget.obra.dataPublicacao.year)
+        ano: (widget.obra.anoObra ??
+            widget.obra.dataPublicacao.year)
             .toString(),
-        pagina: _paginaSelecionada,
-        trecho: trecho,
+        pagina: _paginaAtual,
+        trecho: trechoFormatado,
         url: widget.urlObra,
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não foi possível abrir a criação da citação.'),
+            content: Text(
+              'Não foi possível abrir a criação da citação.',
+            ),
           ),
         );
       }
@@ -99,160 +226,238 @@ class _LeitorPdfComCitacaoState extends State<LeitorPdfComCitacao> {
 
   @override
   Widget build(BuildContext context) {
-    final tamanho = MediaQuery.sizeOf(context);
+    final tema = Theme.of(context);
 
-    return SizedBox(
-      width: tamanho.width * 0.95,
-      height: tamanho.height * 0.90,
-      child: Column(
-        children: [
-          // Cabeçalho do leitor.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: _raio,
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.picture_as_pdf),
-                const SizedBox(width: 8),
-
-                Expanded(
-                  child: Text(
-                    widget.obra.titulo,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+    return Material(
+      color: tema.colorScheme.surface,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Cabeçalho do leitor.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 4,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFFEAF4FF),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.picture_as_pdf,
+                    color: Color(0xFF245A81),
                   ),
-                ),
-
-                // Botão Fechar.
-                IconButton(
-                  tooltip: 'Fechar',
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-          ),
-
-          // Área do PDF.
-          Expanded(
-            child: _erro != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(_erro!, textAlign: TextAlign.center),
-                    ),
-                  )
-                : Stack(
-                    children: [
-                      SfPdfViewer.network(
-                        widget.urlPdf,
-                        controller: _pdfController,
-                        enableTextSelection: true,
-                        interactionMode: PdfInteractionMode.selection,
-
-                        // PDF carregado.
-                        onDocumentLoaded: (_) {
-                          if (!mounted) return;
-
-                          setState(() {
-                            _carregando = false;
-                            _erro = null;
-                          });
-                        },
-
-                        // Erro ao carregar o PDF.
-                        onDocumentLoadFailed: (_) {
-                          if (!mounted) return;
-
-                          setState(() {
-                            _carregando = false;
-                            _erro =
-                                'Não foi possível carregar o PDF. '
-                                'Verifique a ligação à Internet '
-                                'ou tente novamente mais tarde.';
-                          });
-                        },
-
-                        // Captura o trecho seleccionado.
-                        onTextSelectionChanged: _actualizarSelecao,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.obra.titulo,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
                       ),
-
-                      if (_carregando)
-                        const Center(child: CircularProgressIndicator()),
-                    ],
+                    ),
                   ),
-          ),
 
-          // Área de criação da citação.
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerLow,
-              border: Border(
-                top: BorderSide(color: Theme.of(context).dividerColor),
+                  // Botão maximizar/restaurar.
+                  IconButton(
+                    tooltip: widget.modoEcraInteiro
+                        ? 'Restaurar tamanho'
+                        : 'Maximizar leitor',
+                    onPressed: _alternarMaximizacao,
+                    icon: Icon(
+                      widget.modoEcraInteiro
+                          ? Icons.fullscreen_exit
+                          : Icons.fullscreen,
+                    ),
+                  ),
+
+                  // Botão fechar.
+                  IconButton(
+                    tooltip: 'Fechar',
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _trechoSelecionado.isEmpty
-                      ? 'Seleccione um trecho do PDF para criar uma citação.'
-                      : 'Trecho seleccionado:',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+
+            // Área de visualização do PDF.
+            Expanded(
+              child: _erro != null
+                  ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    _erro!,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-
-                const SizedBox(height: 6),
-
-                if (_trechoSelecionado.isNotEmpty)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 90),
-                    child: SingleChildScrollView(
-                      child: SelectableText(_trechoSelecionado),
+              )
+                  : Stack(
+                children: [
+                  // Fundo visível entre as páginas.
+                  const Positioned.fill(
+                    child: ColoredBox(
+                      color: Color(0xFFE2E5E9),
                     ),
                   ),
 
-                const SizedBox(height: 10),
-
-                Align(
-                  alignment: Alignment.bottomRight,
-                  child: FilledButton.tonalIcon(
-                    onPressed:
-                        _trechoSelecionado.trim().isEmpty || _abrindoCitacao
-                        ? null
-                        : _citarTrecho,
-                    icon: const Icon(Icons.format_quote, size: 16),
-                    label: Text(
-                      _abrindoCitacao ? 'A abrir...' : 'Citar',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                  // Leitor PDF.
+                  Positioned.fill(
+                    child: SfPdfViewer.network(
+                      widget.urlPdf,
+                      controller: _pdfController,
+                      enableTextSelection: true,
+                      interactionMode:
+                      PdfInteractionMode.selection,
+                      pageSpacing: 12,
+                      onDocumentLoaded:
+                      _documentoCarregado,
+                      onDocumentLoadFailed:
+                      _documentoFalhou,
+                      onPageChanged:
+                      _actualizarPagina,
+                      onTextSelectionChanged:
+                      _actualizarSelecao,
                     ),
                   ),
-                ),
-              ],
+
+                  // Número da página actual.
+                  if (!_carregando && _erro == null)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: IgnorePointer(
+                        child: Container(
+                          padding:
+                          const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius:
+                            BorderRadius.circular(6),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            'Página $_paginaAtual'
+                                ' de $_totalPaginas',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Indicador de carregamento.
+                  if (_carregando)
+                    const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+
+            // Área de criação da citação.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: tema.colorScheme.surfaceContainerLow,
+                border: Border(
+                  top: BorderSide(
+                    color: tema.dividerColor,
+                  ),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _trechoSelecionado.isEmpty
+                        ? 'Seleccione um trecho do PDF para criar uma citação.'
+                        : 'Trecho seleccionado:',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  if (_trechoSelecionado.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxHeight: 80,
+                      ),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          _trechoSelecionado,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 10),
+
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.tonalIcon(
+                      onPressed:
+                      _trechoSelecionado.trim().isEmpty ||
+                          _abrindoCitacao ||
+                          _carregando
+                          ? null
+                          : _citarTrecho,
+                      icon: const Icon(
+                        Icons.format_quote,
+                        size: 16,
+                      ),
+                      label: Text(
+                        _abrindoCitacao
+                            ? 'A abrir...'
+                            : 'Citar',
+                        style: const TextStyle(
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize:
+                        MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                          BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
