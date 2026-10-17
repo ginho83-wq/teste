@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../utils/gerador_citacoes.dart';
 
@@ -10,6 +11,7 @@ class DialogoCitacao extends StatefulWidget {
   final String? trecho;
   final int? pagina;
   final String? url;
+  final String? obraId;
 
   const DialogoCitacao({
     super.key,
@@ -19,6 +21,7 @@ class DialogoCitacao extends StatefulWidget {
     this.trecho,
     this.pagina,
     this.url,
+    this.obraId,
   });
 
   static Future<void> mostrar(
@@ -29,6 +32,7 @@ class DialogoCitacao extends StatefulWidget {
         String? trecho,
         int? pagina,
         String? url,
+        String? obraId,
       }) async {
     await showDialog<void>(
       context: context,
@@ -41,6 +45,7 @@ class DialogoCitacao extends StatefulWidget {
           trecho: trecho,
           pagina: pagina,
           url: url,
+          obraId: obraId,
         );
       },
     );
@@ -55,6 +60,7 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
   String _tipo = 'Citação direta';
 
   bool _maximizado = false;
+  bool _copiando = false;
 
   late final TextEditingController _trechoController;
 
@@ -88,7 +94,32 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
     );
   }
 
+  /// Converte os estilos apresentados na interface
+  /// para os formatos aceites pela Edge Function.
+  String get _formatoParaNotificacao {
+    switch (_estilo) {
+      case 'APA 7':
+        return 'APA';
+
+      case 'ABNT':
+        return 'ABNT';
+
+      case 'Vancouver':
+        return 'VANCOUVER';
+
+      case 'IEEE':
+      case 'ISO 690':
+        return 'OUTRO';
+
+      default:
+        return 'OUTRO';
+    }
+  }
+
+  /// Copia a citação e solicita a notificação do autor.
   Future<void> _copiar() async {
+    if (_copiando) return;
+
     final texto = _citacao.trim();
 
     if (texto.isEmpty ||
@@ -100,20 +131,110 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
           ),
         ),
       );
+
       return;
     }
 
-    await Clipboard.setData(
-      ClipboardData(text: texto),
-    );
+    setState(() {
+      _copiando = true;
+    });
 
-    if (!mounted) return;
+    try {
+      // 1. Copiar primeiro para a área de transferência.
+      await Clipboard.setData(
+        ClipboardData(text: texto),
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Citação copiada com sucesso.'),
-      ),
-    );
+      if (!mounted) return;
+
+      // 2. Notificar o autor quando temos o identificador da obra.
+      //
+      // A função Supabase valida a sessão do utilizador,
+      // regista a citação e tenta enviar o email ao autor.
+      bool notificacaoEnviada = false;
+      bool notificacaoProcessada = false;
+
+      final obraId = widget.obraId?.trim();
+
+      if (obraId != null && obraId.isNotEmpty) {
+        try {
+          final resposta = await Supabase.instance.client.functions
+              .invoke(
+            'notificar-citacao-obra',
+            body: {
+              'obra_id': obraId,
+              'referencia': texto,
+              'formato': _formatoParaNotificacao,
+            },
+          );
+
+          final dados = resposta.data;
+
+          if (dados is Map) {
+            notificacaoProcessada = dados['success'] == true;
+            notificacaoEnviada =
+                dados['notification_sent'] == true;
+          }
+        } on FunctionException catch (erro) {
+          // Uma falha de notificação não anula a cópia.
+          debugPrint(
+            'Erro na função de notificação de citação: '
+                '${erro.status}: ${erro.details}',
+          );
+        } catch (erro) {
+          debugPrint(
+            'Não foi possível notificar o autor: $erro',
+          );
+        }
+      }
+
+      if (!mounted) return;
+
+      // 3. Informar o utilizador sem impedir a cópia.
+      String mensagem = 'Citação copiada com sucesso.';
+
+      if (obraId == null || obraId.isEmpty) {
+        mensagem =
+        'Citação copiada. Não foi possível identificar a obra '
+            'para notificar o autor.';
+      } else if (notificacaoEnviada) {
+        mensagem =
+        'Citação copiada. O autor foi notificado por email.';
+      } else if (notificacaoProcessada) {
+        mensagem =
+        'Citação copiada. O registo foi processado, '
+            'mas não foi possível enviar o email.';
+      } else {
+        mensagem =
+        'Citação copiada. Não foi possível confirmar '
+            'a notificação do autor.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (erro) {
+      if (!mounted) return;
+
+      debugPrint('Erro ao copiar a citação: $erro');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível copiar a citação. Tente novamente.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _copiando = false;
+        });
+      }
+    }
   }
 
   void _alternarMaximizacao() {
@@ -160,7 +281,7 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Cabeçalho com os cantos superiores arredondados.
+              // Cabeçalho.
               Container(
                 padding: const EdgeInsets.only(
                   left: 20,
@@ -327,8 +448,7 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
                           color: Theme.of(context)
                               .colorScheme
                               .surfaceContainerHighest,
-                          borderRadius:
-                          BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: SelectableText(
                           _citacao,
@@ -340,7 +460,7 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
                 ),
               ),
 
-              // Rodapé com os cantos inferiores arredondados.
+              // Rodapé.
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -373,9 +493,19 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
                       child: const Text('Fechar'),
                     ),
                     FilledButton.icon(
-                      onPressed: _copiar,
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copiar citação'),
+                      onPressed: _copiando ? null : _copiar,
+                      icon: _copiando
+                          ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : const Icon(Icons.copy),
+                      label: Text(
+                        _copiando ? 'A copiar...' : 'Copiar citação',
+                      ),
                     ),
                   ],
                 ),
@@ -387,4 +517,3 @@ class _DialogoCitacaoState extends State<DialogoCitacao> {
     );
   }
 }
-

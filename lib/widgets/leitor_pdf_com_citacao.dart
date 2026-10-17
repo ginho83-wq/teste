@@ -198,6 +198,9 @@ class _LeitorPdfComCitacaoState
         pagina: _paginaAtual,
         trecho: trechoFormatado,
         url: widget.urlObra,
+
+        // Identificador da obra para a notificação por email.
+        obraId: widget.obra.id,
       );
     } catch (e) {
       if (mounted) {
