@@ -1,11 +1,22 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+// ============================================================
+// CONFIGURAÇÃO
+// ============================================================
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get(
   "SUPABASE_SERVICE_ROLE_KEY",
 );
+
+const SUPABASE_ANON_KEY =
+  Deno.env.get("SUPABASE_ANON_KEY") ??
+  Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+
 const FACEBOOK_PAGE_ID = Deno.env.get("FACEBOOK_PAGE_ID");
+
 const FACEBOOK_PAGE_ACCESS_TOKEN = Deno.env.get(
   "FACEBOOK_PAGE_ACCESS_TOKEN",
 );
@@ -13,49 +24,119 @@ const FACEBOOK_PAGE_ACCESS_TOKEN = Deno.env.get(
 const URL_BASE_OBRA =
   "https://ginho83-wq.github.io/teste/obra/";
 
+const FACEBOOK_GRAPH_VERSION = "v23.0";
+
+// ============================================================
+// CORS
+// ============================================================
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+// ============================================================
+// RESPOSTAS JSON
+// ============================================================
+
+function respostaJSON(
+  dados: Record<string, unknown>,
+  status = 200,
+): Response {
+  return new Response(JSON.stringify(dados), {
+    status,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+}
+
+// ============================================================
+// FUNÇÃO PRINCIPAL
+// ============================================================
+
 Deno.serve(async (req: Request) => {
+  // ----------------------------------------------------------
+  // 1. TRATAR CORS
+  // ----------------------------------------------------------
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 2. VALIDAR MÉTODO HTTP
+  // ----------------------------------------------------------
+
   if (req.method !== "POST") {
-    return Response.json(
-      { sucesso: false, erro: "Utilize o método POST." },
-      { status: 405 },
+    return respostaJSON(
+      {
+        sucesso: false,
+        erro: "Utilize o método POST.",
+      },
+      405,
     );
   }
+
+  // ----------------------------------------------------------
+  // 3. VALIDAR SESSÃO
+  // ----------------------------------------------------------
 
   const authorization = req.headers.get("Authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
-    return Response.json(
-      { sucesso: false, erro: "Sessão não fornecida." },
-      { status: 401 },
+    return respostaJSON(
+      {
+        sucesso: false,
+        erro: "Sessão não fornecida.",
+      },
+      401,
     );
   }
 
-  const token = authorization.substring("Bearer ".length).trim();
+  const token = authorization
+    .substring("Bearer ".length)
+    .trim();
+
+  // ----------------------------------------------------------
+  // 4. VALIDAR CONFIGURAÇÃO
+  // ----------------------------------------------------------
 
   if (
     !SUPABASE_URL ||
     !SUPABASE_SERVICE_ROLE_KEY ||
+    !SUPABASE_ANON_KEY ||
     !FACEBOOK_PAGE_ID ||
     !FACEBOOK_PAGE_ACCESS_TOKEN
   ) {
-    console.error("Faltam variáveis de ambiente obrigatórias.");
+    console.error(
+      "Faltam variáveis de ambiente obrigatórias.",
+    );
 
-    return Response.json(
+    return respostaJSON(
       {
         sucesso: false,
-        erro: "A configuração da função está incompleta.",
+        erro:
+          "A configuração da função está incompleta. " +
+          "Verifique os segredos do Supabase.",
       },
-      { status: 500 },
+      500,
     );
   }
 
-  // Cliente com a sessão recebida do Flutter.
-  // A autorização é verificada com o utilizador autenticado.
+  // ----------------------------------------------------------
+  // 5. CLIENTE DO UTILIZADOR
+  // ----------------------------------------------------------
+
   const supabaseUtilizador = createClient(
     SUPABASE_URL,
-    Deno.env.get("SUPABASE_ANON_KEY") ??
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
-      "",
+    SUPABASE_ANON_KEY,
     {
       global: {
         headers: {
@@ -70,42 +151,66 @@ Deno.serve(async (req: Request) => {
   );
 
   try {
-    const { data: utilizadorData, error: utilizadorErro } =
-      await supabaseUtilizador.auth.getUser(token);
+    // --------------------------------------------------------
+    // 6. VALIDAR TOKEN DO UTILIZADOR
+    // --------------------------------------------------------
+
+    const {
+      data: utilizadorData,
+      error: utilizadorErro,
+    } = await supabaseUtilizador.auth.getUser(token);
 
     if (utilizadorErro || !utilizadorData.user) {
-      return Response.json(
-        { sucesso: false, erro: "Sessão inválida ou expirada." },
-        { status: 401 },
+      return respostaJSON(
+        {
+          sucesso: false,
+          erro: "Sessão inválida ou expirada.",
+        },
+        401,
       );
     }
 
-    const { data: ehAdmin, error: adminErro } =
-      await supabaseUtilizador.rpc("eh_admin");
+    // --------------------------------------------------------
+    // 7. VERIFICAR ADMINISTRADOR
+    // --------------------------------------------------------
+
+    const {
+      data: ehAdmin,
+      error: adminErro,
+    } = await supabaseUtilizador.rpc("eh_admin");
 
     if (adminErro) {
-      console.error("Erro ao verificar administrador:", adminErro);
+      console.error(
+        "Erro ao verificar administrador:",
+        adminErro,
+      );
 
-      return Response.json(
+      return respostaJSON(
         {
           sucesso: false,
-          erro: "Não foi possível verificar as permissões.",
+          erro:
+            "Não foi possível verificar as permissões " +
+            "do administrador.",
         },
-        { status: 500 },
+        500,
       );
     }
 
     if (ehAdmin !== true) {
-      return Response.json(
+      return respostaJSON(
         {
           sucesso: false,
-          erro: "Acesso permitido apenas a administradores.",
+          erro:
+            "Acesso permitido apenas a administradores.",
         },
-        { status: 403 },
+        403,
       );
     }
 
-    // Cliente privilegiado: utilizado exclusivamente no servidor.
+    // --------------------------------------------------------
+    // 8. CLIENTE ADMINISTRATIVO DO SUPABASE
+    // --------------------------------------------------------
+
     const supabaseAdmin = createClient(
       SUPABASE_URL,
       SUPABASE_SERVICE_ROLE_KEY,
@@ -117,21 +222,43 @@ Deno.serve(async (req: Request) => {
       },
     );
 
-    const { data: divulgacoes, error: filaErro } =
-      await supabaseAdmin
-        .from("divulgacoes_redes_sociais")
-        .select("*")
-        .eq("plataforma", "facebook")
-        .eq("estado", "pendente")
-        .order("created_at", { ascending: true })
-        .limit(10);
+    // --------------------------------------------------------
+    // 9. CONSULTAR FILA DE DIVULGAÇÕES
+    // --------------------------------------------------------
+
+    const {
+      data: divulgacoes,
+      error: filaErro,
+    } = await supabaseAdmin
+      .from("divulgacoes_redes_sociais")
+      .select("*")
+      .eq("plataforma", "facebook")
+      .eq("estado", "pendente")
+      .order("created_at", { ascending: true })
+      .limit(10);
 
     if (filaErro) {
-      throw new Error(`Erro ao consultar a fila: ${filaErro.message}`);
+      console.error(
+        "Erro ao consultar a fila:",
+        filaErro,
+      );
+
+      return respostaJSON(
+        {
+          sucesso: false,
+          erro:
+            "Não foi possível consultar a fila de divulgação.",
+        },
+        500,
+      );
     }
 
+    // --------------------------------------------------------
+    // 10. VERIFICAR SE EXISTEM DIVULGAÇÕES
+    // --------------------------------------------------------
+
     if (!divulgacoes || divulgacoes.length === 0) {
-      return Response.json({
+      return respostaJSON({
         sucesso: true,
         mensagem: "Não existem divulgações pendentes.",
         processadas: 0,
@@ -139,22 +266,38 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // --------------------------------------------------------
+    // 11. PROCESSAR DIVULGAÇÕES
+    // --------------------------------------------------------
+
     const resultados: Array<Record<string, unknown>> = [];
 
     for (const divulgacao of divulgacoes) {
       try {
+        // ----------------------------------------------------
+        // 11.1. VALIDAR ID DA OBRA
+        // ----------------------------------------------------
+
         if (!divulgacao.obra_id) {
-          throw new Error("A divulgação não possui obra_id.");
+          throw new Error(
+            "A divulgação não possui obra_id.",
+          );
         }
 
-        const { data: obra, error: obraErro } =
-          await supabaseAdmin
-            .from("obras")
-            .select(
-              "id,titulo,descricao_editorial,conteudo_editorial",
-            )
-            .eq("id", divulgacao.obra_id)
-            .maybeSingle();
+        // ----------------------------------------------------
+        // 11.2. CARREGAR OBRA
+        // ----------------------------------------------------
+
+        const {
+          data: obra,
+          error: obraErro,
+        } = await supabaseAdmin
+          .from("obras")
+          .select(
+            "id,titulo,descricao_editorial,conteudo_editorial",
+          )
+          .eq("id", divulgacao.obra_id)
+          .maybeSingle();
 
         if (obraErro) {
           throw new Error(
@@ -166,17 +309,24 @@ Deno.serve(async (req: Request) => {
           throw new Error("Obra não encontrada.");
         }
 
+        // ----------------------------------------------------
+        // 11.3. PREPARAR PUBLICAÇÃO
+        // ----------------------------------------------------
+
         const titulo = String(
           obra.titulo ?? "Obra académica",
-        );
+        ).trim();
 
         const descricao = String(
           obra.descricao_editorial ??
             obra.conteudo_editorial ??
             "",
-        );
+        )
+          .replace(/\s+/g, " ")
+          .trim();
 
-        const urlObra = `${URL_BASE_OBRA}${obra.id}`;
+        const urlObra =
+          `${URL_BASE_OBRA}${obra.id}`;
 
         const mensagem = [
           titulo,
@@ -189,9 +339,14 @@ Deno.serve(async (req: Request) => {
           "#ObraLivre #InvestigacaoCientifica #Conhecimento",
         ].join("\n");
 
-        // Publicar na página do Facebook.
+        // ----------------------------------------------------
+        // 11.4. PUBLICAR NO FACEBOOK
+        // ----------------------------------------------------
+
         const facebookResponse = await fetch(
-          `https://graph.facebook.com/v23.0/${FACEBOOK_PAGE_ID}/feed`,
+          `https://graph.facebook.com/` +
+            `${FACEBOOK_GRAPH_VERSION}/` +
+            `${FACEBOOK_PAGE_ID}/feed`,
           {
             method: "POST",
             headers: {
@@ -206,26 +361,61 @@ Deno.serve(async (req: Request) => {
 
         const facebookResult = await facebookResponse.json();
 
-        if (!facebookResponse.ok || !facebookResult.id) {
+        if (
+          !facebookResponse.ok ||
+          !facebookResult.id
+        ) {
+          // Guardar o erro completo apenas nos logs.
+          console.error(
+            `Erro devolvido pelo Facebook para a divulgação ` +
+              `${divulgacao.id}:`,
+            JSON.stringify(facebookResult),
+          );
+
+          const detalheFacebook =
+            facebookResult?.error?.message ??
+            "O Facebook não confirmou a publicação.";
+
           throw new Error(
-            `Facebook: ${JSON.stringify(facebookResult)}`,
+            `Facebook: ${detalheFacebook}`,
           );
         }
 
-        const { error: atualizarErro } = await supabaseAdmin
+        // ----------------------------------------------------
+        // 11.5. REGISTAR PUBLICAÇÃO NA FILA
+        // ----------------------------------------------------
+
+        const {
+          error: atualizarErro,
+        } = await supabaseAdmin
           .from("divulgacoes_redes_sociais")
           .update({
             estado: "publicado",
             mensagem,
+            url_publicacao:
+              `https://www.facebook.com/${facebookResult.id}`,
+            data_publicacao: new Date().toISOString(),
+            publicado_em: new Date().toISOString(),
+            erro: null,
           })
           .eq("id", divulgacao.id);
 
         if (atualizarErro) {
+          console.error(
+            "Erro ao atualizar divulgação publicada:",
+            atualizarErro,
+          );
+
           throw new Error(
-            "A publicação foi enviada, mas não foi possível " +
-              `actualizar a fila: ${atualizarErro.message}`,
+            "A publicação foi enviada ao Facebook, " +
+              "mas não foi possível atualizar o registo " +
+              "na tabela do Supabase.",
           );
         }
+
+        // ----------------------------------------------------
+        // 11.6. REGISTAR SUCESSO
+        // ----------------------------------------------------
 
         resultados.push({
           id: divulgacao.id,
@@ -234,17 +424,23 @@ Deno.serve(async (req: Request) => {
           facebook_post_id: facebookResult.id,
         });
       } catch (error) {
-        const erro = error instanceof Error
-          ? error.message
-          : String(error);
+        // ----------------------------------------------------
+        // 12. REGISTAR ERRO INDIVIDUAL
+        // ----------------------------------------------------
+
+        const erro =
+          error instanceof Error
+            ? error.message
+            : String(error);
 
         console.error(
           `Erro na divulgação ${divulgacao.id}:`,
           erro,
         );
 
-        // Registar o erro para diagnóstico.
-        const { error: atualizarErro } = await supabaseAdmin
+        const {
+          error: atualizarErro,
+        } = await supabaseAdmin
           .from("divulgacoes_redes_sociais")
           .update({
             estado: "erro",
@@ -261,24 +457,46 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return Response.json({
+    // --------------------------------------------------------
+    // 13. DEVOLVER RESULTADOS
+    // --------------------------------------------------------
+
+    const publicadas = resultados.filter(
+      (resultado) => resultado.estado === "publicado",
+    ).length;
+
+    const falhadas = resultados.filter(
+      (resultado) => resultado.estado === "erro",
+    ).length;
+
+    return respostaJSON({
       sucesso: true,
       processadas: resultados.length,
+      publicadas,
+      falhadas,
       resultados,
     });
   } catch (error) {
-    const mensagem = error instanceof Error
-      ? error.message
-      : String(error);
+    // --------------------------------------------------------
+    // 14. ERRO GERAL
+    // --------------------------------------------------------
 
-    console.error("Erro na divulgação Facebook:", mensagem);
+    const mensagem =
+      error instanceof Error
+        ? error.message
+        : String(error);
 
-    return Response.json(
+    console.error(
+      "Erro na divulgação Facebook:",
+      mensagem,
+    );
+
+    return respostaJSON(
       {
         sucesso: false,
         erro: mensagem,
       },
-      { status: 500 },
+      500,
     );
   }
 });

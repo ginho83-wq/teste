@@ -18,6 +18,7 @@ import '../widgets/coluna_anuncios.dart';
 import '../widgets/selecao_citacao.dart';
 import '../widgets/dialogo_citacao.dart';
 import '../widgets/leitor_pdf_com_citacao.dart';
+import '../widgets/partilhar_obra.dart';
 import 'citacoes_obras_page.dart';
 
 
@@ -1877,7 +1878,15 @@ class _ObraDetalhesPageState extends State<ObraDetalhesPage> {
           title: const Text('Obra Livre'),
           backgroundColor: const Color(0xFFEAF4FF),
           elevation: 0,
+          actions: [
+            if (_obra != null)
+              PartilharObra(
+                titulo: _obra!.titulo,
+                url: _urlDaObra(),
+              ),
+          ],
         ),
+
         body: LayoutBuilder(
           builder: (context, constraints) {
             final desktop =
