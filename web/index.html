@@ -12,7 +12,7 @@
 
   <meta
           name="description"
-          content="Obra Livre — Acervo digital de obras académicas, científicas e literárias."
+          content="Obra Livre — Plataforma de consulta e publicação de obras académicas, teses, monografias e artigos científicos."
   >
 
   <meta name="robots" content="index, follow">
@@ -20,9 +20,10 @@
   <link
           rel="icon"
           type="image/png"
-          href="OL.png"
+          href="https://ginho83-wq.github.io/teste/OL.png"
   >
 
+  <!-- Metadados para partilha no Facebook -->
   <meta property="og:type" content="website">
 
   <meta
@@ -32,7 +33,7 @@
 
   <meta
           property="og:description"
-          content="Obra Livre — Acervo digital de obras académicas, científicas e literárias."
+          content="Consulta e publica obras académicas, teses, monografias e artigos científicos na plataforma Obra Livre."
   >
 
   <meta
@@ -42,15 +43,31 @@
 
   <meta
           property="og:site_name"
-          content="Obra Livre — Obras Académicas"
+          content="Obra Livre"
   >
 
+  <meta
+          property="og:image"
+          content="https://ginho83-wq.github.io/teste/OL.png"
+  >
+
+  <meta
+          property="og:image:alt"
+          content="Logótipo da plataforma Obra Livre"
+  >
+
+  <meta
+          property="og:locale"
+          content="pt_PT"
+  >
+
+  <!-- Identificação do site para motores de pesquisa -->
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": "Obra Livre — Obras Académicas",
-      "alternateName": "Obra Livre",
+      "name": "Obra Livre",
+      "alternateName": "Obra Livre — Obras Académicas",
       "url": "https://ginho83-wq.github.io/teste/"
     }
   </script>
@@ -62,6 +79,7 @@
 
 <body>
 
+<!-- PDF.js -->
 <script
         src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.mjs"
         type="module">
@@ -70,35 +88,34 @@
 <script type="module">
   var { pdfjsLib } = globalThis;
 
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
+  if (pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
       'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.mjs';
 
-  var pdfRenderOptions = {
+    var pdfRenderOptions = {
       cMapUrl:
-          'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/cmaps/',
       cMapPacked: true
-  };
-</script>
-
-<script>
-  // Recupera a rota guardada pelo 404.html.
-  var redirect = sessionStorage.getItem(
-      'flutter_redirect'
-  );
-
-  if (redirect) {
-      sessionStorage.removeItem(
-          'flutter_redirect'
-      );
-
-      history.replaceState(
-          null,
-          '',
-          redirect
-      );
+    };
   }
 </script>
 
+<!-- Recupera a rota guardada pelo 404.html -->
+<script>
+  var redirect = sessionStorage.getItem('flutter_redirect');
+
+  if (redirect) {
+    sessionStorage.removeItem('flutter_redirect');
+
+    history.replaceState(
+      null,
+      '',
+      redirect
+    );
+  }
+</script>
+
+<!-- Inicialização do Flutter -->
 <script
         src="flutter_bootstrap.js"
         async>
@@ -106,3 +123,4 @@
 
 </body>
 </html>
+

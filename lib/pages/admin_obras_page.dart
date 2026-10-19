@@ -30,6 +30,84 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
   String? _processandoId;
 
   // ============================================================
+// DIVULGAR NO FACEBOOK
+// ============================================================
+
+  Future<void> _divulgarNoFacebook() async {
+    if (_processandoId != null) return;
+
+    final confirmar = await _confirmar(
+      titulo: 'Divulgar obras no Facebook',
+      mensagem:
+      'Deseja processar as divulgações pendentes do Facebook? '
+          'As obras serão publicadas conforme os registos existentes '
+          'na fila de divulgação.',
+      textoConfirmar: 'Divulgar',
+    );
+
+    if (!confirmar || !mounted) return;
+
+    setState(() {
+      _processandoId = '__facebook__';
+      _erro = null;
+    });
+
+    try {
+      final resultado = await _admin.divulgarObrasFacebook();
+
+      if (!mounted) return;
+
+      setState(() {
+        _processandoId = null;
+      });
+
+      final processadas = resultado['processadas'] ?? 0;
+      final resultados = resultado['resultados'];
+
+      var publicadas = 0;
+      var falhadas = 0;
+
+      if (resultados is List) {
+        for (final item in resultados) {
+          if (item is Map) {
+            if (item['estado'] == 'publicado') {
+              publicadas++;
+            } else if (item['estado'] == 'erro') {
+              falhadas++;
+            }
+          }
+        }
+      }
+
+      final mensagem = processadas == 0
+          ? 'Não existem divulgações pendentes no Facebook.'
+          : 'Processadas: $processadas. '
+          'Publicadas: $publicadas. '
+          'Com erro: $falhadas.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      final mensagem = _mensagemErro(e);
+
+      setState(() {
+        _processandoId = null;
+        _erro = mensagem;
+      });
+
+      _mostrarErro(mensagem);
+    }
+  }
+
+
+
+  // ============================================================
   // PAGINAÇÃO DA PESQUISA
   // ============================================================
 
@@ -666,13 +744,20 @@ class _AdminObrasPageState extends State<AdminObrasPage> {
         title: const Text('Administração'),
         actions: [
           IconButton(
+            tooltip: 'Divulgar obras no Facebook',
+            onPressed: _processandoId != null
+                ? null
+                : _divulgarNoFacebook,
+            icon: const Icon(Icons.facebook),
+          ),
+          IconButton(
             tooltip: 'Atualizar',
-            onPressed:
-            _carregando ? null : _carregar,
+            onPressed: _carregando ? null : _carregar,
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
+
       body: _buildBody(),
     );
   }

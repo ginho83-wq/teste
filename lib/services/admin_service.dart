@@ -10,11 +10,9 @@ import 'auth_service.dart';
 class AdminService {
   AdminService._();
 
-  static final AdminService instancia =
-  AdminService._();
+  static final AdminService instancia = AdminService._();
 
-  final AuthService _auth =
-      AuthService.instancia;
+  final AuthService _auth = AuthService.instancia;
 
   final ObrasPendentesRepository _repository =
       ObrasPendentesRepository.instancia;
@@ -22,25 +20,20 @@ class AdminService {
   final ObrasRepository _obrasRepository =
       ObrasRepository.instancia;
 
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // ==========================================================
   // VERIFICAR ADMINISTRADOR
   // ==========================================================
 
   Future<void> _exigirAdmin() async {
-    final utilizador =
-        _supabase.auth.currentUser;
+    final utilizador = _supabase.auth.currentUser;
 
     if (utilizador == null) {
-      throw Exception(
-        'É necessário iniciar sessão.',
-      );
+      throw Exception('É necessário iniciar sessão.');
     }
 
-    final ehAdmin =
-    await _auth.ehAdmin();
+    final ehAdmin = await _auth.ehAdmin();
 
     if (!ehAdmin) {
       throw Exception(
@@ -53,10 +46,8 @@ class AdminService {
   // CARREGAR OBRAS PENDENTES
   // ==========================================================
 
-  Future<List<ObraPendente>>
-  carregarObrasPendentes() async {
+  Future<List<ObraPendente>> carregarObrasPendentes() async {
     await _exigirAdmin();
-
     return _repository.carregarTodas();
   }
 
@@ -64,28 +55,19 @@ class AdminService {
   // CARREGAR UMA OBRA PENDENTE
   // ==========================================================
 
-  Future<ObraPendente> carregarObraPendente(
-      String id,
-      ) async {
+  Future<ObraPendente> carregarObraPendente(String id) async {
     await _exigirAdmin();
 
     final idLimpo = id.trim();
 
     if (idLimpo.isEmpty) {
-      throw Exception(
-        'ID da obra inválido.',
-      );
+      throw Exception('ID da obra inválido.');
     }
 
-    final obra =
-    await _repository.carregarPorId(
-      idLimpo,
-    );
+    final obra = await _repository.carregarPorId(idLimpo);
 
     if (obra == null) {
-      throw Exception(
-        'Obra pendente não encontrada.',
-      );
+      throw Exception('Obra pendente não encontrada.');
     }
 
     return obra;
@@ -95,10 +77,8 @@ class AdminService {
   // CARREGAR OBRAS PUBLICADAS
   // ==========================================================
 
-  Future<List<Obra>>
-  carregarObrasPublicadas() async {
+  Future<List<Obra>> carregarObrasPublicadas() async {
     await _exigirAdmin();
-
     return _obrasRepository.carregarTodas();
   }
 
@@ -106,210 +86,187 @@ class AdminService {
   // APROVAR OBRA
   // ==========================================================
 
-  Future<Obra> aprovarObra(
-      String id,
-      ) async {
+  Future<Obra> aprovarObra(String id) async {
     await _exigirAdmin();
 
     final idLimpo = id.trim();
 
     if (idLimpo.isEmpty) {
-      throw Exception(
-        'ID da obra inválido.',
-      );
+      throw Exception('ID da obra inválido.');
     }
 
-    // --------------------------------------------------------
-    // APROVAR A OBRA
-    //
-    // O ObrasPendentesRepository é responsável por:
-    //
-    // 1. Carregar a obra pendente
-    // 2. Transferir o PDF
-    // 3. Criar a obra em public.obras
-    // 4. Criar as secções em public.teste_secoes
-    // 5. Remover a obra pendente
-    // --------------------------------------------------------
+    // O repositório aprova a obra e o trigger SQL existente
+    // trata da criação da divulgação na fila.
+    final obra = await _repository.aprovar(idLimpo);
 
-    final obra =
-    await _repository.aprovar(
-      idLimpo,
-    );
-
-    // --------------------------------------------------------
-    // ATUALIZAR O SITE
-    // --------------------------------------------------------
-
+    // Actualizar o site sem invalidar a aprovação se a função
+    // de actualização falhar.
     try {
-      final resposta =
-      await _supabase.functions.invoke(
+      final resposta = await _supabase.functions.invoke(
         'atualizar-site',
       );
 
-      if (resposta.status < 200 ||
-          resposta.status >= 300) {
+      if (resposta.status < 200 || resposta.status >= 300) {
         debugPrint(
           'Aviso: atualizar-site respondeu HTTP '
               '${resposta.status}.',
         );
       } else {
-        debugPrint(
-          'atualizar-site iniciado com sucesso.',
-        );
+        debugPrint('atualizar-site iniciado com sucesso.');
       }
     } catch (e) {
-      debugPrint(
-        'Aviso: não foi possível iniciar '
-            'atualizar-site: $e',
-      );
+      debugPrint('Aviso: não foi possível actualizar o site: $e');
     }
 
-    // --------------------------------------------------------
-    // ENVIAR E-MAIL AO PROPRIETÁRIO
-    // --------------------------------------------------------
-
+    // Enviar o email de aprovação.
     try {
-      final resposta =
-      await _supabase.functions.invoke(
+      final resposta = await _supabase.functions.invoke(
         'enviar-email-aprovacao',
-        body: {
-          'obra_id': obra.id,
-        },
+        body: {'obra_id': obra.id},
       );
 
-      if (resposta.status < 200 ||
-          resposta.status >= 300) {
+      if (resposta.status < 200 || resposta.status >= 300) {
         debugPrint(
-          'Aviso: e-mail de aprovação não enviado. '
-              'HTTP ${resposta.status}.',
-        );
-
-        debugPrint(
-          'Resposta da Edge Function: '
-              '${resposta.data}',
+          'Aviso: email de aprovação não enviado. '
+              'HTTP ${resposta.status}. Resposta: ${resposta.data}',
         );
       } else {
-        debugPrint(
-          'E-mail de aprovação enviado com sucesso.',
-        );
+        debugPrint('Email de aprovação enviado com sucesso.');
       }
     } catch (e) {
-      debugPrint(
-        'Aviso: erro ao enviar e-mail de aprovação: $e',
-      );
+      debugPrint('Aviso: erro ao enviar email de aprovação: $e');
     }
 
-    // --------------------------------------------------------
-    // DEVOLVER OBRA PUBLICADA
-    // --------------------------------------------------------
-
+    // Não chamar a função Facebook aqui automaticamente.
+    // A fila é criada pelo trigger; a divulgação é processada
+    // pelo botão do painel ou por um agendamento seguro.
     return obra;
+  }
+
+  // ==========================================================
+  // DIVULGAR OBRAS PENDENTES NO FACEBOOK
+  // ==========================================================
+
+  Future<Map<String, dynamic>> divulgarObrasFacebook() async {
+    await _exigirAdmin();
+
+    try {
+      final resposta = await _supabase.functions.invoke(
+        'divulgar-obras-facebook',
+        method: HttpMethod.post,
+      );
+
+      final dados = resposta.data;
+
+      if (resposta.status < 200 || resposta.status >= 300) {
+        throw Exception(
+          'A função Facebook respondeu HTTP ${resposta.status}. '
+              '${dados ?? ''}',
+        );
+      }
+
+      if (dados is Map) {
+        final resultado = Map<String, dynamic>.from(dados);
+
+        if (resultado['sucesso'] == false) {
+          throw Exception(
+            resultado['erro']?.toString() ??
+                'Não foi possível divulgar as obras no Facebook.',
+          );
+        }
+
+        return resultado;
+      }
+
+      throw Exception(
+        'A função Facebook devolveu uma resposta inesperada.',
+      );
+    } on FunctionException catch (e) {
+      debugPrint(
+        'Erro na função divulgar-obras-facebook: '
+            '${e.status}, ${e.details}',
+      );
+
+      throw Exception(
+        'Não foi possível executar a divulgação no Facebook. '
+            'Verifique a autorização da função e os segredos configurados '
+            'no Supabase.',
+      );
+    } catch (e) {
+      debugPrint('Erro na divulgação Facebook: $e');
+      rethrow;
+    }
   }
 
   // ==========================================================
   // REJEITAR OBRA
   // ==========================================================
 
-  Future<void> rejeitarObra(
-      String id,
-      ) async {
+  Future<void> rejeitarObra(String id) async {
     await _exigirAdmin();
 
     final idLimpo = id.trim();
 
     if (idLimpo.isEmpty) {
-      throw Exception(
-        'ID da obra inválido.',
-      );
+      throw Exception('ID da obra inválido.');
     }
 
-    await _repository.rejeitar(
-      idLimpo,
-    );
+    await _repository.rejeitar(idLimpo);
   }
 
   // ==========================================================
   // EXCLUIR OBRA PENDENTE
   // ==========================================================
 
-  Future<void> excluirObra(
-      String id,
-      ) async {
+  Future<void> excluirObra(String id) async {
     await _exigirAdmin();
 
     final idLimpo = id.trim();
 
     if (idLimpo.isEmpty) {
-      throw Exception(
-        'ID da obra inválido.',
-      );
+      throw Exception('ID da obra inválido.');
     }
 
-    await _repository.excluir(
-      idLimpo,
-    );
+    await _repository.excluir(idLimpo);
   }
 
   // ==========================================================
   // ELIMINAR OBRA PUBLICADA
   // ==========================================================
 
-  Future<void> deletarObraPublicada(
-      String id,
-      ) async {
+  Future<void> deletarObraPublicada(String id) async {
     await _exigirAdmin();
 
     final idLimpo = id.trim();
 
     if (idLimpo.isEmpty) {
-      throw Exception(
-        'ID da obra inválido.',
-      );
+      throw Exception('ID da obra inválido.');
     }
 
-    // --------------------------------------------------------
-    // 1. APAGAR AS SECÇÕES DA OBRA
-    // --------------------------------------------------------
-
+    // 1. Apagar as secções.
     try {
       await _supabase
           .from('teste_secoes')
           .delete()
-          .eq(
-        'obra_id',
-        idLimpo,
-      );
+          .eq('obra_id', idLimpo);
 
-      debugPrint(
-        'Secções da obra eliminadas.',
-      );
+      debugPrint('Secções da obra eliminadas.');
     } catch (e) {
       debugPrint(
-        'Aviso: não foi possível eliminar '
-            'as secções da obra: $e',
+        'Aviso: não foi possível eliminar as secções: $e',
       );
     }
 
-    // --------------------------------------------------------
-    // 2. APAGAR A OBRA
-    // --------------------------------------------------------
+    // 2. Apagar a obra publicada.
+    await _obrasRepository.excluirPublicada(idLimpo);
 
-    await _obrasRepository.excluirPublicada(
-      idLimpo,
-    );
-
-    // --------------------------------------------------------
-    // 3. ATUALIZAR O SITE
-    // --------------------------------------------------------
-
+    // 3. Actualizar o site.
     try {
-      final resposta =
-      await _supabase.functions.invoke(
+      final resposta = await _supabase.functions.invoke(
         'atualizar-site',
       );
 
-      if (resposta.status < 200 ||
-          resposta.status >= 300) {
+      if (resposta.status < 200 || resposta.status >= 300) {
         debugPrint(
           'Aviso: atualizar-site respondeu HTTP '
               '${resposta.status}.',
@@ -317,8 +274,7 @@ class AdminService {
       }
     } catch (e) {
       debugPrint(
-        'Aviso: não foi possível iniciar '
-            'atualizar-site: $e',
+        'Aviso: não foi possível actualizar o site: $e',
       );
     }
   }
