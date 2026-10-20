@@ -1,3 +1,11 @@
+# ============================================================
+# OBRA LIVRE
+# GERADOR DE PAGINAS SEO
+# PARTE 1 DE 3
+#
+# Configuracao, Supabase e consulta dos dados.
+# ============================================================
+
 import html
 import json
 import os
@@ -13,1734 +21,2530 @@ from datetime import datetime, timezone, date
 
 
 # ============================================================
-# CONFIGURAÇÃO
+# 1. CONFIGURACAO GERAL
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 BASE_URL = "https://ginho83-wq.github.io/teste"
+
 PROJECT_BASE = "/teste/"
 
 OUTPUT_DIR = BASE_DIR / "build" / "web"
-SITEMAP_PATH = OUTPUT_DIR / "sitemap.xml"
 
-NOME_SITE = "Obra Livre — Obras Académicas"
+SITE_NAME = "Obra Livre — Obras Académicas"
 
-URLS_FIXAS = [
-    "/",
-    "/acervo/",
-    "/categorias/",
-    "/termos/",
-    "/politica-privacidade/",
-    "/cookies/",
-    "/contacto/",
-    "/ajuda/",
-]
+SITE_DESCRIPTION = (
+    "Plataforma de consulta e publicação de obras académicas, "
+    "teses, monografias e artigos científicos."
+)
 
-NAMESPACE_SITEMAP = "http://www.sitemaps.org/schemas/sitemap/0.9"
+FAVICON_URL = f"{BASE_URL}/OL.png"
 
+SITEMAP_URL = f"{BASE_URL}/sitemap.xml"
 
-# ============================================================
-# CONFIGURAÇÃO SUPABASE
-# ============================================================
+ROBOTS_URL = f"{BASE_URL}/robots.txt"
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
+TIMEOUT_HTTP = 30
 
+LIMITE_DESCRICAO_SEO = 300
 
-def carregar_configuracao_flutter():
-    """Procura as configurações públicas do Supabase nos ficheiros Dart."""
-
-    global SUPABASE_URL, SUPABASE_ANON_KEY
-
-    if SUPABASE_URL and SUPABASE_ANON_KEY:
-        return
-
-    pasta_lib = BASE_DIR / "lib"
-
-    if not pasta_lib.exists():
-        return
-
-    for ficheiro in pasta_lib.rglob("*.dart"):
-        try:
-            conteudo = ficheiro.read_text(encoding="utf-8-sig")
-        except (OSError, UnicodeError):
-            continue
-
-        if not SUPABASE_URL:
-            correspondencia_url = re.search(
-                r"""(?:url|supabaseUrl)\s*=\s*['"]([^'"]+)['"]""",
-                conteudo,
-                re.IGNORECASE,
-            )
-
-            if correspondencia_url:
-                valor = correspondencia_url.group(1).strip()
-
-                if valor.startswith("https://"):
-                    SUPABASE_URL = valor.rstrip("/")
-
-        if not SUPABASE_ANON_KEY:
-            correspondencia_chave = re.search(
-                r"""(?:publishableKey|anonKey|supabaseAnonKey)\s*=\s*['"]([^'"]+)['"]""",
-                conteudo,
-                re.IGNORECASE,
-            )
-
-            if correspondencia_chave:
-                SUPABASE_ANON_KEY = correspondencia_chave.group(1).strip()
-
-        if SUPABASE_URL and SUPABASE_ANON_KEY:
-            return
-
-
-carregar_configuracao_flutter()
+LIMITE_OBRAS_RELACIONADAS = 5
 
 
 # ============================================================
-# FUNÇÕES AUXILIARES
+# 2. TABELAS DO SUPABASE
 # ============================================================
 
-def texto_seguro(valor):
-    if valor is None:
-        return ""
+TABELA_OBRAS = "obras"
 
-    return str(valor).strip()
+TABELA_SECOES = "teste_secoes"
 
-
-def escapar(valor):
-    return html.escape(texto_seguro(valor), quote=True)
+TABELA_IMAGENS = "teste_imagens"
 
 
-def url_absoluta(url):
-    url = texto_seguro(url)
+# ============================================================
+# 3. COLUNAS CONSULTADAS
+# ============================================================
+
+COLUNAS_OBRAS = (
+    "id,"
+    "titulo,"
+    "descricao,"
+    "autor,"
+    "categoria,"
+    "url_documento,"
+    "ano_obra,"
+    "data_publicacao,"
+    "numero_paginas,"
+    "tamanho_arquivo_bytes,"
+    "conteudo_texto,"
+    "created_at,"
+    "updated_at"
+)
+
+COLUNAS_SECOES = (
+    "id,"
+    "obra_id,"
+    "titulo,"
+    "conteudo,"
+    "ordem,"
+    "nivel,"
+    "paragrafo_ordem"
+)
+
+COLUNAS_IMAGENS = (
+    "id,"
+    "obra_id,"
+    "url_imagem,"
+    "legenda,"
+    "posicao,"
+    "ordem,"
+    "fonte,"
+    "paragrafo_ordem"
+)
+
+
+# ============================================================
+# 4. CREDENCIAIS DO SUPABASE
+# ============================================================
+
+SUPABASE_URL = ""
+
+SUPABASE_KEY = ""
+
+
+# ============================================================
+# 5. NORMALIZAR URL
+# ============================================================
+
+def normalizar_url(url):
+    """Valida e normaliza uma URL."""
 
     if not url:
         return ""
 
-    if url.startswith(("https://", "http://")):
-        return url
+    url = str(url).strip().rstrip("/")
 
-    if url.startswith("//"):
-        return "https:" + url
+    if not url:
+        return ""
 
-    if url.startswith("/"):
-        return BASE_URL + url
+    if not url.startswith(("https://", "http://")):
+        return ""
 
-    return BASE_URL + "/" + url
-
-
-def url_pagina_obra(obra_id):
-    return (
-        BASE_URL
-        + "/obra/"
-        + urllib.parse.quote(texto_seguro(obra_id), safe="")
-        + "/"
-    )
+    return url
 
 
-def valor_inteiro(valor, padrao=0):
+# ============================================================
+# 6. LER VARIAVEIS DOS FICHEIROS DART
+# ============================================================
+
+def extrair_valor_dart(texto, nomes_variaveis):
+    """
+    Procura valores em declaracoes Dart.
+
+    Exemplos:
+        static const String url = '...';
+        static const String publishableKey = '...';
+    """
+
+    for nome in nomes_variaveis:
+
+        padrao = (
+            r"\b"
+            + re.escape(nome)
+            + r"\b\s*=\s*"
+            r"(['\"])(.*?)\1"
+        )
+
+        resultado = re.search(
+            padrao,
+            texto,
+            flags=re.DOTALL
+        )
+
+        if resultado:
+
+            valor = resultado.group(2).strip()
+
+            if valor:
+                return valor
+
+    return ""
+
+
+# ============================================================
+# 7. DESCOBRIR A CONFIGURACAO FLUTTER
+# ============================================================
+
+def carregar_configuracao_flutter():
+    """
+    Procura a URL e a chave publica nos ficheiros Dart.
+
+    Suporta os nomes:
+        url
+        supabaseUrl
+        publishableKey
+        supabasePublishableKey
+        anonKey
+        supabaseAnonKey
+    """
+
+    pasta_lib = BASE_DIR / "lib"
+
+    if not pasta_lib.exists():
+
+        return "", ""
+
     try:
-        return int(valor or padrao)
-    except (TypeError, ValueError):
-        return padrao
 
+        ficheiros = list(
+            pasta_lib.rglob("*.dart")
+        )
 
-def data_iso_valida(valor):
-    valor = texto_seguro(valor)
+    except OSError:
 
-    if not valor:
-        return None
+        return "", ""
 
-    try:
-        return datetime.fromisoformat(
-            valor.replace("Z", "+00:00")
-        ).date()
-    except (ValueError, TypeError):
+    url_encontrada = ""
+
+    chave_encontrada = ""
+
+    for ficheiro in ficheiros:
+
         try:
-            return date.fromisoformat(valor[:10])
-        except (ValueError, TypeError):
-            return None
 
+            texto = ficheiro.read_text(
+                encoding="utf-8",
+                errors="ignore"
+            )
 
-def formatar_data(valor):
-    data_convertida = data_iso_valida(valor)
+        except OSError:
 
-    if not data_convertida:
-        return texto_seguro(valor)
+            continue
 
-    return data_convertida.strftime("%d/%m/%Y")
+        # Procurar URL.
 
+        if not url_encontrada:
 
-def descricao_seo(descricao, titulo, autor):
-    descricao = " ".join(texto_seguro(descricao).split())
+            url_encontrada = extrair_valor_dart(
+                texto,
+                [
+                    "supabaseUrl",
+                    "SUPABASE_URL",
+                    "url",
+                ]
+            )
 
-    if not descricao:
-        descricao = f"Consulte a obra académica «{titulo}»"
+        # Procurar chave publica.
 
-        if autor:
-            descricao += f", de {autor}"
+        if not chave_encontrada:
 
-        descricao += ", na plataforma Obra Livre."
+            chave_encontrada = extrair_valor_dart(
+                texto,
+                [
+                    "publishableKey",
+                    "supabasePublishableKey",
+                    "anonKey",
+                    "supabaseAnonKey",
+                    "SUPABASE_ANON_KEY",
+                ]
+            )
 
-    if len(descricao) > 160:
-        descricao = descricao[:157].rsplit(" ", 1)[0] + "..."
+        if url_encontrada and chave_encontrada:
 
-    return descricao
+            break
 
-
-def nome_arquivo_pdf(titulo):
-    nome = texto_seguro(titulo)
-    nome = re.sub(r'[\\/:*?"<>|]', "", nome)
-    nome = "-".join(nome.split()).strip(".-")
-
-    if not nome:
-        nome = "obra"
-
-    if not nome.lower().endswith(".pdf"):
-        nome += ".pdf"
-
-    return nome
-
-
-def url_download_pdf(url_pdf, titulo):
-    url_pdf = texto_seguro(url_pdf)
-
-    if not url_pdf:
-        return ""
-
-    partes = urllib.parse.urlsplit(url_pdf)
-    dominio = (partes.hostname or "").lower()
-
-    armazenamento_supabase = (
-        dominio.endswith(".supabase.co")
-        and "/storage/v1/object/" in partes.path
+    return (
+        normalizar_url(url_encontrada),
+        chave_encontrada.strip()
     )
 
-    if not armazenamento_supabase:
-        return url_pdf
 
-    parametros = urllib.parse.parse_qsl(
-        partes.query,
-        keep_blank_values=True,
-    )
+# ============================================================
+# 8. CARREGAR CONFIGURACAO
+# ============================================================
 
-    parametros = [
-        (chave, valor)
-        for chave, valor in parametros
-        if chave.lower() != "download"
-    ]
+def carregar_configuracao():
 
-    parametros.append(("download", nome_arquivo_pdf(titulo)))
+    global SUPABASE_URL
 
-    return urllib.parse.urlunsplit(
-        (
-            partes.scheme,
-            partes.netloc,
-            partes.path,
-            urllib.parse.urlencode(parametros),
-            partes.fragment,
+    global SUPABASE_KEY
+
+    url_ambiente = os.environ.get(
+        "SUPABASE_URL",
+        ""
+    ).strip()
+
+    chave_ambiente = os.environ.get(
+        "SUPABASE_ANON_KEY",
+        ""
+    ).strip()
+
+    if not chave_ambiente:
+
+        chave_ambiente = os.environ.get(
+            "SUPABASE_PUBLISHABLE_KEY",
+            ""
+        ).strip()
+
+    # Preferir uma configuracao completa do ambiente.
+
+    if url_ambiente and chave_ambiente:
+
+        SUPABASE_URL = normalizar_url(
+            url_ambiente
         )
-    )
 
+        SUPABASE_KEY = chave_ambiente
 
-def formatar_tamanho(valor):
-    try:
-        tamanho = int(valor or 0)
-    except (TypeError, ValueError):
-        return ""
+    else:
 
-    if tamanho <= 0:
-        return ""
+        url_flutter, chave_flutter = (
+            carregar_configuracao_flutter()
+        )
 
-    if tamanho < 1024:
-        return f"{tamanho} bytes"
+        SUPABASE_URL = normalizar_url(
+            url_ambiente or url_flutter
+        )
 
-    if tamanho < 1024 * 1024:
-        return f"{tamanho / 1024:.1f} KB"
+        SUPABASE_KEY = (
+            chave_ambiente or chave_flutter
+        ).strip()
 
-    return f"{tamanho / (1024 * 1024):.2f} MB"
+    if not SUPABASE_URL:
 
-
-def normalizar_texto(valor):
-    return " ".join(texto_seguro(valor).split()).casefold()
-
-
-def obter_data_atual():
-    return datetime.now(timezone.utc).date().isoformat()
-
-
-# ============================================================
-# CONSULTA AO SUPABASE
-# ============================================================
-
-def obter_json(url):
-    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         raise RuntimeError(
-            "Não foi possível obter as configurações do Supabase. "
-            "Verifique SUPABASE_URL e SUPABASE_ANON_KEY "
-            "ou o ficheiro SupabaseConfig do projeto Flutter."
+            "URL do Supabase nao encontrada. "
+            "Verifica SUPABASE_URL ou a configuracao Dart."
         )
+
+    if not SUPABASE_KEY:
+
+        raise RuntimeError(
+            "Chave publica do Supabase nao encontrada. "
+            "Verifica publishableKey ou as variaveis de ambiente."
+        )
+
+    if SUPABASE_KEY.lower().startswith("sb_secret_"):
+
+        raise RuntimeError(
+            "Foi encontrada uma chave secreta. "
+            "Utiliza uma chave publica compativel com o Supabase."
+        )
+
+    print("Configuracao do Supabase carregada.")
+
+    print(f"Projeto: {SUPABASE_URL}")
+
+
+# ============================================================
+# 9. CABECALHOS HTTP DO SUPABASE
+# ============================================================
+
+def obter_cabecalhos_supabase():
+
+    if not SUPABASE_URL or not SUPABASE_KEY:
+
+        raise RuntimeError(
+            "Executa carregar_configuracao() primeiro."
+        )
+
+    return {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "ObraLivre-SEO-Generator/1.0",
+    }
+
+
+# ============================================================
+# 10. CONSULTAR A API REST
+# ============================================================
+
+def obter_json(url, timeout=TIMEOUT_HTTP):
+    """
+    Executa um pedido GET e devolve o JSON recebido.
+
+    Erros HTTP e problemas de ligacao sao apresentados
+    com mensagens compreensiveis.
+    """
 
     pedido = urllib.request.Request(
         url,
-        headers={
-            "apikey": SUPABASE_ANON_KEY,
-            "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
-            "Accept": "application/json",
-        },
-        method="GET",
+        headers=obter_cabecalhos_supabase(),
+        method="GET"
     )
 
     try:
-        with urllib.request.urlopen(pedido, timeout=60) as resposta:
-            conteudo = resposta.read().decode("utf-8")
+
+        with urllib.request.urlopen(
+            pedido,
+            timeout=timeout
+        ) as resposta:
+
+            conteudo = resposta.read().decode(
+                "utf-8",
+                errors="replace"
+            )
+
+            if not conteudo.strip():
+
+                return []
+
             return json.loads(conteudo)
 
     except urllib.error.HTTPError as erro:
-        detalhe = erro.read().decode("utf-8", errors="replace")
+
+        detalhe = erro.read().decode(
+            "utf-8",
+            errors="replace"
+        )
+
         raise RuntimeError(
-            f"Erro HTTP {erro.code}: {detalhe}"
+            f"Erro HTTP {erro.code} ao consultar o Supabase: "
+            f"{detalhe[:1000]}"
         ) from erro
 
     except urllib.error.URLError as erro:
+
         raise RuntimeError(
-            f"Não foi possível contactar o Supabase: {erro}"
+            f"Nao foi possivel ligar ao Supabase: {erro.reason}"
+        ) from erro
+
+    except json.JSONDecodeError as erro:
+
+        raise RuntimeError(
+            "O Supabase devolveu uma resposta JSON invalida."
         ) from erro
 
 
-def consultar_tabela(tabela, parametros):
-    query = urllib.parse.urlencode(parametros, doseq=True)
-    url = f"{SUPABASE_URL}/rest/v1/{tabela}?{query}"
+# ============================================================
+# 11. CONSULTAR UMA TABELA
+# ============================================================
+
+def consultar_tabela(
+    tabela,
+    colunas="*",
+    filtros=None,
+    limite=None,
+    ordenar=None
+):
+    """
+    Consulta uma tabela publica atraves da API REST.
+
+    Os filtros devem ser fornecidos como um dicionario.
+
+    Exemplo:
+        filtros={"obra_id": "eq.UUID"}
+    """
+
+    parametros = {
+        "select": colunas
+    }
+
+    if filtros:
+
+        parametros.update(filtros)
+
+    if limite is not None:
+
+        parametros["limit"] = str(limite)
+
+    if ordenar:
+
+        parametros["order"] = ordenar
+
+    query = urllib.parse.urlencode(
+        parametros,
+        doseq=True
+    )
+
+    url = (
+        f"{SUPABASE_URL}/rest/v1/"
+        f"{urllib.parse.quote(tabela, safe='')}"
+        f"?{query}"
+    )
 
     resultado = obter_json(url)
 
     if not isinstance(resultado, list):
+
         raise RuntimeError(
-            f"A consulta à tabela {tabela} não devolveu uma lista."
+            f"A tabela {tabela} nao devolveu uma lista de registos."
         )
 
     return resultado
 
 
 # ============================================================
-# OBRAS PUBLICADAS
+# 12. OBTER OBRAS PUBLICADAS
 # ============================================================
 
 def obter_obras():
-    return consultar_tabela(
-        "obras",
-        {
-            "select": (
-                "id,titulo,descricao,autor,categoria,"
-                "url_documento,ano_obra,data_publicacao,"
-                "numero_paginas,tamanho_arquivo_bytes,"
-                "conteudo_texto,created_at,updated_at"
-            ),
-            "order": "created_at.desc",
-        },
+
+    print("A consultar obras...")
+
+    obras = consultar_tabela(
+        tabela=TABELA_OBRAS,
+        colunas=COLUNAS_OBRAS,
+        ordenar="created_at.desc"
     )
+
+    # Ignorar registos sem identificador ou titulo.
+
+    obras_validas = []
+
+    for obra in obras:
+
+        if not isinstance(obra, dict):
+
+            continue
+
+        if not obra.get("id"):
+
+            continue
+
+        if not str(obra.get("titulo") or "").strip():
+
+            continue
+
+        obras_validas.append(obra)
+
+    print(
+        f"Obras encontradas: {len(obras_validas)}"
+    )
+
+    return obras_validas
 
 
 # ============================================================
-# SECÇÕES DA OBRA
-# TABELA: public.teste_secoes
+# 13. OBTER SECOES DE UMA OBRA
 # ============================================================
 
 def obter_secoes(obra_id):
-    try:
-        return consultar_tabela(
-            "teste_secoes",
-            {
-                "select": (
-                    "id,obra_id,titulo,conteudo,"
-                    "ordem,nivel,paragrafo_ordem"
-                ),
-                "obra_id": f"eq.{obra_id}",
-                "order": "ordem.asc",
-            },
-        )
 
-    except Exception as erro:
-        print(
-            f"Aviso: não foi possível consultar as secções "
-            f"da obra {obra_id}: {erro}",
-            file=sys.stderr,
-        )
+    if not obra_id:
+
         return []
 
-
-def gerar_html_secoes(secoes):
-    blocos = []
-    conteudos_processados = set()
-
-    secoes_ordenadas = sorted(
-        secoes,
-        key=lambda item: (
-            valor_inteiro(item.get("ordem")),
-            valor_inteiro(item.get("paragrafo_ordem")),
-        ),
+    secoes = consultar_tabela(
+        tabela=TABELA_SECOES,
+        colunas=COLUNAS_SECOES,
+        filtros={
+            "obra_id": f"eq.{obra_id}"
+        },
+        ordenar="ordem.asc"
     )
 
-    for secao in secoes_ordenadas:
-        titulo = texto_seguro(secao.get("titulo"))
-        conteudo = texto_seguro(secao.get("conteudo"))
+    # Ordenar de forma estavel.
 
-        nivel = max(
-            2,
-            min(valor_inteiro(secao.get("nivel"), 2), 6),
+    secoes.sort(
+        key=lambda secao: (
+            secao.get("ordem")
+            if isinstance(secao.get("ordem"), (int, float))
+            else 999999
         )
+    )
 
-        chave_conteudo = normalizar_texto(conteudo)
-
-        if conteudo and chave_conteudo in conteudos_processados:
-            continue
-
-        if conteudo:
-            conteudos_processados.add(chave_conteudo)
-
-        if titulo:
-            blocos.append(
-                f"<h{nivel}>{escapar(titulo)}</h{nivel}>"
-            )
-
-        if conteudo:
-            paragrafos = re.split(r"\n\s*\n", conteudo)
-
-            for paragrafo in paragrafos:
-                paragrafo = paragrafo.strip()
-
-                if not paragrafo:
-                    continue
-
-                conteudo_html = escapar(paragrafo).replace(
-                    "\n",
-                    "<br>\n",
-                )
-
-                blocos.append(f"<p>{conteudo_html}</p>")
-
-    return "\n".join(blocos)
+    return secoes
 
 
 # ============================================================
-# IMAGENS DA OBRA
-# TABELA: public.teste_imagens
+# 14. OBTER IMAGENS DE UMA OBRA
 # ============================================================
 
 def obter_imagens(obra_id):
-    try:
-        return consultar_tabela(
-            "teste_imagens",
-            {
-                "select": (
-                    "id,obra_id,url_imagem,legenda,"
-                    "posicao,ordem,fonte,paragrafo_ordem"
-                ),
-                "obra_id": f"eq.{obra_id}",
-                "order": "ordem.asc",
-            },
-        )
 
-    except Exception as erro:
-        print(
-            f"Aviso: não foi possível consultar as imagens "
-            f"da obra {obra_id}: {erro}",
-            file=sys.stderr,
-        )
+    if not obra_id:
+
         return []
 
-
-def gerar_html_imagens(imagens):
-    blocos = []
-
-    imagens_ordenadas = sorted(
-        imagens,
-        key=lambda item: (
-            valor_inteiro(item.get("paragrafo_ordem"), 999999),
-            valor_inteiro(item.get("ordem")),
-        ),
+    imagens = consultar_tabela(
+        tabela=TABELA_IMAGENS,
+        colunas=COLUNAS_IMAGENS,
+        filtros={
+            "obra_id": f"eq.{obra_id}"
+        }
     )
 
-    for imagem in imagens_ordenadas:
-        url_imagem = (
-            imagem.get("url_imagem")
-            or imagem.get("url")
-            or imagem.get("imagem_url")
+    def chave_ordenacao(imagem):
+
+        paragrafo = imagem.get(
+            "paragrafo_ordem"
         )
 
-        if not url_imagem:
-            continue
-
-        url_imagem = url_absoluta(url_imagem)
-
-        legenda = texto_seguro(
-            imagem.get("legenda")
-            or imagem.get("descricao")
-            or imagem.get("titulo")
+        ordem = imagem.get(
+            "ordem"
         )
 
-        fonte = texto_seguro(imagem.get("fonte"))
+        if not isinstance(paragrafo, (int, float)):
 
-        bloco = (
-            "<figure>"
-            f'<img src="{escapar(url_imagem)}" '
-            f'alt="{escapar(legenda or "Imagem da obra")}" '
-            'loading="lazy">'
-        )
+            paragrafo = 999999
 
-        if legenda:
-            bloco += f"<figcaption>{escapar(legenda)}</figcaption>"
+        if not isinstance(ordem, (int, float)):
 
-        if fonte:
-            bloco += (
-                '<p class="fonte-imagem">'
-                f"Fonte: {escapar(fonte)}"
-                "</p>"
-            )
+            ordem = 999999
 
-        bloco += "</figure>"
-        blocos.append(bloco)
+        return paragrafo, ordem
 
-    return "\n".join(blocos)
+    imagens.sort(
+        key=chave_ordenacao
+    )
+
+    return imagens
 
 
 # ============================================================
-# OBRAS RELACIONADAS
+# FIM DA PARTE 1 DE 3
+# ============================================================
+# ============================================================
+# OBRA LIVRE
+# GERADOR DE PAGINAS SEO
+# PARTE 2 DE 3
+#
+# Preparacao do conteudo, SEO e HTML das obras.
 # ============================================================
 
-def obter_obras_relacionadas(obra, todas_obras, limite=5):
-    obra_id = texto_seguro(obra.get("id"))
-    categoria = texto_seguro(obra.get("categoria")).casefold()
-    autor = texto_seguro(obra.get("autor")).casefold()
 
-    relacionadas = []
+# ============================================================
+# 15. FUNCOES DE TEXTO E HTML
+# ============================================================
 
-    for outra in todas_obras:
-        outro_id = texto_seguro(outra.get("id"))
+def texto_seguro(valor):
+    """
+    Converte um valor para texto e remove espacos desnecessarios.
+    """
 
-        if not outro_id or outro_id == obra_id:
-            continue
+    if valor is None:
+        return ""
 
-        pontos = 0
+    return str(valor).strip()
 
-        if (
-            categoria
-            and texto_seguro(outra.get("categoria")).casefold()
-            == categoria
-        ):
-            pontos += 2
 
-        if (
-            autor
-            and texto_seguro(outra.get("autor")).casefold() == autor
-        ):
-            pontos += 3
+def escapar_html(valor):
+    """
+    Escapa caracteres especiais antes de inserir texto no HTML.
+    """
 
-        if pontos > 0:
-            relacionadas.append((pontos, outra))
-
-    relacionadas.sort(
-        key=lambda item: (
-            -item[0],
-            texto_seguro(item[1].get("titulo")).casefold(),
-        )
+    return html.escape(
+        texto_seguro(valor),
+        quote=True
     )
 
-    selecionadas = [
-        item[1] for item in relacionadas[:limite]
-    ]
 
-    ids_existentes = {
-        texto_seguro(item.get("id"))
-        for item in selecionadas
+def limpar_html(texto):
+    """
+    Remove etiquetas HTML e normaliza o texto.
+    """
+
+    if not texto:
+        return ""
+
+    texto = str(texto)
+
+    texto = re.sub(
+        r"<script\b[^>]*>.*?</script>",
+        " ",
+        texto,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    texto = re.sub(
+        r"<style\b[^>]*>.*?</style>",
+        " ",
+        texto,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    texto = re.sub(
+        r"<[^>]+>",
+        " ",
+        texto
+    )
+
+    texto = html.unescape(texto)
+
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
+
+    return texto.strip()
+
+
+def limitar_texto(texto, limite):
+    """
+    Limita o comprimento de um texto sem cortar uma palavra.
+    """
+
+    texto = limpar_html(texto)
+
+    if len(texto) <= limite:
+        return texto
+
+    trecho = texto[:limite]
+
+    ultimo_espaco = trecho.rfind(" ")
+
+    if ultimo_espaco > limite * 0.7:
+        trecho = trecho[:ultimo_espaco]
+
+    return trecho.rstrip(" ,.;:") + "..."
+
+
+def slug_texto(texto):
+    """
+    Cria uma representação simples de texto para comparação.
+    """
+
+    texto = texto_seguro(texto).lower()
+
+    substituicoes = {
+        "á": "a",
+        "à": "a",
+        "ã": "a",
+        "â": "a",
+        "é": "e",
+        "ê": "e",
+        "í": "i",
+        "ó": "o",
+        "ô": "o",
+        "õ": "o",
+        "ú": "u",
+        "ç": "c",
     }
 
-    if len(selecionadas) < limite:
-        for outra in todas_obras:
-            outro_id = texto_seguro(outra.get("id"))
+    for original, substituto in substituicoes.items():
+        texto = texto.replace(original, substituto)
 
-            if (
-                not outro_id
-                or outro_id == obra_id
-                or outro_id in ids_existentes
-            ):
-                continue
+    texto = re.sub(
+        r"[^a-z0-9\s-]",
+        " ",
+        texto
+    )
 
-            selecionadas.append(outra)
-            ids_existentes.add(outro_id)
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
 
-            if len(selecionadas) >= limite:
-                break
-
-    return selecionadas
+    return texto.strip()
 
 
-def gerar_html_relacionadas(obras_relacionadas):
-    if not obras_relacionadas:
-        return ""
+# ============================================================
+# 16. VALIDAR O IDENTIFICADOR DA OBRA
+# ============================================================
 
-    blocos = []
+def id_valido(obra_id):
+    """
+    Verifica se o identificador tem formato UUID.
+    """
 
-    for obra in obras_relacionadas:
-        obra_id = texto_seguro(obra.get("id"))
-        titulo = texto_seguro(obra.get("titulo"))
+    if not obra_id:
+        return False
 
-        if not obra_id or not titulo:
-            continue
+    padrao = (
+        r"^[0-9a-fA-F]{8}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{12}$"
+    )
 
-        url = url_pagina_obra(obra_id)
-        detalhes = []
-
-        autor = texto_seguro(obra.get("autor"))
-        categoria = texto_seguro(obra.get("categoria"))
-
-        if autor:
-            detalhes.append(f"Autor: {escapar(autor)}")
-
-        if categoria:
-            detalhes.append(f"Categoria: {escapar(categoria)}")
-
-        detalhes_html = ""
-
-        if detalhes:
-            detalhes_html = (
-                '<p class="relacionada-detalhes">'
-                + " • ".join(detalhes)
-                + "</p>"
-            )
-
-        blocos.append(
-            '<article class="obra-relacionada">'
-            f'<h3><a href="{escapar(url)}">'
-            f"{escapar(titulo)}</a></h3>"
-            f"{detalhes_html}"
-            "</article>"
+    return bool(
+        re.fullmatch(
+            padrao,
+            str(obra_id).strip()
         )
-
-    if not blocos:
-        return ""
-
-    return (
-        '<section class="relacionadas">'
-        "<h2>Obras relacionadas</h2>"
-        + "\n".join(blocos)
-        + "</section>"
     )
 
 
 # ============================================================
-# DADOS ESTRUTURADOS
+# 17. CONSTRUIR O URL CANONICAL
 # ============================================================
 
-def tipo_schema(categoria):
-    categoria = texto_seguro(categoria).casefold()
+def url_obra(obra_id):
+    """
+    Constrói o URL público de uma obra.
+    """
 
-    if "artigo" in categoria or "comunica" in categoria:
-        return "ScholarlyArticle"
-
-    if "tese" in categoria or "disserta" in categoria:
-        return "Thesis"
-
-    if "relatório" in categoria or "relatorio" in categoria:
-        return "Report"
-
-    return "CreativeWork"
+    return (
+        f"{BASE_URL}/obra/"
+        f"{urllib.parse.quote(str(obra_id), safe='')}/"
+    )
 
 
-def gerar_json_ld(
-    titulo,
-    descricao,
-    url_pagina,
-    autor,
-    categoria,
-    data_publicacao,
-    url_pdf,
-):
-    metadados = {
+# ============================================================
+# 18. PREPARAR O TITULO SEO
+# ============================================================
+
+def gerar_titulo_seo(obra):
+    """
+    Gera um titulo especifico para cada obra.
+
+    Evita repetir apenas o nome geral do site.
+    """
+
+    titulo = texto_seguro(
+        obra.get("titulo")
+    )
+
+    autor = texto_seguro(
+        obra.get("autor")
+    )
+
+    categoria = texto_seguro(
+        obra.get("categoria")
+    )
+
+    if not titulo:
+        titulo = "Obra académica"
+
+    # Evitar repetir o mesmo titulo se ja incluir a marca.
+    titulo_normalizado = slug_texto(titulo)
+
+    if "obra livre" in titulo_normalizado:
+        return titulo
+
+    partes = [titulo]
+
+    if autor:
+        partes.append(autor)
+
+    resultado = " — ".join(partes)
+
+    if len(resultado) > 100:
+        resultado = titulo
+
+        if autor and len(titulo) < 65:
+            resultado = f"{titulo} — {autor}"
+
+    if categoria and len(resultado) < 65:
+        resultado = f"{resultado} | {categoria}"
+
+    if len(resultado) > 100:
+        resultado = resultado[:97].rstrip() + "..."
+
+    return resultado
+
+
+# ============================================================
+# 19. PREPARAR O NOME DO AUTOR
+# ============================================================
+
+def obter_autor(obra):
+    """
+    Devolve o nome do autor sem inventar informacao.
+    """
+
+    autor = texto_seguro(
+        obra.get("autor")
+    )
+
+    return autor or "Autor não identificado"
+
+
+# ============================================================
+# 20. GERAR A DESCRICAO SEO
+# ============================================================
+
+def gerar_descricao_seo(obra, secoes=None):
+    """
+    Gera uma descricao especifica para cada obra.
+
+    Prioridade:
+        1. Descricao da obra.
+        2. Conteudo textual da obra.
+        3. Texto de uma secao.
+        4. Descricao geral do site.
+    """
+
+    descricao = limpar_html(
+        obra.get("descricao")
+    )
+
+    conteudo = limpar_html(
+        obra.get("conteudo_texto")
+    )
+
+    if descricao and len(descricao) >= 40:
+        origem = descricao
+
+    elif conteudo:
+        origem = conteudo
+
+    else:
+        origem = ""
+
+        for secao in (secoes or []):
+
+            texto_secao = limpar_html(
+                secao.get("conteudo")
+            )
+
+            if len(texto_secao) >= 40:
+                origem = texto_secao
+                break
+
+        if not origem:
+            origem = descricao
+
+    if not origem:
+        titulo = texto_seguro(
+            obra.get("titulo")
+        )
+
+        autor = texto_seguro(
+            obra.get("autor")
+        )
+
+        categoria = texto_seguro(
+            obra.get("categoria")
+        )
+
+        partes = []
+
+        if titulo:
+            partes.append(titulo)
+
+        if autor:
+            partes.append(f"de {autor}")
+
+        if categoria:
+            partes.append(
+                f"na área de {categoria}"
+            )
+
+        origem = (
+            "Consulte esta obra académica "
+            + " ".join(partes)
+            + " na plataforma Obra Livre."
+        )
+
+    return limitar_texto(
+        origem,
+        LIMITE_DESCRICAO_SEO
+    )
+
+
+# ============================================================
+# 21. PREPARAR A DATA DE PUBLICACAO
+# ============================================================
+
+def obter_data_iso(obra):
+    """
+    Devolve uma data ISO quando existe uma data valida.
+
+    Nao inventa uma data de publicacao.
+    """
+
+    for campo in [
+        "data_publicacao",
+        "created_at",
+        "updated_at",
+    ]:
+
+        valor = texto_seguro(
+            obra.get(campo)
+        )
+
+        if not valor:
+            continue
+
+        try:
+
+            data = datetime.fromisoformat(
+                valor.replace("Z", "+00:00")
+            )
+
+            return data.date().isoformat()
+
+        except ValueError:
+            continue
+
+    return ""
+
+
+# ============================================================
+# 22. GERAR JSON-LD
+# ============================================================
+
+def gerar_json_ld(obra, titulo_seo, descricao, canonical):
+    """
+    Produz dados estruturados para identificar a pagina.
+
+    Utiliza CreativeWork, um tipo adequado para trabalhos
+    e conteudos academicos.
+
+    Os campos opcionais so sao incluidos quando existem.
+    """
+
+    dados = {
         "@context": "https://schema.org",
-        "@type": tipo_schema(categoria),
-        "name": titulo,
-        "headline": titulo,
+        "@type": "CreativeWork",
+        "name": texto_seguro(
+            obra.get("titulo")
+        ),
+        "url": canonical,
         "description": descricao,
-        "url": url_pagina,
         "inLanguage": "pt",
         "publisher": {
             "@type": "Organization",
-            "name": NOME_SITE,
+            "name": "Obra Livre",
             "url": BASE_URL + "/",
         },
     }
 
+    autor = texto_seguro(
+        obra.get("autor")
+    )
+
+    categoria = texto_seguro(
+        obra.get("categoria")
+    )
+
+    ano = texto_seguro(
+        obra.get("ano_obra")
+    )
+
     if autor:
-        metadados["author"] = {
+        dados["author"] = {
             "@type": "Person",
             "name": autor,
         }
 
     if categoria:
-        metadados["genre"] = categoria
+        dados["about"] = categoria
 
-    data_convertida = data_iso_valida(data_publicacao)
+    if ano and re.fullmatch(r"\d{4}", ano):
+        dados["dateCreated"] = ano
 
-    if data_convertida:
-        metadados["datePublished"] = data_convertida.isoformat()
+    data_iso = obter_data_iso(obra)
 
-    if url_pdf:
-        metadados["encoding"] = {
+    if data_iso:
+        dados["datePublished"] = data_iso
+
+    documento = texto_seguro(
+        obra.get("url_documento")
+    )
+
+    if documento and documento.startswith(
+        ("https://", "http://")
+    ):
+        dados["encoding"] = {
             "@type": "MediaObject",
-            "contentUrl": url_pdf,
+            "contentUrl": documento,
             "encodingFormat": "application/pdf",
         }
 
     return json.dumps(
-        metadados,
-        ensure_ascii=False,
-    ).replace("</", "<\\/")
+        dados,
+        ensure_ascii=False
+    )
 
 
 # ============================================================
-# ESTATÍSTICAS SEO — JAVASCRIPT
+# 23. GERAR METADADOS OPEN GRAPH E TWITTER
 # ============================================================
 
-def gerar_javascript_estatisticas(obra_id):
+def gerar_metadados_social(
+    titulo,
+    descricao,
+    canonical
+):
     """
-    Regista visualizações e cliques PDF através da RPC
-    public.registar_obra_evento(p_obra_id, p_tipo_evento).
+    Prepara metadados para partilha nas redes sociais.
     """
 
-    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-        print(
-            "[SEO] AVISO: configuração Supabase incompleta. "
-            "As estatísticas não serão ativadas.",
-            file=sys.stderr,
-        )
-        return ""
+    titulo_html = escapar_html(titulo)
 
-    configuracao = json.dumps(
-        {
-            "supabaseUrl": SUPABASE_URL,
-            "supabaseAnonKey": SUPABASE_ANON_KEY,
-            "obraId": obra_id,
-        },
-        ensure_ascii=False,
-    ).replace("</", "<\\/")
+    descricao_html = escapar_html(descricao)
+
+    canonical_html = escapar_html(canonical)
+
+    favicon_html = escapar_html(
+        FAVICON_URL
+    )
 
     return f"""
-<script>
-(function () {{
-    "use strict";
+    <meta property="og:type" content="article">
+    <meta property="og:site_name"
+          content="{escapar_html(SITE_NAME)}">
+    <meta property="og:title"
+          content="{titulo_html}">
+    <meta property="og:description"
+          content="{descricao_html}">
+    <meta property="og:url"
+          content="{canonical_html}">
+    <meta property="og:image"
+          content="{favicon_html}">
 
-    const config = {configuracao};
+    <meta name="twitter:card"
+          content="summary">
+    <meta name="twitter:title"
+          content="{titulo_html}">
+    <meta name="twitter:description"
+          content="{descricao_html}">
+    <meta name="twitter:image"
+          content="{favicon_html}">
+    """
 
-    const endpoint =
-        config.supabaseUrl +
-        "/rest/v1/rpc/registar_obra_evento";
 
-    async function registarEvento(tipoEvento) {{
-        try {{
-            const resposta = await fetch(endpoint, {{
-                method: "POST",
-                headers: {{
-                    "Content-Type": "application/json",
-                    "apikey": config.supabaseAnonKey,
-                    "Authorization": "Bearer " + config.supabaseAnonKey
-                }},
-                body: JSON.stringify({{
-                    p_obra_id: config.obraId,
-                    p_tipo_evento: tipoEvento
-                }}),
-                keepalive: true
-            }});
+# ============================================================
+# 24. PREPARAR O TEXTO PRINCIPAL DA OBRA
+# ============================================================
 
-            if (!resposta.ok) {{
-                console.error(
-                    "[Obra Livre] Erro ao registar evento:",
-                    tipoEvento,
-                    resposta.status,
-                    await resposta.text()
-                );
+def obter_texto_principal(obra, secoes):
+    """
+    Escolhe um texto representativo da obra.
+
+    Evita apresentar todas as secoes completas nesta pagina,
+    reduzindo a duplicacao de conteudo.
+    """
+
+    conteudo = limpar_html(
+        obra.get("conteudo_texto")
+    )
+
+    descricao = limpar_html(
+        obra.get("descricao")
+    )
+
+    candidatos = []
+
+    if descricao:
+        candidatos.append(descricao)
+
+    if conteudo:
+        candidatos.append(conteudo)
+
+    for secao in secoes or []:
+
+        texto_secao = limpar_html(
+            secao.get("conteudo")
+        )
+
+        if texto_secao:
+            candidatos.append(texto_secao)
+
+    # Selecionar o primeiro texto suficientemente informativo.
+    for candidato in candidatos:
+
+        if len(candidato) >= 80:
+
+            return limitar_texto(
+                candidato,
+                1200
+            )
+
+    # Se existir pouco texto, utiliza o melhor disponivel.
+    if candidatos:
+
+        return limitar_texto(
+            candidatos[0],
+            1200
+        )
+
+    return ""
+
+
+# ============================================================
+# 25. PREPARAR OS LINKS PARA O DOCUMENTO
+# ============================================================
+
+def obter_url_documento(obra):
+    """
+    Devolve o URL do documento quando existe.
+    """
+
+    documento = texto_seguro(
+        obra.get("url_documento")
+    )
+
+    if not documento:
+        return ""
+
+    if not documento.startswith(
+        ("https://", "http://")
+    ):
+        return ""
+
+    return documento
+
+
+# ============================================================
+# 26. PREPARAR AS IMAGENS
+# ============================================================
+
+def gerar_html_imagens(imagens):
+    """
+    Gera HTML para as imagens da obra.
+
+    So apresenta imagens com URL HTTP ou HTTPS.
+    """
+
+    elementos = []
+
+    for imagem in imagens or []:
+
+        if not isinstance(imagem, dict):
+            continue
+
+        url_imagem = texto_seguro(
+            imagem.get("url_imagem")
+        )
+
+        if not url_imagem.startswith(
+            ("https://", "http://")
+        ):
+            continue
+
+        legenda = texto_seguro(
+            imagem.get("legenda")
+        )
+
+        fonte = texto_seguro(
+            imagem.get("fonte")
+        )
+
+        alt = legenda or "Imagem da obra académica"
+
+        legenda_html = ""
+
+        if legenda:
+
+            legenda_html = (
+                "<figcaption>"
+                f"{escapar_html(legenda)}"
+                "</figcaption>"
+            )
+
+        if fonte:
+
+            legenda_html += (
+                "<p class='fonte-imagem'>Fonte: "
+                f"{escapar_html(fonte)}"
+                "</p>"
+            )
+
+        elementos.append(
+            "<figure class='imagem-obra'>"
+            f"<img src='{escapar_html(url_imagem)}' "
+            f"alt='{escapar_html(alt)}' "
+            "loading='lazy' "
+            "decoding='async'>"
+            f"{legenda_html}"
+            "</figure>"
+        )
+
+    return "\n".join(elementos)
+
+
+# ============================================================
+# 27. ENCONTRAR OBRAS RELACIONADAS
+# ============================================================
+
+def encontrar_obras_relacionadas(obra, todas_obras):
+    """
+    Identifica obras com titulos ou categorias semelhantes.
+
+    A comparacao e simples e nao utiliza dados inventados.
+    """
+
+    obra_id = texto_seguro(
+        obra.get("id")
+    )
+
+    titulo_atual = slug_texto(
+        obra.get("titulo")
+    )
+
+    categoria_atual = slug_texto(
+        obra.get("categoria")
+    )
+
+    palavras_atuais = {
+        palavra
+        for palavra in titulo_atual.split()
+        if len(palavra) >= 4
+    }
+
+    resultados = []
+
+    for candidata in todas_obras:
+
+        if not isinstance(candidata, dict):
+            continue
+
+        if texto_seguro(
+            candidata.get("id")
+        ) == obra_id:
+            continue
+
+        titulo_candidato = slug_texto(
+            candidata.get("titulo")
+        )
+
+        categoria_candidata = slug_texto(
+            candidata.get("categoria")
+        )
+
+        palavras_candidatas = {
+            palavra
+            for palavra in titulo_candidato.split()
+            if len(palavra) >= 4
+        }
+
+        intersecao = (
+            palavras_atuais & palavras_candidatas
+        )
+
+        uniao = (
+            palavras_atuais | palavras_candidatas
+        )
+
+        pontuacao = 0
+
+        if uniao:
+            pontuacao += (
+                len(intersecao) / len(uniao)
+            )
+
+        if (
+            categoria_atual
+            and categoria_candidata
+            and categoria_atual == categoria_candidata
+        ):
+            pontuacao += 0.5
+
+        if pontuacao > 0:
+            resultados.append(
+                (pontuacao, candidata)
+            )
+
+    resultados.sort(
+        key=lambda item: item[0],
+        reverse=True
+    )
+
+    return [
+        candidata
+        for _, candidata in resultados[
+            :LIMITE_OBRAS_RELACIONADAS
+        ]
+    ]
+
+
+# ============================================================
+# 28. GERAR HTML DAS OBRAS RELACIONADAS
+# ============================================================
+
+def gerar_html_obras_relacionadas(
+    obra,
+    todas_obras
+):
+    """
+    Cria links internos para outras obras relevantes.
+    """
+
+    relacionadas = encontrar_obras_relacionadas(
+        obra,
+        todas_obras
+    )
+
+    if not relacionadas:
+        return ""
+
+    elementos = []
+
+    for relacionada in relacionadas:
+
+        obra_id = texto_seguro(
+            relacionada.get("id")
+        )
+
+        titulo = texto_seguro(
+            relacionada.get("titulo")
+        )
+
+        if not id_valido(obra_id) or not titulo:
+            continue
+
+        link = url_obra(obra_id)
+
+        autor = texto_seguro(
+            relacionada.get("autor")
+        )
+
+        resumo = ""
+
+        if autor:
+            resumo = (
+                "<span class='autor-relacionado'>"
+                f"{escapar_html(autor)}"
+                "</span>"
+            )
+
+        elementos.append(
+            "<li>"
+            f"<a href='{escapar_html(link)}'>"
+            f"{escapar_html(titulo)}"
+            "</a>"
+            f"{resumo}"
+            "</li>"
+        )
+
+    if not elementos:
+        return ""
+
+    return (
+        "<section class='relacionadas'>"
+        "<h2>Obras relacionadas</h2>"
+        "<ul>"
+        + "\n".join(elementos)
+        + "</ul>"
+        "</section>"
+    )
+
+
+# ============================================================
+# 29. GERAR BOTOES DE PARTILHA
+# ============================================================
+
+def gerar_html_partilha(titulo, canonical):
+    """
+    Cria botoes para copiar e partilhar a pagina.
+    """
+
+    titulo_js = json.dumps(
+        titulo,
+        ensure_ascii=False
+    )
+
+    url_js = json.dumps(
+        canonical,
+        ensure_ascii=False
+    )
+
+    return f"""
+    <section class="partilha">
+      <h2>Partilhar esta obra</h2>
+
+      <button type="button" id="copiar-link">
+        Copiar link
+      </button>
+
+      <button type="button" id="partilhar-link">
+        Partilhar
+      </button>
+    </section>
+
+    <script>
+    (() => {{
+      const titulo = {titulo_js};
+      const url = {url_js};
+
+      const botaoCopiar =
+        document.getElementById("copiar-link");
+
+      const botaoPartilhar =
+        document.getElementById("partilhar-link");
+
+      if (botaoCopiar) {{
+        botaoCopiar.addEventListener("click", async () => {{
+          try {{
+            await navigator.clipboard.writeText(url);
+            botaoCopiar.textContent = "Link copiado!";
+          }} catch (erro) {{
+            window.prompt("Copia o link da obra:", url);
+          }}
+        }});
+      }}
+
+      if (botaoPartilhar) {{
+        botaoPartilhar.addEventListener("click", async () => {{
+          if (navigator.share) {{
+            try {{
+              await navigator.share({{
+                title: titulo,
+                url: url
+              }});
+            }} catch (erro) {{
+              // O utilizador pode cancelar a partilha.
             }}
-        }} catch (erro) {{
-            console.error(
-                "[Obra Livre] Falha de comunicação com Supabase:",
-                erro
-            );
-        }}
-    }}
-
-    registarEvento("visualizacao");
-
-    document.addEventListener("click", function (evento) {{
-        const link = evento.target.closest("[data-evento-pdf]");
-
-        if (!link) {{
-            return;
-        }}
-
-        registarEvento("clique_pdf");
-    }});
-}})();
-</script>
-"""
-
-
-# ============================================================
-# COPIAR E PARTILHAR — JAVASCRIPT
-# ============================================================
-
-def gerar_javascript_partilha():
-    """
-    Adiciona a funcionalidade de copiar e partilhar a URL atual.
-
-    - Copiar: utiliza a Clipboard API, com alternativa para browsers
-      que não suportem navigator.clipboard.
-    - Partilhar: utiliza navigator.share quando disponível.
-    - Alternativa: copia a ligação quando a partilha nativa não existe.
+          }} else {{
+            try {{
+              await navigator.clipboard.writeText(url);
+              botaoPartilhar.textContent = "Link copiado!";
+            }} catch (erro) {{
+              window.prompt("Copia o link da obra:", url);
+            }}
+          }}
+        }});
+      }}
+    }})();
+    </script>
     """
 
-    return """
-<script>
-(function () {
-    "use strict";
-
-    const botaoCopiar = document.getElementById("copiar-link");
-    const botaoPartilhar = document.getElementById("partilhar-link");
-    const mensagem = document.getElementById("mensagem-partilha");
-
-    if (!botaoCopiar || !botaoPartilhar || !mensagem) {
-        return;
-    }
-
-    let temporizadorMensagem;
-
-    function mostrarMensagem(texto) {
-        mensagem.textContent = texto;
-        mensagem.classList.add("visivel");
-
-        window.clearTimeout(temporizadorMensagem);
-
-        temporizadorMensagem = window.setTimeout(function () {
-            mensagem.classList.remove("visivel");
-        }, 3000);
-    }
-
-    async function copiarTexto(texto) {
-        if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(texto);
-            return;
-        }
-
-        const campo = document.createElement("textarea");
-
-        campo.value = texto;
-        campo.setAttribute("readonly", "");
-        campo.style.position = "fixed";
-        campo.style.opacity = "0";
-        campo.style.pointerEvents = "none";
-
-        document.body.appendChild(campo);
-        campo.select();
-        campo.setSelectionRange(0, campo.value.length);
-
-        let copiado = false;
-
-        try {
-            copiado = document.execCommand("copy");
-        } finally {
-            campo.remove();
-        }
-
-        if (!copiado) {
-            throw new Error("Não foi possível copiar a ligação.");
-        }
-    }
-
-    botaoCopiar.addEventListener("click", async function () {
-        try {
-            await copiarTexto(window.location.href);
-            mostrarMensagem("Ligação copiada com sucesso!");
-        } catch (erro) {
-            console.error("[Obra Livre] Erro ao copiar ligação:", erro);
-            mostrarMensagem(
-                "Não foi possível copiar. Copie a ligação pela barra do navegador."
-            );
-        }
-    });
-
-    botaoPartilhar.addEventListener("click", async function () {
-        const dados = {
-            title: document.title,
-            text: "Consulta esta obra académica no Obra Livre.",
-            url: window.location.href
-        };
-
-        if (typeof navigator.share === "function") {
-            try {
-                await navigator.share(dados);
-            } catch (erro) {
-                if (erro && erro.name === "AbortError") {
-                    return;
-                }
-
-                console.error(
-                    "[Obra Livre] Erro na partilha nativa:",
-                    erro
-                );
-
-                mostrarMensagem(
-                    "Não foi possível abrir a partilha. Tenta copiar a ligação."
-                );
-            }
-
-            return;
-        }
-
-        try {
-            await copiarTexto(window.location.href);
-            mostrarMensagem(
-                "Este navegador não suporta partilha direta. Ligação copiada!"
-            );
-        } catch (erro) {
-            console.error(
-                "[Obra Livre] Erro na alternativa de partilha:",
-                erro
-            );
-
-            mostrarMensagem(
-                "A partilha não está disponível neste navegador."
-            );
-        }
-    });
-})();
-</script>
-"""
-
 
 # ============================================================
-# GERAR PÁGINA SEO INDIVIDUAL
+# 30. GERAR A PAGINA HTML COMPLETA
 # ============================================================
 
 def gerar_pagina_obra(obra, todas_obras):
-    obra_id = texto_seguro(obra.get("id"))
-    titulo = texto_seguro(obra.get("titulo"))
+    """
+    Gera a pagina HTML individual de uma obra.
 
-    if not obra_id or not titulo:
+    O HTML inclui:
+        - Titulo SEO individual.
+        - Meta description.
+        - Canonical.
+        - Open Graph e Twitter.
+        - Dados estruturados JSON-LD.
+        - Texto representativo da obra.
+        - Imagens.
+        - Link para o documento.
+        - Obras relacionadas.
+        - Botoes de partilha.
+    """
+
+    obra_id = texto_seguro(
+        obra.get("id")
+    )
+
+    if not id_valido(obra_id):
+
         print(
-            "Aviso: obra sem ID ou título; ignorada.",
-            file=sys.stderr,
-        )
-        return None
-
-    if not re.fullmatch(
-        r"[0-9a-fA-F]{8}-"
-        r"[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{4}-"
-        r"[0-9a-fA-F]{12}",
-        obra_id,
-    ):
-        print(
-            f"Aviso: ID de obra não é UUID válido: {obra_id}",
-            file=sys.stderr,
-        )
-        return None
-
-    autor = texto_seguro(obra.get("autor"))
-    categoria = texto_seguro(obra.get("categoria"))
-    descricao = texto_seguro(obra.get("descricao"))
-    ano = texto_seguro(obra.get("ano_obra"))
-
-    data_publicacao = texto_seguro(obra.get("data_publicacao"))
-
-    url_pdf_original = texto_seguro(obra.get("url_documento"))
-    url_pdf_leitura = url_absoluta(url_pdf_original)
-
-    url_pdf_download = url_download_pdf(
-        url_pdf_original,
-        titulo,
-    )
-
-    url_pagina = url_pagina_obra(obra_id)
-
-    descricao_meta = descricao_seo(
-        descricao,
-        titulo,
-        autor,
-    )
-
-    secoes = obter_secoes(obra_id)
-    imagens = obter_imagens(obra_id)
-
-    print(
-        f"[SEO] {titulo} | "
-        f"Secções: {len(secoes)} | "
-        f"Imagens: {len(imagens)}"
-    )
-
-    html_secoes = gerar_html_secoes(secoes)
-    html_imagens = gerar_html_imagens(imagens)
-
-    conteudo_texto = texto_seguro(obra.get("conteudo_texto"))
-
-    existe_conteudo_secoes = any(
-        texto_seguro(secao.get("conteudo"))
-        for secao in secoes
-    )
-
-    if existe_conteudo_secoes:
-        html_conteudo_final = html_secoes
-
-    elif conteudo_texto:
-        paragrafos = re.split(r"\n\s*\n", conteudo_texto)
-        blocos_conteudo = []
-
-        for paragrafo in paragrafos:
-            paragrafo = paragrafo.strip()
-
-            if paragrafo:
-                blocos_conteudo.append(
-                    "<p>"
-                    + escapar(paragrafo).replace("\n", "<br>\n")
-                    + "</p>"
-                )
-
-        html_conteudo_final = "\n".join(blocos_conteudo)
-
-    else:
-        html_conteudo_final = ""
-
-    if html_imagens:
-        html_imagens_completo = f"""
-        <section class="imagens-obra">
-            <h2>Imagens da obra</h2>
-            {html_imagens}
-        </section>
-        """
-    else:
-        html_imagens_completo = ""
-
-    numero_paginas = texto_seguro(obra.get("numero_paginas"))
-
-    tamanho_arquivo = formatar_tamanho(
-        obra.get("tamanho_arquivo_bytes")
-    )
-
-    obras_relacionadas = obter_obras_relacionadas(
-        obra,
-        todas_obras,
-    )
-
-    html_relacionadas = gerar_html_relacionadas(
-        obras_relacionadas
-    )
-
-    # --------------------------------------------------------
-    # BOTÕES DO PDF
-    # --------------------------------------------------------
-
-    if url_pdf_leitura:
-        botoes_pdf = f"""
-        <div class="botoes-pdf">
-            <a class="botao"
-               data-evento-pdf="ler"
-               href="{escapar(url_pdf_leitura)}"
-               target="_blank"
-               rel="noopener noreferrer">
-                Ler PDF
-            </a>
-
-            <a class="botao botao-secundario"
-               data-evento-pdf="descarregar"
-               href="{escapar(url_pdf_download)}">
-                Descarregar PDF
-            </a>
-        </div>
-        """
-    else:
-        botoes_pdf = """
-        <p class="aviso">
-            O documento PDF não está disponível.
-        </p>
-        """
-
-    informacoes_tecnicas = []
-
-    if numero_paginas:
-        informacoes_tecnicas.append(
-            '<div class="item-tecnico">'
-            '<span>Número de páginas</span>'
-            f"<strong>{escapar(numero_paginas)}</strong>"
-            "</div>"
+            f"Identificador invalido: {obra_id}"
         )
 
-    if tamanho_arquivo:
-        informacoes_tecnicas.append(
-            '<div class="item-tecnico">'
-            '<span>Tamanho do ficheiro</span>'
-            f"<strong>{escapar(tamanho_arquivo)}</strong>"
-            "</div>"
-        )
+        return False
 
-    if url_pdf_leitura:
-        informacoes_tecnicas.append(
-            '<div class="item-tecnico">'
-            '<span>Formato do documento</span>'
-            "<strong>PDF</strong>"
-            "</div>"
-        )
-
-    if informacoes_tecnicas:
-        html_tecnico = (
-            '<section class="informacoes-tecnicas">'
-            "<h2>Informações técnicas</h2>"
-            '<div class="grelha-tecnica">'
-            + "".join(informacoes_tecnicas)
-            + "</div></section>"
-        )
-    else:
-        html_tecnico = ""
-
-    data_publicacao_html = ""
-
-    if data_publicacao:
-        data_publicacao_html = (
-            "<p><strong>Data de publicação:</strong> "
-            + escapar(formatar_data(data_publicacao))
-            + "</p>"
-        )
-
-    json_ld = gerar_json_ld(
-        titulo=titulo,
-        descricao=descricao_meta,
-        url_pagina=url_pagina,
-        autor=autor,
-        categoria=categoria,
-        data_publicacao=data_publicacao,
-        url_pdf=url_pdf_leitura,
+    titulo = texto_seguro(
+        obra.get("titulo")
     )
 
-    javascript_estatisticas = gerar_javascript_estatisticas(
+    if not titulo:
+        return False
+
+    autor = obter_autor(obra)
+
+    categoria = texto_seguro(
+        obra.get("categoria")
+    )
+
+    ano = texto_seguro(
+        obra.get("ano_obra")
+    )
+
+    canonical = url_obra(
         obra_id
     )
 
-    javascript_partilha = gerar_javascript_partilha()
+    # Consultar os dados associados a esta obra.
 
-    html_pagina = f"""<!DOCTYPE html>
+    try:
+
+        secoes = obter_secoes(
+            obra_id
+        )
+
+    except Exception as erro:
+
+        print(
+            f"Aviso: nao foi possivel consultar secoes "
+            f"da obra {obra_id}: {erro}"
+        )
+
+        secoes = []
+
+    try:
+
+        imagens = obter_imagens(
+            obra_id
+        )
+
+    except Exception as erro:
+
+        print(
+            f"Aviso: nao foi possivel consultar imagens "
+            f"da obra {obra_id}: {erro}"
+        )
+
+        imagens = []
+
+    titulo_seo = gerar_titulo_seo(
+        obra
+    )
+
+    descricao_seo = gerar_descricao_seo(
+        obra,
+        secoes
+    )
+
+    texto_principal = obter_texto_principal(
+        obra,
+        secoes
+    )
+
+    documento = obter_url_documento(
+        obra
+    )
+
+    json_ld = gerar_json_ld(
+        obra,
+        titulo_seo,
+        descricao_seo,
+        canonical
+    )
+
+    metadados_social = gerar_metadados_social(
+        titulo_seo,
+        descricao_seo,
+        canonical
+    )
+
+    html_imagens = gerar_html_imagens(
+        imagens
+    )
+
+    html_relacionadas = gerar_html_obras_relacionadas(
+        obra,
+        todas_obras
+    )
+
+    html_partilha = gerar_html_partilha(
+        titulo_seo,
+        canonical
+    )
+
+    # Informacao bibliografica apresentada na pagina.
+
+    metadados_obra = [
+        "<dl class='metadados-obra'>",
+        "<dt>Titulo</dt>",
+        f"<dd>{escapar_html(titulo)}</dd>",
+        "<dt>Autor</dt>",
+        f"<dd>{escapar_html(autor)}</dd>",
+    ]
+
+    if categoria:
+
+        metadados_obra.extend([
+            "<dt>Categoria</dt>",
+            f"<dd>{escapar_html(categoria)}</dd>",
+        ])
+
+    if ano:
+
+        metadados_obra.extend([
+            "<dt>Ano</dt>",
+            f"<dd>{escapar_html(ano)}</dd>",
+        ])
+
+    numero_paginas = obra.get(
+        "numero_paginas"
+    )
+
+    if numero_paginas is not None:
+
+        metadados_obra.extend([
+            "<dt>Numero de paginas</dt>",
+            f"<dd>{escapar_html(numero_paginas)}</dd>",
+        ])
+
+    metadados_obra.append("</dl>")
+
+    html_metadados = "\n".join(
+        metadados_obra
+    )
+
+    # Texto representativo, sem duplicar todas as secoes.
+
+    html_conteudo = ""
+
+    if texto_principal:
+
+        html_conteudo = (
+            "<section class='resumo-obra'>"
+            "<h2>Sobre esta obra</h2>"
+            f"<p>{escapar_html(texto_principal)}</p>"
+            "</section>"
+        )
+
+    # Botao de acesso ao documento.
+
+    html_documento = ""
+
+    if documento:
+
+        documento_seguro = escapar_html(
+            documento
+        )
+
+        html_documento = f"""
+        <section class="documento">
+          <h2>Consultar documento</h2>
+
+          <p>
+            Pode abrir o documento original para consultar
+            o conteudo completo da obra.
+          </p>
+
+          <p>
+            <a class="botao"
+               href="{documento_seguro}"
+               target="_blank"
+               rel="noopener noreferrer">
+               Ler documento
+            </a>
+
+            <a class="botao secundario"
+               href="{documento_seguro}"
+               target="_blank"
+               rel="noopener noreferrer">
+               Abrir PDF
+            </a>
+          </p>
+        </section>
+        """
+
+    # Construir o HTML final.
+
+    pagina = f"""<!DOCTYPE html>
 <html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>{escapar(titulo)} — {escapar(NOME_SITE)}</title>
-
-    <meta name="description" content="{escapar(descricao_meta)}">
-    <meta name="robots" content="index, follow">
-
-    <link rel="canonical" href="{escapar(url_pagina)}">
-    <link rel="icon" type="image/png" href="{PROJECT_BASE}OL.png">
-
-    <meta property="og:type" content="article">
-    <meta property="og:title" content="{escapar(titulo)}">
-    <meta property="og:description" content="{escapar(descricao_meta)}">
-    <meta property="og:url" content="{escapar(url_pagina)}">
-    <meta property="og:site_name" content="{escapar(NOME_SITE)}">
-
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="{escapar(titulo)}">
-    <meta name="twitter:description" content="{escapar(descricao_meta)}">
-
-    <script type="application/ld+json">{json_ld}</script>
-
-    {javascript_estatisticas}
-
-    <style>
-        * {{ box-sizing: border-box; }}
-
-        html {{ scroll-behavior: smooth; }}
-
-        body {{
-            margin: 0;
-            background: #f4f7fb;
-            color: #243247;
-            font-family: Arial, Helvetica, sans-serif;
-            line-height: 1.75;
-        }}
-
-        header {{
-            background: #eaf4ff;
-            border-bottom: 1px solid #d5e5f5;
-            padding: 18px 20px;
-        }}
-
-        .cabecalho-interior {{
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }}
-
-        header a {{
-            color: #124f86;
-            text-decoration: none;
-            font-weight: bold;
-        }}
-
-        /* NOVO: ações no canto superior direito */
-
-        .acoes-cabecalho {{
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-left: auto;
-        }}
-
-        .botao-cabecalho {{
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 7px;
-            min-height: 40px;
-            padding: 8px 12px;
-            border: 1px solid #b9d3eb;
-            border-radius: 8px;
-            background: #ffffff;
-            color: #124f86;
-            font-family: inherit;
-            font-size: 14px;
-            font-weight: 700;
-            line-height: 1.2;
-            cursor: pointer;
-            transition:
-                background 0.2s ease,
-                border-color 0.2s ease;
-        }}
-
-        .botao-cabecalho:hover {{
-            background: #dceeff;
-            border-color: #7eadd8;
-        }}
-
-        .botao-cabecalho:focus-visible {{
-            outline: 3px solid #79b8f0;
-            outline-offset: 2px;
-        }}
-
-        .icone-acao {{
-            display: inline-block;
-            font-size: 18px;
-            line-height: 1;
-        }}
-
-        .mensagem-partilha {{
-            position: fixed;
-            left: 50%;
-            bottom: 24px;
-            z-index: 1000;
-            width: max-content;
-            max-width: calc(100% - 32px);
-            padding: 12px 18px;
-            border-radius: 8px;
-            background: #183e62;
-            color: #ffffff;
-            font-size: 14px;
-            text-align: center;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-            opacity: 0;
-            visibility: hidden;
-            transform: translate(-50%, 10px);
-            transition:
-                opacity 0.2s ease,
-                transform 0.2s ease,
-                visibility 0.2s ease;
-        }}
-
-        .mensagem-partilha.visivel {{
-            opacity: 1;
-            visibility: visible;
-            transform: translate(-50%, 0);
-        }}
-
-        main {{
-            width: calc(100% - 32px);
-            max-width: 1000px;
-            margin: 28px auto;
-            padding: 30px;
-            background: #fff;
-            border: 1px solid #e1e8f0;
-            border-radius: 12px;
-            box-shadow: 0 3px 14px rgba(25, 55, 85, 0.04);
-        }}
-
-        h1 {{
-            margin-top: 0;
-            color: #183e62;
-            line-height: 1.35;
-            overflow-wrap: anywhere;
-            font-size: clamp(1.7rem, 4vw, 2.3rem);
-        }}
-
-        h2, h3, h4, h5, h6 {{
-            margin-top: 28px;
-            margin-bottom: 12px;
-            color: #183e62;
-            line-height: 1.45;
-            overflow-wrap: anywhere;
-        }}
-
-        p {{
-            margin-top: 0;
-            margin-bottom: 16px;
-            overflow-wrap: anywhere;
-            text-align: justify;
-        }}
-
-        .metadados {{
-            padding: 18px;
-            background: #f6f9fc;
-            border: 1px solid #e5edf5;
-            border-radius: 8px;
-            margin: 22px 0 28px;
-        }}
-
-        .metadados p {{ margin: 5px 0; }}
-
-        .descricao {{
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }}
-
-        .descricao-obra,
-        .imagens-obra,
-        .informacoes-tecnicas {{
-            margin-top: 30px;
-        }}
-
-        .botoes-pdf {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin: 22px 0;
-        }}
-
-        .botao {{
-            display: inline-block;
-            padding: 12px 19px;
-            border-radius: 7px;
-            background: #145da0;
-            color: #fff;
-            text-decoration: none;
-            font-weight: bold;
-            text-align: center;
-        }}
-
-        .botao:hover {{ background: #0d477e; }}
-
-        .botao-secundario {{ background: #167447; }}
-
-        .botao-secundario:hover {{ background: #105a36; }}
-
-        .aviso {{
-            padding: 14px;
-            background: #fff7e6;
-            border-radius: 7px;
-            color: #795500;
-        }}
-
-        .grelha-tecnica {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-        }}
-
-        .item-tecnico {{
-            padding: 15px;
-            background: #f6f9fc;
-            border: 1px solid #e5edf5;
-            border-radius: 8px;
-        }}
-
-        .item-tecnico span,
-        .item-tecnico strong {{ display: block; }}
-
-        .item-tecnico span {{
-            color: #526273;
-            font-size: .9rem;
-        }}
-
-        figure {{
-            margin: 26px 0;
-            text-align: center;
-        }}
-
-        figure img {{
-            display: block;
-            max-width: 100%;
-            max-height: 750px;
-            height: auto;
-            margin: auto;
-            border-radius: 5px;
-        }}
-
-        figcaption {{
-            margin-top: 8px;
-            color: #526273;
-            font-size: .92rem;
-        }}
-
-        .fonte-imagem {{
-            margin-top: 4px;
-            color: #65758a;
-            font-size: .85rem;
-        }}
-
-        .relacionadas {{
-            margin-top: 38px;
-            padding-top: 20px;
-            border-top: 1px solid #e1e8f0;
-        }}
-
-        .obra-relacionada {{
-            padding: 15px 0;
-            border-bottom: 1px solid #edf1f5;
-        }}
-
-        .obra-relacionada h3 {{
-            margin: 0 0 5px;
-            font-size: 1.05rem;
-        }}
-
-        .obra-relacionada h3 a {{
-            color: #145da0;
-            text-decoration: none;
-        }}
-
-        .obra-relacionada h3 a:hover {{
-            text-decoration: underline;
-        }}
-
-        .relacionada-detalhes {{
-            margin: 0;
-            color: #526273;
-            font-size: .9rem;
-        }}
-
-        .rodape {{
-            margin-top: 35px;
-            padding-top: 20px;
-            border-top: 1px solid #e1e8f0;
-            color: #526273;
-            font-size: .95rem;
-        }}
-
-        .rodape a {{ color: #145da0; }}
-
-        a {{ overflow-wrap: anywhere; }}
-
-        @media (max-width: 600px) {{
-            header {{ padding: 14px; }}
-
-            .cabecalho-interior {{
-                gap: 12px;
-            }}
-
-            .acoes-cabecalho {{
-                gap: 6px;
-            }}
-
-            .botao-cabecalho {{
-                min-height: 38px;
-                padding: 8px 10px;
-                font-size: 13px;
-            }}
-
-            .icone-acao {{
-                font-size: 16px;
-            }}
-
-            main {{
-                width: calc(100% - 20px);
-                margin: 12px auto;
-                padding: 18px;
-                border-radius: 8px;
-            }}
-
-            .botoes-pdf {{ flex-direction: column; }}
-
-            .botao {{ width: 100%; }}
-
-            .metadados {{ padding: 14px; }}
-        }}
-
-        @media (max-width: 380px) {{
-            .cabecalho-interior {{
-                align-items: flex-start;
-            }}
-
-            .acoes-cabecalho {{
-                width: 100%;
-                margin-left: 0;
-            }}
-
-            .botao-cabecalho {{
-                flex: 1;
-            }}
-        }}
-    </style>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+
+  <title>{escapar_html(titulo_seo)}</title>
+
+  <meta name="description"
+        content="{escapar_html(descricao_seo)}">
+
+  <meta name="robots"
+        content="index, follow, max-image-preview:large">
+
+  <link rel="canonical"
+        href="{escapar_html(canonical)}">
+
+  <link rel="icon"
+        href="{escapar_html(FAVICON_URL)}">
+
+  {metadados_social}
+
+  <script type="application/ld+json">{json_ld}</script>
+
+  <style>
+    * {{
+      box-sizing: border-box;
+    }}
+
+    body {{
+      margin: 0;
+      padding: 0;
+      color: #222;
+      background: #f5f7fa;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+      line-height: 1.8;
+    }}
+
+    header {{
+      background: #ffffff;
+      border-bottom: 1px solid #dddddd;
+      padding: 18px 5%;
+    }}
+
+    header a {{
+      color: #174ea6;
+      font-weight: bold;
+      text-decoration: none;
+    }}
+
+    main {{
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 30px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    }}
+
+    h1 {{
+      color: #17365d;
+      font-size: clamp(26px, 4vw, 36px);
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }}
+
+    h2 {{
+      margin-top: 32px;
+      color: #17365d;
+      font-size: 24px;
+      line-height: 1.4;
+    }}
+
+    p {{
+      text-align: justify;
+      overflow-wrap: anywhere;
+    }}
+
+    .metadados-obra {{
+      display: grid;
+      grid-template-columns: minmax(120px, 200px) 1fr;
+      gap: 8px 16px;
+      padding: 20px;
+      background: #f7f9fc;
+      border-radius: 8px;
+    }}
+
+    .metadados-obra dt {{
+      font-weight: bold;
+    }}
+
+    .metadados-obra dd {{
+      margin: 0;
+      overflow-wrap: anywhere;
+    }}
+
+    .botao,
+    .partilha button {{
+      display: inline-block;
+      margin: 5px 5px 5px 0;
+      padding: 11px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #1769aa;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      text-decoration: none;
+      cursor: pointer;
+    }}
+
+    .botao.secundario {{
+      background: #465566;
+    }}
+
+    .partilha {{
+      margin-top: 35px;
+      padding: 20px;
+      background: #f7f9fc;
+      border-radius: 8px;
+    }}
+
+    .relacionadas li {{
+      margin-bottom: 12px;
+    }}
+
+    .relacionadas a {{
+      color: #1759a6;
+      font-weight: bold;
+    }}
+
+    .autor-relacionado {{
+      display: block;
+      color: #555;
+      font-size: 15px;
+    }}
+
+    .imagem-obra {{
+      margin: 25px 0;
+      text-align: center;
+    }}
+
+    .imagem-obra img {{
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: auto;
+      border-radius: 5px;
+    }}
+
+    .imagem-obra figcaption,
+    .fonte-imagem {{
+      font-size: 14px;
+      color: #555;
+      text-align: center;
+    }}
+
+    footer {{
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      text-align: center;
+      color: #555;
+      font-size: 14px;
+    }}
+
+    footer a {{
+      color: #1759a6;
+    }}
+
+    @media (max-width: 650px) {{
+      body {{
+        font-size: 17px;
+      }}
+
+      main {{
+        margin: 12px;
+        padding: 18px;
+      }}
+
+      .metadados-obra {{
+        grid-template-columns: 1fr;
+        gap: 3px;
+      }}
+
+      .metadados-obra dd {{
+        margin-bottom: 12px;
+      }}
+    }}
+  </style>
 </head>
 
 <body>
-<header>
-    <div class="cabecalho-interior">
 
-        <a href="{PROJECT_BASE}">{escapar(NOME_SITE)}</a>
+  <header>
+    <a href="{escapar_html(BASE_URL + '/')}"
+       aria-label="Pagina inicial do Obra Livre">
+       Obra Livre — Obras Académicas
+    </a>
+  </header>
 
-        <div class="acoes-cabecalho" aria-label="Ações da obra">
+  <main>
 
-            <button
-                type="button"
-                class="botao-cabecalho"
-                id="copiar-link"
-                aria-label="Copiar ligação desta obra"
-                title="Copiar ligação"
-            >
-                <span class="icone-acao" aria-hidden="true">▢</span>
-                <span>Copiar</span>
-            </button>
+    <nav aria-label="Navegacao">
+      <a href="{escapar_html(BASE_URL + '/')}">
+        Página inicial
+      </a>
+      &rsaquo;
+      <span>Obra académica</span>
+    </nav>
 
-            <button
-                type="button"
-                class="botao-cabecalho"
-                id="partilhar-link"
-                aria-label="Partilhar esta obra"
-                title="Partilhar obra"
-            >
-                <span class="icone-acao" aria-hidden="true">↗</span>
-                <span>Partilhar</span>
-            </button>
-
-        </div>
-
-        <a href="{PROJECT_BASE}acervo/">Explorar acervo</a>
-
-    </div>
-</header>
-
-<div
-    id="mensagem-partilha"
-    class="mensagem-partilha"
-    role="status"
-    aria-live="polite"
-></div>
-
-<main>
     <article>
-        <h1>{escapar(titulo)}</h1>
 
-        <section class="metadados" aria-label="Informações da obra">
-            <p><strong>Autor:</strong> {escapar(autor or "Não indicado")}</p>
-            <p><strong>Categoria:</strong> {escapar(categoria or "Não indicada")}</p>
-            <p><strong>Ano:</strong> {escapar(ano or "Não indicado")}</p>
-            {data_publicacao_html}
-        </section>
+      <h1>{escapar_html(titulo)}</h1>
 
-        <section class="descricao-obra">
-            <h2>Descrição da obra</h2>
-            <div class="descricao">{escapar(descricao) if descricao else "Não foi fornecida uma descrição para esta obra."}</div>
-        </section>
+      {html_metadados}
 
-        <div class="texto-principal-obra">
-            {html_conteudo_final}
-        </div>
+      <p>
+        Esta página apresenta informação sobre a obra
+        publicada na plataforma Obra Livre.
+      </p>
 
-        {html_imagens_completo}
+      {html_conteudo}
 
-        {html_tecnico}
+      {html_imagens}
 
-        <section class="documento-completo">
-            <h2>Documento completo</h2>
-            <p>Pode abrir o documento PDF para leitura ou utilizar a opção de descarregamento.</p>
-            {botoes_pdf}
-        </section>
+      {html_documento}
 
-        {html_relacionadas}
+      {html_relacionadas}
+
+      {html_partilha}
+
     </article>
 
-    <footer class="rodape">
-        <p>Publicado na plataforma <a href="{PROJECT_BASE}">{escapar(NOME_SITE)}</a>.</p>
-        <p><a href="{PROJECT_BASE}acervo/">Regressar ao acervo</a></p>
-    </footer>
-</main>
+  </main>
 
-{javascript_partilha}
+  <footer>
+    <p>
+      <a href="{escapar_html(BASE_URL + '/')}">
+        Obra Livre
+      </a>
+      — Plataforma de consulta e publicação de obras académicas.
+    </p>
+
+    <p>
+      <a href="{escapar_html(BASE_URL + '/ajuda/')}">
+        Ajuda
+      </a>
+      |
+      <a href="{escapar_html(BASE_URL + '/contacto/')}">
+        Contacto
+      </a>
+      |
+      <a href="{escapar_html(BASE_URL + '/politica-privacidade/')}">
+        Política de privacidade
+      </a>
+    </p>
+  </footer>
 
 </body>
 </html>
 """
 
-    pasta = OUTPUT_DIR / "obra" / obra_id
+    # Guardar cada obra numa pasta individual.
 
-    pasta.mkdir(parents=True, exist_ok=True)
+    pasta_obra = OUTPUT_DIR / "obra" / obra_id
 
-    caminho = pasta / "index.html"
-
-    caminho.write_text(
-        html_pagina,
-        encoding="utf-8",
+    pasta_obra.mkdir(
+        parents=True,
+        exist_ok=True
     )
 
-    print(f"Página SEO gerada: {caminho}")
+    caminho_html = pasta_obra / "index.html"
 
-    return url_pagina
+    caminho_html.write_text(
+        pagina,
+        encoding="utf-8"
+    )
+
+    print(
+        f"Pagina SEO gerada: {caminho_html}"
+    )
+
+    return True
 
 
 # ============================================================
-# SITEMAP XML
+# FIM DA PARTE 2 DE 3
+# ============================================================
+# ============================================================
+# OBRA LIVRE
+# GERADOR DE PAGINAS SEO
+# PARTE 3 DE 3
+#
+# Sitemap XML, robots.txt, validacoes e execucao.
 # ============================================================
 
-def gerar_sitemap(obras, urls_obras):
-    ET.register_namespace("", NAMESPACE_SITEMAP)
 
-    raiz = ET.Element(
-        f"{{{NAMESPACE_SITEMAP}}}urlset"
-    )
+# ============================================================
+# 31. OBTER DATA DE MODIFICACAO DA OBRA
+# ============================================================
 
-    hoje = obter_data_atual()
-    datas_por_url = {}
+def obter_data_modificacao(obra):
+    """
+    Devolve a data de modificacao da obra.
 
-    for obra, url in zip(obras, urls_obras):
-        data_convertida = (
-            data_iso_valida(obra.get("updated_at"))
-            or data_iso_valida(obra.get("created_at"))
-            or data_iso_valida(obra.get("data_publicacao"))
+    Utiliza updated_at, created_at ou data_publicacao,
+    quando existe uma data valida.
+    """
+
+    for campo in [
+        "updated_at",
+        "created_at",
+        "data_publicacao",
+    ]:
+
+        valor = texto_seguro(
+            obra.get(campo)
         )
 
-        if data_convertida:
-            datas_por_url[url] = data_convertida.isoformat()
-
-    urls = [
-        BASE_URL + rota
-        for rota in URLS_FIXAS
-    ]
-
-    urls.extend(urls_obras)
-    urls_unicas = list(dict.fromkeys(urls))
-
-    for url in urls_unicas:
-        if not url.startswith(BASE_URL + "/"):
+        if not valor:
             continue
 
+        try:
+
+            data = datetime.fromisoformat(
+                valor.replace("Z", "+00:00")
+            )
+
+            return data.date().isoformat()
+
+        except ValueError:
+            continue
+
+    return date.today().isoformat()
+
+
+# ============================================================
+# 32. LISTA DE PAGINAS PRINCIPAIS
+# ============================================================
+
+def obter_paginas_principais():
+    """
+    Devolve os URLs principais do site.
+
+    Estas paginas devem existir publicamente.
+    """
+
+    caminhos = [
+        "/",
+        "/acervo/",
+        "/categorias/",
+        "/termos/",
+        "/politica-privacidade/",
+        "/cookies/",
+        "/contacto/",
+        "/ajuda/",
+    ]
+
+    return [
+        BASE_URL.rstrip("/") + caminho
+        for caminho in caminhos
+    ]
+
+
+# ============================================================
+# 33. GERAR SITEMAP XML
+# ============================================================
+
+def gerar_sitemap(obras):
+    """
+    Gera sitemap.xml com as paginas principais e as obras.
+
+    Cada URL e acrescentado uma unica vez.
+    """
+
+    namespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+    ET.register_namespace("", namespace)
+
+    elemento_urlset = ET.Element(
+        f"{{{namespace}}}urlset"
+    )
+
+    urls_adicionados = set()
+
+    def adicionar_url(url, data_modificacao=None):
+
+        if not url:
+            return
+
+        url = url.strip()
+
+        if not url.startswith(
+            ("https://", "http://")
+        ):
+            return
+
+        if url in urls_adicionados:
+            return
+
+        urls_adicionados.add(url)
+
         elemento_url = ET.SubElement(
-            raiz,
-            f"{{{NAMESPACE_SITEMAP}}}url",
+            elemento_urlset,
+            f"{{{namespace}}}url"
         )
 
         elemento_loc = ET.SubElement(
             elemento_url,
-            f"{{{NAMESPACE_SITEMAP}}}loc",
+            f"{{{namespace}}}loc"
         )
 
         elemento_loc.text = url
 
-        elemento_lastmod = ET.SubElement(
-            elemento_url,
-            f"{{{NAMESPACE_SITEMAP}}}lastmod",
+        if data_modificacao:
+
+            elemento_lastmod = ET.SubElement(
+                elemento_url,
+                f"{{{namespace}}}lastmod"
+            )
+
+            elemento_lastmod.text = (
+                data_modificacao
+            )
+
+    # Paginas principais.
+
+    for url in obter_paginas_principais():
+
+        adicionar_url(
+            url,
+            date.today().isoformat()
         )
 
-        elemento_lastmod.text = datas_por_url.get(url, hoje)
+    # Paginas individuais das obras.
 
-    arvore = ET.ElementTree(raiz)
+    for obra in obras:
 
-    SITEMAP_PATH.parent.mkdir(
-        parents=True,
-        exist_ok=True,
+        if not isinstance(obra, dict):
+            continue
+
+        obra_id = texto_seguro(
+            obra.get("id")
+        )
+
+        if not id_valido(obra_id):
+            continue
+
+        adicionar_url(
+            url_obra(obra_id),
+            obter_data_modificacao(obra)
+        )
+
+    # Escrever o XML.
+
+    arvore = ET.ElementTree(
+        elemento_urlset
+    )
+
+    caminho_sitemap = (
+        OUTPUT_DIR / "sitemap.xml"
     )
 
     arvore.write(
-        SITEMAP_PATH,
+        caminho_sitemap,
         encoding="utf-8",
-        xml_declaration=True,
+        xml_declaration=True
     )
 
-    print(f"Sitemap gerado: {SITEMAP_PATH}")
-    print(f"URLs incluídos: {len(urls_unicas)}")
+    print(
+        f"Sitemap gerado: {caminho_sitemap}"
+    )
+
+    print(
+        f"URLs no sitemap: {len(urls_adicionados)}"
+    )
+
+    return caminho_sitemap
 
 
 # ============================================================
-# EXECUÇÃO PRINCIPAL
+# 34. GERAR ROBOTS.TXT
 # ============================================================
 
-def main():
-    OUTPUT_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
+def gerar_robots():
+    """
+    Gera robots.txt para orientar os motores de pesquisa.
+
+    Nao bloqueia a indexacao das paginas publicas.
+    """
+
+    conteudo = f"""User-agent: *
+Allow: /
+
+Sitemap: {SITEMAP_URL}
+"""
+
+    caminho_robots = OUTPUT_DIR / "robots.txt"
+
+    caminho_robots.write_text(
+        conteudo,
+        encoding="utf-8"
     )
 
-    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-        raise RuntimeError(
-            "Configuração do Supabase em falta. "
-            "Verifique o ficheiro Dart que contém "
-            "SupabaseConfig ou defina SUPABASE_URL "
-            "e SUPABASE_ANON_KEY."
+    print(
+        f"robots.txt gerado: {caminho_robots}"
+    )
+
+    return caminho_robots
+
+
+# ============================================================
+# 35. VALIDAR O HTML GERADO
+# ============================================================
+
+def validar_pagina_html(caminho_html):
+    """
+    Verifica a presenca dos elementos SEO fundamentais.
+
+    Esta verificacao nao substitui os testes do Google.
+    """
+
+    try:
+
+        conteudo = caminho_html.read_text(
+            encoding="utf-8"
         )
 
-    print("=" * 65)
-    print("GERAÇÃO DAS PÁGINAS SEO — OBRA LIVRE")
-    print("=" * 65)
+    except OSError as erro:
 
-    print(f"Supabase URL: {SUPABASE_URL}")
-    print("Chave pública Supabase: configurada")
+        print(
+            f"Erro ao ler {caminho_html}: {erro}"
+        )
 
-    obras = obter_obras()
+        return False
 
-    print(f"Obras encontradas: {len(obras)}")
+    verificacoes = {
+        "DOCTYPE": "<!DOCTYPE html>" in conteudo,
+        "Idioma": '<html lang="pt">' in conteudo,
+        "Titulo": "<title>" in conteudo,
+        "Descricao SEO": (
+            'name="description"' in conteudo
+        ),
+        "Canonical": (
+            'rel="canonical"' in conteudo
+        ),
+        "Robots": (
+            'name="robots"' in conteudo
+        ),
+        "JSON-LD": (
+            'application/ld+json' in conteudo
+        ),
+        "H1": (
+            "<h1>" in conteudo
+        ),
+    }
 
-    urls_obras = []
-    obras_processadas = []
+    falhas = [
+        nome
+        for nome, valido in verificacoes.items()
+        if not valido
+    ]
+
+    if falhas:
+
+        print(
+            f"Validacao incompleta: {caminho_html}"
+        )
+
+        for falha in falhas:
+
+            print(
+                f"  - Falta: {falha}"
+            )
+
+        return False
+
+    return True
+
+
+# ============================================================
+# 36. GERAR TODAS AS PAGINAS
+# ============================================================
+
+def gerar_todas_as_paginas(obras):
+    """
+    Gera as paginas SEO de todas as obras validas.
+    """
+
+    total = 0
+
+    sucessos = 0
+
     erros = 0
 
     for obra in obras:
-        try:
-            url = gerar_pagina_obra(obra, obras)
 
-            if url:
-                urls_obras.append(url)
-                obras_processadas.append(obra)
+        total += 1
+
+        try:
+
+            gerada = gerar_pagina_obra(
+                obra,
+                obras
+            )
+
+            if gerada:
+
+                caminho_html = (
+                    OUTPUT_DIR
+                    / "obra"
+                    / str(obra["id"])
+                    / "index.html"
+                )
+
+                if validar_pagina_html(
+                    caminho_html
+                ):
+
+                    sucessos += 1
+
+                else:
+
+                    erros += 1
+
+            else:
+
+                erros += 1
 
         except Exception as erro:
+
             erros += 1
 
             print(
-                f"Erro ao gerar a página da obra "
-                f"{texto_seguro(obra.get('id'))}: {erro}",
-                file=sys.stderr,
+                f"Erro ao gerar a obra "
+                f"{obra.get('id', 'sem ID')}: {erro}"
             )
 
-    gerar_sitemap(
-        obras_processadas,
-        urls_obras,
+    print("")
+    print("Resumo da geracao de paginas SEO")
+    print("--------------------------------")
+    print(f"Total de obras: {total}")
+    print(f"Paginas geradas e validadas: {sucessos}")
+    print(f"Erros: {erros}")
+
+    return sucessos, erros
+
+
+# ============================================================
+# 37. EXECUCAO PRINCIPAL
+# ============================================================
+
+def main():
+    """
+    Executa o processo completo.
+
+    Ordem:
+        1. Preparar a pasta de destino.
+        2. Carregar configuracao.
+        3. Consultar obras.
+        4. Gerar paginas HTML.
+        5. Gerar sitemap.
+        6. Gerar robots.txt.
+    """
+
+    print("")
+    print("=" * 60)
+    print("OBRA LIVRE — GERADOR DE PAGINAS SEO")
+    print("=" * 60)
+    print("")
+
+    # Criar pasta de destino.
+
+    OUTPUT_DIR.mkdir(
+        parents=True,
+        exist_ok=True
     )
 
-    print("-" * 65)
-    print(f"Obras consultadas: {len(obras)}")
-    print(f"Páginas geradas: {len(urls_obras)}")
-    print(f"Erros de geração: {erros}")
-    print("Geração SEO concluída.")
-    print("=" * 65)
+    # Carregar configuracao.
 
-
-if __name__ == "__main__":
     try:
-        main()
+
+        carregar_configuracao()
 
     except Exception as erro:
+
+        print("")
+        print("ERRO DE CONFIGURACAO")
+        print(str(erro))
+        print("")
         print(
-            f"ERRO FATAL: {erro}",
-            file=sys.stderr,
+            "Confirma a URL e a chave publica do Supabase."
         )
 
-        sys.exit(1)
+        return 1
+
+    # Consultar as obras.
+
+    try:
+
+        obras = obter_obras()
+
+    except Exception as erro:
+
+        print("")
+        print("ERRO AO CONSULTAR O SUPABASE")
+        print(str(erro))
+        print("")
+
+        return 1
+
+    if not obras:
+
+        print(
+            "Aviso: nao foram encontradas obras."
+        )
+
+        print(
+            "O sitemap nao sera substituido para evitar "
+            "publicar um sitemap vazio por engano."
+        )
+
+        return 1
+
+    # Gerar paginas.
+
+    _, erros = gerar_todas_as_paginas(
+        obras
+    )
+
+    # Gerar sitemap.
+
+    try:
+
+        gerar_sitemap(
+            obras
+        )
+
+    except Exception as erro:
+
+        print(
+            f"Erro ao gerar sitemap: {erro}"
+        )
+
+        return 1
+
+    # Gerar robots.txt.
+
+    try:
+
+        gerar_robots()
+
+    except Exception as erro:
+
+        print(
+            f"Erro ao gerar robots.txt: {erro}"
+        )
+
+        return 1
+
+    print("")
+    print("=" * 60)
+    print("PROCESSO SEO CONCLUIDO")
+    print("=" * 60)
+
+    print("")
+    print(
+        f"Paginas publicas: {BASE_URL}/obra/"
+    )
+
+    print(
+        f"Sitemap: {SITEMAP_URL}"
+    )
+
+    print(
+        f"Robots: {ROBOTS_URL}"
+    )
+
+    if erros:
+
+        print("")
+        print(
+            "Aviso: algumas paginas precisam de verificacao."
+        )
+
+        return 1
+
+    print("")
+    print(
+        "Verifica os ficheiros gerados antes de publicar."
+    )
+
+    return 0
+
+
+# ============================================================
+# 38. INICIAR O PROGRAMA
+# ============================================================
+
+if __name__ == "__main__":
+
+    try:
+
+        codigo_saida = main()
+
+    except KeyboardInterrupt:
+
+        print("")
+        print(
+            "Execucao interrompida pelo utilizador."
+        )
+
+        codigo_saida = 130
+
+    except Exception as erro:
+
+        print("")
+        print(
+            f"Erro inesperado: {erro}"
+        )
+
+        codigo_saida = 1
+
+    sys.exit(codigo_saida)
+
+
+# ============================================================
+# FIM DO FICHEIRO
+# ============================================================
