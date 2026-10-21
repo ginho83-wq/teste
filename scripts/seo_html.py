@@ -192,8 +192,7 @@ def gerar_css():
     }
 
     .cabecalho-link:hover {
-        background: #F1F6FB;
-        border-color: #B9CCDE;
+        filter: brightness(0.92);
     }
 
 
@@ -536,8 +535,7 @@ def gerar_css():
     }
 
     .botao-secundario:hover {
-        background: #F1F6FB;
-        border-color: #B9CCDE;
+        filter: brightness(0.92);
     }
 
     .botao-sucesso {
@@ -593,10 +591,84 @@ def gerar_css():
             border-color 0.2s ease;
     }
 
-    .botao-partilha:hover {
-        background: #F1F6FB;
-        border-color: #B9CCDE;
+    .botao-partilha[href*="linkedin.com"] {
+        min-width: 130px;
+        padding-left: 14px;
+        padding-right: 14px;
+        gap: 8px;
     }
+
+    /* Ajuste exclusivo do icon LinkedIn */
+.botao-partilha[href*="linkedin.com"] .icone-partilha {
+    filter: brightness(0) invert(1) !important;
+}
+.botao-partilha[href*="linkedin.com"] .icone-partilha {
+        display: inline-block;
+        visibility: visible;
+        opacity: 1;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        max-width: 20px;
+        max-height: 20px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    .icone-partilha {
+        width: 18px;
+        height: 18px;
+        max-width: 18px;
+        max-height: 18px;
+        display: inline-block;
+        object-fit: contain;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+.botao-partilha[href*="wa.me"] {
+    background: #25D366;
+    border-color: #25D366;
+    color: #ffffff;
+}
+
+.botao-partilha[href*="facebook.com"] {
+    background: #1877F2;
+    border-color: #1877F2;
+    color: #ffffff;
+}
+
+.botao-partilha[href*="linkedin.com"] {
+    background: #0A66C2;
+    border-color: #0A66C2;
+    color: #ffffff;
+}
+
+.botao-partilha[href*="t.me"] {
+    background: #0088CC;
+    border-color: #0088CC;
+    color: #ffffff;
+}
+
+.botao-partilha[href*="twitter.com"] {
+    background: #000000;
+    border-color: #000000;
+    color: #ffffff;
+}
+
+.botao-partilha[onclick*="copiarLinkObra"] {
+    background: #555555;
+    border-color: #555555;
+    color: #ffffff;
+}
+
+.botao-partilha .icone-partilha {
+    filter: brightness(0) invert(1);
+}
+
+.botao-partilha:hover {
+    filter: brightness(0.88);
+    transform: translateY(-1px);
+}
 
     .mensagem-partilha {
         min-height: 22px;
@@ -1307,6 +1379,7 @@ def gerar_html_partilha(obra):
                 rel="noopener noreferrer"
                 aria-label="Partilhar no WhatsApp"
             >
+                <img class="icone-partilha" src="https://cdn.simpleicons.org/whatsapp" alt="" />
                 WhatsApp
             </a>
 
@@ -1317,6 +1390,7 @@ def gerar_html_partilha(obra):
                 rel="noopener noreferrer"
                 aria-label="Partilhar no Facebook"
             >
+                <img class="icone-partilha" src="https://cdn.simpleicons.org/facebook" alt="" />
                 Facebook
             </a>
 
@@ -1327,6 +1401,9 @@ def gerar_html_partilha(obra):
                 rel="noopener noreferrer"
                 aria-label="Partilhar no LinkedIn"
             >
+                <svg class="icone-partilha" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true">
+    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.35V9h3.414v1.561h.049c.476-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 1 1 0-4.124 2.062 2.062 0 0 1 0 4.124zM3.56 9h3.56v11.452H3.56zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0z"/>
+</svg>
                 LinkedIn
             </a>
 
@@ -1337,7 +1414,19 @@ def gerar_html_partilha(obra):
                 rel="noopener noreferrer"
                 aria-label="Partilhar no Telegram"
             >
+                <img class="icone-partilha" src="https://cdn.simpleicons.org/telegram" alt="" />
                 Telegram
+            </a>
+
+            <a
+                class="botao-partilha"
+                href="https://twitter.com/intent/tweet?url={urllib.parse.quote(endereco, safe='')}&text={urllib.parse.quote(titulo, safe='')}"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Partilhar no X (Twitter)"
+            >
+                <img class="icone-partilha" src="https://cdn.simpleicons.org/x" alt="" />
+                X
             </a>
 
             <button
@@ -1345,7 +1434,22 @@ def gerar_html_partilha(obra):
                 type="button"
                 onclick="copiarLinkObra()"
             >
-                Copiar link
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-label="Copiar link"
+                    role="img"
+                >
+                    <rect x="8" y="8" width="13" height="13" rx="2"/>
+                    <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>
+                </svg>
             </button>
         </div>
 
@@ -1553,3 +1657,5 @@ def gerar_html_metadados(obra):
         {''.join(elementos)}
     </section>
     """
+
+
