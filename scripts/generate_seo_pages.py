@@ -1756,18 +1756,17 @@ def gerar_html_obras_relacionadas(obras_relacionadas):
 # BOTOES DE PARTILHA
 # ============================================================
 
+
 def gerar_html_partilha(obra):
     """
-    Gera os botoes para partilhar a obra.
+    Gera botoes de partilha com logotipos SVG das plataformas.
     """
     titulo = texto_seguro(
         obra.get("titulo"),
         "Obra académica",
     )
 
-    endereco = url_obra(
-        obra.get("id")
-    )
+    endereco = url_obra(obra.get("id"))
 
     titulo_js = json.dumps(
         titulo,
@@ -1779,50 +1778,208 @@ def gerar_html_partilha(obra):
         ensure_ascii=False,
     )
 
+    url_partilha = urllib.parse.quote(endereco, safe="")
+    texto_partilha = urllib.parse.quote(titulo, safe="")
+
     return f"""
-    <div class="partilha">
-        <h3 class="partilha-titulo">
+    <section class="partilha" aria-labelledby="titulo-partilha">
+        <style>
+            .partilha {{
+                margin: 32px 0;
+                padding: 22px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+            }}
+
+            .partilha-titulo {{
+                margin: 0 0 16px;
+                color: #174A7E;
+                font-size: 1.15rem;
+                font-weight: 700;
+            }}
+
+            .partilha-botoes {{
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 12px;
+            }}
+
+            .botao-partilha {{
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 9px;
+                min-height: 44px;
+                padding: 10px 15px;
+                border: 1px solid #dbe3ec;
+                border-radius: 9px;
+                background: #ffffff;
+                color: #243447;
+                font-family: inherit;
+                font-size: 14px;
+                font-weight: 600;
+                line-height: 1.2;
+                text-decoration: none;
+                cursor: pointer;
+                transition:
+                    transform 0.18s ease,
+                    box-shadow 0.18s ease;
+            }}
+
+            .botao-partilha:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+            }}
+
+            .botao-partilha:focus-visible {{
+                outline: 3px solid #93c5fd;
+                outline-offset: 3px;
+            }}
+
+            .botao-partilha svg {{
+                width: 21px;
+                height: 21px;
+                flex-shrink: 0;
+                display: block;
+            }}
+
+            .botao-whatsapp {{
+                color: #16803d;
+                border-color: #b7e4c7;
+            }}
+
+            .botao-facebook {{
+                color: #1877F2;
+                border-color: #bfdbfe;
+            }}
+
+            .botao-linkedin {{
+                color: #0A66C2;
+                border-color: #bfdbfe;
+            }}
+
+            .botao-twitter {{
+                color: #111111;
+                border-color: #d1d5db;
+            }}
+
+            .botao-telegram {{
+                color: #168ac0;
+                border-color: #bae6fd;
+            }}
+
+            .mensagem-partilha {{
+                margin-top: 12px;
+                font-size: 14px;
+                color: #166534;
+            }}
+
+            @media (max-width: 520px) {{
+                .partilha {{
+                    padding: 16px;
+                }}
+
+                .partilha-botoes {{
+                    gap: 9px;
+                }}
+
+                .botao-partilha {{
+                    min-height: 42px;
+                    padding: 9px 11px;
+                    font-size: 13px;
+                }}
+            }}
+        </style>
+
+        <h3 class="partilha-titulo" id="titulo-partilha">
             Partilhar esta obra
         </h3>
 
         <div class="partilha-botoes">
             <a
-                class="botao-partilha"
-                href="https://wa.me/?text={urllib.parse.quote(titulo + ' ' + endereco)}"
+                class="botao-partilha botao-whatsapp"
+                href="https://wa.me/?text={urllib.parse.quote(titulo + ' ' + endereco, safe='')}"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Partilhar no WhatsApp"
+                title="Partilhar no WhatsApp"
             >
+                <svg viewBox="0 0 24 24"
+                     aria-hidden="true"
+                     focusable="false">
+                    <path fill="currentColor"
+                        d="M12.04 2a9.85 9.85 0 0 0-8.47 14.88L2.2 22l5.28-1.38A9.96 9.96 0 1 0 12.04 2Zm0 18.1a8.1 8.1 0 0 1-4.12-1.12l-.3-.18-3.13.82.84-3.05-.2-.31A8.1 8.1 0 1 1 12.04 20.1Zm4.45-6.07c-.24-.12-1.43-.7-1.65-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.1-.1.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.4h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.3.98 2.46c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.15 1.51.09.46-.07 1.43-.58 1.63-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z"/>
+                </svg>
                 WhatsApp
             </a>
 
             <a
-                class="botao-partilha"
-                href="https://www.facebook.com/sharer/sharer.php?u={urllib.parse.quote(endereco, safe='')}"
+                class="botao-partilha botao-facebook"
+                href="https://www.facebook.com/sharer/sharer.php?u={url_partilha}"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Partilhar no Facebook"
+                title="Partilhar no Facebook"
             >
+                <svg viewBox="0 0 24 24"
+                     aria-hidden="true"
+                     focusable="false">
+                    <path fill="currentColor"
+                        d="M24 12a12 12 0 1 0-13.88 11.85v-8.38H7.08V12h3.04V9.35c0-3 1.79-4.66 4.53-4.66 1.31 0 2.68.23 2.68.23v2.95h-1.51c-1.49 0-1.95.93-1.95 1.88V12h3.32l-.53 3.47h-2.79v8.38A12 12 0 0 0 24 12Z"/>
+                </svg>
                 Facebook
             </a>
 
             <a
-                class="botao-partilha"
-                href="https://www.linkedin.com/sharing/share-offsite/?url={urllib.parse.quote(endereco, safe='')}"
+                class="botao-partilha botao-linkedin"
+                href="https://www.linkedin.com/sharing/share-offsite/?url={url_partilha}"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Partilhar no LinkedIn"
+                title="Partilhar no LinkedIn"
             >
+                <svg viewBox="0 0 24 24"
+                     aria-hidden="true"
+                     focusable="false">
+                    <path fill="currentColor"
+                        d="M20.45 2H3.55C2.69 2 2 2.68 2 3.52v16.96c0 .84.69 1.52 1.55 1.52h16.9c.86 0 1.55-.68 1.55-1.52V3.52c0-.84-.69-1.52-1.55-1.52ZM8.08 18.45H5.12V9h2.96v9.45ZM6.6 7.71a1.71 1.71 0 1 1 0-3.42 1.71 1.71 0 0 1 0 3.42Zm12.25 10.74H15.9v-4.6c0-1.1-.02-2.52-1.54-2.52-1.55 0-1.79 1.2-1.79 2.44v4.68H9.61V9h2.84v1.29h.04c.4-.75 1.36-1.54 2.8-1.54 3 0 3.56 1.97 3.56 4.53v5.17Z"/>
+                </svg>
                 LinkedIn
             </a>
 
             <a
-                class="botao-partilha"
-                href="https://t.me/share/url?url={urllib.parse.quote(endereco, safe='')}&text={urllib.parse.quote(titulo, safe='')}"
+                class="botao-partilha botao-twitter"
+                href="https://twitter.com/intent/tweet?url={url_partilha}&amp;text={texto_partilha}"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Partilhar no Twitter ou X"
+                title="Partilhar no Twitter ou X"
+            >
+                <svg viewBox="0 0 24 24"
+                     aria-hidden="true"
+                     focusable="false">
+                    <path fill="currentColor"
+                        d="M18.9 2H22l-6.78 7.75L23.2 22h-6.25l-4.9-7.4L5.57 22H2.44l7.25-8.29L1.8 2h6.4l4.43 6.78L18.9 2Zm-1.1 18h1.73L7.27 3.9H5.41L17.8 20Z"/>
+                </svg>
+                Twitter / X
+            </a>
+
+            <a
+                class="botao-partilha botao-telegram"
+                href="https://t.me/share/url?url={url_partilha}&amp;text={texto_partilha}"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Partilhar no Telegram"
+                title="Partilhar no Telegram"
             >
+                <svg viewBox="0 0 24 24"
+                     aria-hidden="true"
+                     focusable="false">
+                    <path fill="currentColor"
+                        d="M21.9 3.2 18.7 20c-.24 1.19-.87 1.48-1.76.92l-4.87-3.59-2.35 2.26c-.26.26-.48.48-.98.48l.35-4.96 9.02-8.15c.39-.35-.09-.55-.6-.2L6.36 13.9l-4.78-1.5c-1.04-.33-1.06-1.04.22-1.55L20.5 3.4c.87-.32 1.63.2 1.4-.2Z"/>
+                </svg>
                 Telegram
             </a>
 
@@ -1830,7 +1987,19 @@ def gerar_html_partilha(obra):
                 class="botao-partilha"
                 type="button"
                 onclick="copiarLinkObra()"
+                aria-label="Copiar link da obra"
+                title="Copiar link da obra"
             >
+                <svg viewBox="0 0 24 24"
+                     aria-hidden="true"
+                     focusable="false">
+                    <path fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72M14 11a5 5 0 0 0-7.07 0l-3 3A5 5 0 0 0 12 21.07l1.71-1.72"/>
+                </svg>
                 Copiar link
             </button>
         </div>
@@ -1841,11 +2010,10 @@ def gerar_html_partilha(obra):
             role="status"
             aria-live="polite"
         ></div>
-    </div>
+    </section>
 
     <script>
     (function () {{
-        const tituloObra = {titulo_js};
         const enderecoObra = {endereco_js};
 
         window.copiarLinkObra = async function () {{
@@ -1870,7 +2038,6 @@ def gerar_html_partilha(obra):
                     campo.style.opacity = "0";
 
                     document.body.appendChild(campo);
-
                     campo.select();
 
                     const copiado = document.execCommand("copy");
