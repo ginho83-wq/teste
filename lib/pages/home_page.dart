@@ -234,14 +234,14 @@ class _HomePageState extends State<HomePage> {
     final url = obra.urlDocumento.trim();
 
     if (url.isEmpty) {
-      _mostrarMensagem('Esta obra nÃ£o possui um documento disponÃ­vel.');
+      _mostrarMensagem('Esta obra não possui um documento disponível.');
       return;
     }
 
     final uri = Uri.tryParse(url);
 
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-      _mostrarMensagem('O endereÃ§o do documento Ã© invÃ¡lido.');
+      _mostrarMensagem('O endereço do documento é inválido.');
       return;
     }
 
@@ -249,7 +249,7 @@ class _HomePageState extends State<HomePage> {
       final abriu = await launchUrl(uri, webOnlyWindowName: '_blank');
 
       if (!abriu) {
-        _mostrarMensagem('NÃ£o foi possÃ­vel abrir o documento.');
+        _mostrarMensagem('Não foi possível abrir o documento.');
       }
     } catch (e) {
       debugPrint('HOME: erro ao abrir documento: $e');
@@ -262,14 +262,14 @@ class _HomePageState extends State<HomePage> {
     final url = (consulta.urlDocumento ?? '').trim();
 
     if (url.isEmpty) {
-      _mostrarMensagem('Esta obra nÃ£o possui um documento disponÃ­vel.');
+      _mostrarMensagem('Esta obra não possui um documento disponível.');
       return;
     }
 
     final uri = Uri.tryParse(url);
 
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-      _mostrarMensagem('O endereÃ§o do documento Ã© invÃ¡lido.');
+      _mostrarMensagem('O endereço do documento é inválido.');
       return;
     }
 
@@ -277,14 +277,14 @@ class _HomePageState extends State<HomePage> {
       final abriu = await launchUrl(uri, webOnlyWindowName: '_blank');
 
       if (!abriu) {
-        _mostrarMensagem('NÃ£o foi possÃ­vel abrir o documento.');
+        _mostrarMensagem('Não foi possível abrir o documento.');
         return;
       }
 
       try {
         await _historicoService.registrarConsulta(obraId: consulta.obraId);
       } catch (e) {
-        debugPrint('HOME: erro ao atualizar histÃ³rico: $e');
+        debugPrint('HOME: erro ao atualizar histórico: $e');
       }
 
       if (mounted) {
@@ -460,7 +460,7 @@ class _HomePageState extends State<HomePage> {
                       if (!mounted) return;
 
                       _mostrarMensagem(
-                        'NÃ£o foi possÃ­vel terminar a sessÃ£o.',
+                        'Não foi possível terminar a sessão.',
                       );
                     }
 
@@ -475,7 +475,7 @@ class _HomePageState extends State<HomePage> {
                       const Icon(Icons.person_outline, size: 19),
                       const SizedBox(width: 10),
                       Text(
-                        _ehAdmin ? 'AdministraÃ§Ã£o' : 'Minha conta',
+                        _ehAdmin ? 'Administração' : 'Minha conta',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],
@@ -488,7 +488,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Icon(Icons.settings_outlined, size: 19),
                       SizedBox(width: 10),
-                      Text('ConfiguraÃ§Ãµes', style: TextStyle(fontSize: 14)),
+                      Text('Configurações', style: TextStyle(fontSize: 14)),
                     ],
                   ),
                 ),
@@ -616,7 +616,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(
                       width: 620,
                       child: Text(
-                        'Pesquise e consulte obras acadÃ©micas, cientÃ­ficas e literÃ¡rias.',
+                        'Pesquise e consulte obras académicas, científicas e literárias.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 17,
@@ -632,7 +632,7 @@ class _HomePageState extends State<HomePage> {
                       constraints: const BoxConstraints(maxWidth: 760),
                       child: BarraPesquisa(
                         controller: _pesquisaController,
-                        hintText: 'Pesquisar obras acadÃ©micas',
+                        hintText: 'Pesquisar obras académicas',
                         onPesquisar: _executarPesquisa,
                         onLimpar: _limparPesquisa,
                       ),
@@ -685,7 +685,7 @@ class _HomePageState extends State<HomePage> {
                     context.go('/login');
                   } catch (e) {
                     if (!mounted) return;
-                    _mostrarMensagem('NÃ£o foi possÃ­vel terminar a sessÃ£o.');
+                    _mostrarMensagem('Não foi possível terminar a sessão.');
                   }
                   break;
               }
@@ -693,11 +693,11 @@ class _HomePageState extends State<HomePage> {
             itemBuilder: (context) => [
               PopupMenuItem<String>(
                 value: 'conta',
-                child: Text(_ehAdmin ? 'AdministraÃ§Ã£o' : 'Minha conta'),
+                child: Text(_ehAdmin ? 'Administração' : 'Minha conta'),
               ),
               const PopupMenuItem<String>(
                 value: 'configuracoes',
-                child: Text('ConfiguraÃ§Ãµes'),
+                child: Text('Configurações'),
               ),
               const PopupMenuItem<String>(value: 'sair', child: Text('Sair')),
             ],
@@ -810,7 +810,7 @@ class _HomePageState extends State<HomePage> {
             if (_ehAdmin)
               _itemMenu(
                 icone: Icons.admin_panel_settings_outlined,
-                texto: 'AdministraÃ§Ã£o',
+                texto: 'Administração',
                 onTap: () => _navegarMenu('/admin-obras'),
               ),
             _itemMenu(
@@ -868,14 +868,14 @@ class _HomePageState extends State<HomePage> {
   Widget _buildCategorias() {
     const categorias = [
       'Tese de Doutoramento',
-      'DissertaÃ§Ã£o de Mestrado',
+      'Dissertação de Mestrado',
       'Monografia',
-      'Artigos CientÃ­ficos',
-      'ComunicaÃ§Ãµes CientÃ­ficas',
+      'Artigos Científicos',
+      'Comunicações Científicas',
       'Posters',
       'Resumos',
-      'RelatÃ³rios AcadÃ©micos',
-      'Trabalhos AcadÃ©micos',
+      'Relatórios Académicos',
+      'Trabalhos Académicos',
     ];
 
     return Container(
@@ -897,7 +897,7 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Explore as obras por tipo de publicaÃ§Ã£o.',
+                          'Explore as obras por tipo de publicação.',
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF777777),
@@ -920,7 +920,7 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Explore as obras por tipo de publicaÃ§Ã£o.',
+                          'Explore as obras por tipo de publicação.',
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF777777),
@@ -1031,7 +1031,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'PublicaÃ§Ãµes recentes',
+                'Publicações recentes',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -1062,7 +1062,7 @@ class _HomePageState extends State<HomePage> {
                 )
               else if (_obrasRecentes.isEmpty)
                 _buildEstadoVazio(
-                  'Ainda nÃ£o existem publicaÃ§Ãµes disponÃ­veis.',
+                  'Ainda não existem publicações disponíveis.',
                 )
               else
                 Column(
@@ -1113,7 +1113,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 7),
 
               const Text(
-                'Aceda rapidamente Ã s obras que consultou.',
+                'Aceda rapidamente às obras que consultou.',
                 style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF777777),
@@ -1131,7 +1131,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 )
               else if (_consultasRecentes.isEmpty)
-                _buildEstadoVazio('Ainda nÃ£o consultou nenhuma obra.')
+                _buildEstadoVazio('Ainda não consultou nenhuma obra.')
               else
                 Column(
                   children: List.generate(_consultasRecentes.length, (index) {
