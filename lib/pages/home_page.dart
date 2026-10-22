@@ -25,17 +25,14 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ObrasRepository _obrasRepository =
-      ObrasRepository.instancia;
+  final ObrasRepository _obrasRepository = ObrasRepository.instancia;
 
-  final AuthService _authService =
-      AuthService.instancia;
+  final AuthService _authService = AuthService.instancia;
 
   final HistoricoObrasService _historicoService =
       HistoricoObrasService.instancia;
 
-  final TextEditingController _pesquisaController =
-  TextEditingController();
+  final TextEditingController _pesquisaController = TextEditingController();
 
   List<Obra> _obrasRecentes = [];
   List<HistoricoObra> _consultasRecentes = [];
@@ -51,10 +48,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    _authSubscription =
-        _authService.eventosAuth.listen(
-          _tratarAlteracaoAutenticacao,
-        );
+    _authSubscription = _authService.eventosAuth.listen(
+      _tratarAlteracaoAutenticacao,
+    );
 
     _carregarObrasRecentes();
     _carregarConsultasRecentes();
@@ -68,9 +64,7 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  void _tratarAlteracaoAutenticacao(
-      AuthState estado,
-      ) {
+  void _tratarAlteracaoAutenticacao(AuthState estado) {
     if (!mounted) return;
 
     final autenticado = estado.session != null;
@@ -100,11 +94,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final obras =
-      await _obrasRepository.carregarObras(
-        pagina: 1,
-        limite: 5,
-      );
+      final obras = await _obrasRepository.carregarObras(pagina: 1, limite: 5);
 
       if (!mounted) return;
 
@@ -113,9 +103,7 @@ class _HomePageState extends State<HomePage> {
         _carregandoObras = false;
       });
     } catch (e) {
-      debugPrint(
-        'HOME: erro ao carregar obras recentes: $e',
-      );
+      debugPrint('HOME: erro ao carregar obras recentes: $e');
 
       if (!mounted) return;
 
@@ -127,8 +115,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _carregarConsultasRecentes() async {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
+    final usuario = Supabase.instance.client.auth.currentUser;
 
     if (usuario == null) {
       if (!mounted) return;
@@ -148,8 +135,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final consultas =
-      await _historicoService.obterConsultasRecentes(
+      final consultas = await _historicoService.obterConsultasRecentes(
         limite: 5,
       );
 
@@ -160,9 +146,7 @@ class _HomePageState extends State<HomePage> {
         _carregandoConsultas = false;
       });
     } catch (e) {
-      debugPrint(
-        'HOME: erro ao carregar consultas recentes: $e',
-      );
+      debugPrint('HOME: erro ao carregar consultas recentes: $e');
 
       if (!mounted) return;
 
@@ -174,8 +158,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _verificarAdministrador() async {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
+    final usuario = Supabase.instance.client.auth.currentUser;
 
     if (usuario == null) {
       if (!mounted) return;
@@ -189,8 +172,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final ehAdmin =
-      await _authService.ehAdmin();
+      final ehAdmin = await _authService.ehAdmin();
 
       if (!mounted) return;
 
@@ -199,9 +181,7 @@ class _HomePageState extends State<HomePage> {
         _carregandoPerfil = false;
       });
     } catch (e) {
-      debugPrint(
-        'HOME: erro ao verificar administrador: $e',
-      );
+      debugPrint('HOME: erro ao verificar administrador: $e');
 
       if (!mounted) return;
 
@@ -221,14 +201,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _executarPesquisa() {
-    final pesquisa =
-    _pesquisaController.text.trim();
+    final pesquisa = _pesquisaController.text.trim();
 
     if (pesquisa.isEmpty) return;
 
-    context.go(
-      '/acervo/pesquisa/${Uri.encodeComponent(pesquisa)}',
-    );
+    context.go('/acervo/pesquisa/${Uri.encodeComponent(pesquisa)}');
   }
 
   void _limparPesquisa() {
@@ -253,109 +230,70 @@ class _HomePageState extends State<HomePage> {
     context.go('/obra/${obra.id}');
   }
 
-  Future<void> _abrirDocumento(
-      Obra obra,
-      ) async {
+  Future<void> _abrirDocumento(Obra obra) async {
     final url = obra.urlDocumento.trim();
 
     if (url.isEmpty) {
-      _mostrarMensagem(
-        'Esta obra não possui um documento disponível.',
-      );
+      _mostrarMensagem('Esta obra nÃ£o possui um documento disponÃ­vel.');
       return;
     }
 
     final uri = Uri.tryParse(url);
 
-    if (uri == null ||
-        (uri.scheme != 'http' &&
-            uri.scheme != 'https')) {
-      _mostrarMensagem(
-        'O endereço do documento é inválido.',
-      );
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      _mostrarMensagem('O endereÃ§o do documento Ã© invÃ¡lido.');
       return;
     }
 
     try {
-      final abriu = await launchUrl(
-        uri,
-        webOnlyWindowName: '_blank',
-      );
+      final abriu = await launchUrl(uri, webOnlyWindowName: '_blank');
 
       if (!abriu) {
-        _mostrarMensagem(
-          'Não foi possível abrir o documento.',
-        );
+        _mostrarMensagem('NÃ£o foi possÃ­vel abrir o documento.');
       }
     } catch (e) {
-      debugPrint(
-        'HOME: erro ao abrir documento: $e',
-      );
+      debugPrint('HOME: erro ao abrir documento: $e');
 
-      _mostrarMensagem(
-        'Ocorreu um erro ao abrir o documento.',
-      );
+      _mostrarMensagem('Ocorreu um erro ao abrir o documento.');
     }
   }
 
-  Future<void> _abrirConsultaRecente(
-      HistoricoObra consulta,
-      ) async {
-    final url =
-    (consulta.urlDocumento ?? '').trim();
+  Future<void> _abrirConsultaRecente(HistoricoObra consulta) async {
+    final url = (consulta.urlDocumento ?? '').trim();
 
     if (url.isEmpty) {
-      _mostrarMensagem(
-        'Esta obra não possui um documento disponível.',
-      );
+      _mostrarMensagem('Esta obra nÃ£o possui um documento disponÃ­vel.');
       return;
     }
 
     final uri = Uri.tryParse(url);
 
-    if (uri == null ||
-        (uri.scheme != 'http' &&
-            uri.scheme != 'https')) {
-      _mostrarMensagem(
-        'O endereço do documento é inválido.',
-      );
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      _mostrarMensagem('O endereÃ§o do documento Ã© invÃ¡lido.');
       return;
     }
 
     try {
-      final abriu = await launchUrl(
-        uri,
-        webOnlyWindowName: '_blank',
-      );
+      final abriu = await launchUrl(uri, webOnlyWindowName: '_blank');
 
       if (!abriu) {
-        _mostrarMensagem(
-          'Não foi possível abrir o documento.',
-        );
+        _mostrarMensagem('NÃ£o foi possÃ­vel abrir o documento.');
         return;
       }
 
       try {
-        await _historicoService.registrarConsulta(
-          obraId: consulta.obraId,
-        );
+        await _historicoService.registrarConsulta(obraId: consulta.obraId);
       } catch (e) {
-        debugPrint(
-          'HOME: erro ao atualizar histórico: $e',
-        );
+        debugPrint('HOME: erro ao atualizar histÃ³rico: $e');
       }
 
       if (mounted) {
         await _carregarConsultasRecentes();
       }
     } catch (e) {
-      debugPrint(
-        'HOME: erro ao abrir consulta recente: $e',
-      );
+      debugPrint('HOME: erro ao abrir consulta recente: $e');
 
-      _mostrarMensagem(
-        'Ocorreu um erro ao abrir o documento.',
-      );
+      _mostrarMensagem('Ocorreu um erro ao abrir o documento.');
     }
   }
 
@@ -365,26 +303,24 @@ class _HomePageState extends State<HomePage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(mensagem),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text(mensagem), behavior: SnackBarBehavior.floating),
       );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-      const Color(0xFFFCFCFC),
+      backgroundColor: const Color(0xFFFCFCFC),
       appBar: _buildAppBar(),
+      endDrawer: MediaQuery.of(context).size.width < 600
+          ? _buildMenuLateral()
+          : null,
       body: RefreshIndicator(
         color: const Color(0xFF333333),
         backgroundColor: Colors.white,
         onRefresh: _atualizarTudo,
         child: SingleChildScrollView(
-          physics:
-          const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             children: [
               _buildHero(),
@@ -400,28 +336,29 @@ class _HomePageState extends State<HomePage> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
+    final estaAutenticado = Supabase.instance.client.auth.currentUser != null;
 
-    final estaAutenticado = usuario != null;
+    final largura = MediaQuery.of(context).size.width;
 
+    if (largura < 600) {
+      return _buildAppBarMobile(estaAutenticado);
+    }
+
+    return _buildAppBarDesktop(estaAutenticado);
+  }
+
+  // APPBAR PARA TABLET E COMPUTADOR
+  PreferredSizeWidget _buildAppBarDesktop(bool estaAutenticado) {
     return AppBar(
-      backgroundColor:
-      const Color(0xFFEAF4FF),
+      backgroundColor: const Color(0xFFEAF4FF),
       elevation: 0,
-      surfaceTintColor:
-      const Color(0xFFEAF4FF),
+      surfaceTintColor: const Color(0xFFEAF4FF),
       automaticallyImplyLeading: false,
       toolbarHeight: 60,
       titleSpacing: 28,
       bottom: const PreferredSize(
-        preferredSize:
-        Size.fromHeight(1),
-        child: Divider(
-          height: 1,
-          thickness: 1,
-          color: Color(0xFFD5E5F5),
-        ),
+        preferredSize: Size.fromHeight(1),
+        child: Divider(height: 1, thickness: 1, color: Color(0xFFD5E5F5)),
       ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -433,8 +370,7 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(
                 color: Color(0xFF1F1F1F),
                 fontSize: 21,
-                fontWeight:
-                FontWeight.w700,
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.3,
               ),
             ),
@@ -459,8 +395,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
 
-          if (estaAutenticado &&
-              !_ehAdmin) ...[
+          if (estaAutenticado && !_ehAdmin) ...[
             const SizedBox(width: 2),
             _buildNavButton(
               label: 'Acervo',
@@ -494,78 +429,54 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 12),
 
           Padding(
-            padding:
-            const EdgeInsets.only(
-              right: 24,
-            ),
-            child:
-            PopupMenuButton<String>(
+            padding: const EdgeInsets.only(right: 24),
+            child: PopupMenuButton<String>(
               tooltip: 'Conta',
-              offset:
-              const Offset(0, 50),
+              offset: const Offset(0, 50),
               elevation: 4,
-              shape:
-              RoundedRectangleBorder(
-                borderRadius:
-                BorderRadius.circular(10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
-              onSelected:
-                  (value) async {
+              onSelected: (value) async {
                 switch (value) {
                   case 'conta':
                     _abrirConta();
                     break;
 
                   case 'configuracoes':
-                    context.go(
-                      '/minha-conta',
-                    );
+                    context.go('/minha-conta');
                     break;
 
                   case 'sair':
                     try {
-                      await _authService
-                          .sair();
+                      await _authService.sair();
 
                       if (!mounted) return;
 
                       context.go('/login');
                     } catch (e) {
-                      debugPrint(
-                        'HOME: erro ao sair: $e',
-                      );
+                      debugPrint('HOME: erro ao sair: $e');
 
                       if (!mounted) return;
 
                       _mostrarMensagem(
-                        'Não foi possível terminar a sessão.',
+                        'NÃ£o foi possÃ­vel terminar a sessÃ£o.',
                       );
                     }
 
                     break;
                 }
               },
-              itemBuilder:
-                  (context) => [
+              itemBuilder: (context) => [
                 PopupMenuItem<String>(
                   value: 'conta',
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.person_outline,
-                        size: 19,
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
+                      const Icon(Icons.person_outline, size: 19),
+                      const SizedBox(width: 10),
                       Text(
-                        _ehAdmin
-                            ? 'Administração'
-                            : 'Minha conta',
-                        style:
-                        const TextStyle(
-                          fontSize: 14,
-                        ),
+                        _ehAdmin ? 'AdministraÃ§Ã£o' : 'Minha conta',
+                        style: const TextStyle(fontSize: 14),
                       ),
                     ],
                   ),
@@ -575,18 +486,9 @@ class _HomePageState extends State<HomePage> {
                   value: 'configuracoes',
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.settings_outlined,
-                        size: 19,
-                      ),
+                      Icon(Icons.settings_outlined, size: 19),
                       SizedBox(width: 10),
-                      Text(
-                        'Configurações',
-                        style:
-                        TextStyle(
-                          fontSize: 14,
-                        ),
-                      ),
+                      Text('ConfiguraÃ§Ãµes', style: TextStyle(fontSize: 14)),
                     ],
                   ),
                 ),
@@ -597,26 +499,14 @@ class _HomePageState extends State<HomePage> {
                   value: 'sair',
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.logout,
-                        size: 19,
-                      ),
+                      Icon(Icons.logout, size: 19),
                       SizedBox(width: 10),
-                      Text(
-                        'Sair',
-                        style:
-                        TextStyle(
-                          fontSize: 14,
-                        ),
-                      ),
+                      Text('Sair', style: TextStyle(fontSize: 14)),
                     ],
                   ),
                 ),
               ],
-              child:
-              const AvatarUtilizador(
-                radius: 20,
-              ),
+              child: const AvatarUtilizador(radius: 20),
             ),
           ),
         ] else ...[
@@ -626,29 +516,17 @@ class _HomePageState extends State<HomePage> {
               onPressed: () {
                 context.go('/login');
               },
-              style:
-              TextButton.styleFrom(
-                backgroundColor:
-                const Color(0xFF222222),
-                foregroundColor:
-                Colors.white,
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 18,
-                ),
-                shape:
-                RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(8),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF222222),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
               child: const Text(
                 'Entrar',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight:
-                  FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -656,45 +534,25 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 8),
 
           Padding(
-            padding:
-            const EdgeInsets.only(
-              right: 24,
-            ),
+            padding: const EdgeInsets.only(right: 24),
             child: SizedBox(
               height: 38,
               child: TextButton(
                 onPressed: () {
                   context.go('/cadastro');
                 },
-                style:
-                TextButton.styleFrom(
-                  backgroundColor:
-                  const Color(0xFFF7F7F7),
-                  foregroundColor:
-                  const Color(0xFF222222),
-                  padding:
-                  const EdgeInsets.symmetric(
-                    horizontal: 18,
-                  ),
-                  side:
-                  const BorderSide(
-                    color:
-                    Color(0xFFD8D8D8),
-                    width: 1,
-                  ),
-                  shape:
-                  RoundedRectangleBorder(
-                    borderRadius:
-                    BorderRadius.circular(8),
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFFF7F7F7),
+                  foregroundColor: const Color(0xFF222222),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  side: const BorderSide(color: Color(0xFFD8D8D8), width: 1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 child: const Text(
                   'Criar conta',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight:
-                    FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -711,26 +569,13 @@ class _HomePageState extends State<HomePage> {
     return TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        foregroundColor:
-        const Color(0xFF444444),
-        padding:
-        const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 8,
-        ),
-        shape:
-        RoundedRectangleBorder(
-          borderRadius:
-          BorderRadius.circular(7),
-        ),
+        foregroundColor: const Color(0xFF444444),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight:
-          FontWeight.w500,
-        ),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -738,89 +583,58 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHero() {
     return SizedBox(
       width: double.infinity,
-      height:
-      MediaQuery.of(context).size.height,
+      height: MediaQuery.of(context).size.height,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            'assets/images/livros_home.png',
-            fit: BoxFit.cover,
-          ),
+          Image.asset('assets/images/livros_home.png', fit: BoxFit.cover),
 
-          Container(
-            color:
-            Colors.black.withOpacity(0.42),
-          ),
+          Container(color: Colors.black.withOpacity(0.42)),
 
           Center(
             child: ConstrainedBox(
-              constraints:
-              const BoxConstraints(
-                maxWidth: 900,
-              ),
+              constraints: const BoxConstraints(maxWidth: 900),
               child: Padding(
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 24,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
-                  mainAxisAlignment:
-                  MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
                       'Publique e encontre conhecimento.',
-                      textAlign:
-                      TextAlign.center,
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 38,
-                        fontWeight:
-                        FontWeight.w700,
-                        color:
-                        Colors.white,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
                         height: 1.18,
                         letterSpacing: -0.8,
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 18,
-                    ),
+                    const SizedBox(height: 18),
 
                     const SizedBox(
                       width: 620,
                       child: Text(
-                        'Pesquise e consulte obras académicas, científicas e literárias.',
-                        textAlign:
-                        TextAlign.center,
+                        'Pesquise e consulte obras acadÃ©micas, cientÃ­ficas e literÃ¡rias.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 17,
-                          color:
-                          Colors.white,
+                          color: Colors.white,
                           height: 1.55,
                         ),
                       ),
                     ),
 
-                    const SizedBox(
-                      height: 32,
-                    ),
+                    const SizedBox(height: 32),
 
                     ConstrainedBox(
-                      constraints:
-                      const BoxConstraints(
-                        maxWidth: 760,
-                      ),
-                      child:
-                      BarraPesquisa(
-                        controller:
-                        _pesquisaController,
-                        hintText:
-                        'Pesquisar obras académicas',
-                        onPesquisar:
-                        _executarPesquisa,
-                        onLimpar:
-                        _limparPesquisa,
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: BarraPesquisa(
+                        controller: _pesquisaController,
+                        hintText: 'Pesquisar obras acadÃ©micas',
+                        onPesquisar: _executarPesquisa,
+                        onLimpar: _limparPesquisa,
                       ),
                     ),
                   ],
@@ -833,95 +647,289 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  PreferredSizeWidget _buildAppBarMobile(bool estaAutenticado) {
+    return AppBar(
+      backgroundColor: const Color(0xFFEAF4FF),
+      surfaceTintColor: const Color(0xFFEAF4FF),
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      toolbarHeight: 60,
+      titleSpacing: 12,
+      title: GestureDetector(
+        onTap: () => context.go('/'),
+        child: const Text(
+          'Obra Livre',
+          style: TextStyle(
+            color: Color(0xFF1F1F1F),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      actions: [
+        if (estaAutenticado)
+          PopupMenuButton<String>(
+            tooltip: 'Conta',
+            onSelected: (value) async {
+              switch (value) {
+                case 'conta':
+                  _abrirConta();
+                  break;
+                case 'configuracoes':
+                  context.go('/minha-conta');
+                  break;
+                case 'sair':
+                  try {
+                    await _authService.sair();
+                    if (!mounted) return;
+                    context.go('/login');
+                  } catch (e) {
+                    if (!mounted) return;
+                    _mostrarMensagem('NÃ£o foi possÃ­vel terminar a sessÃ£o.');
+                  }
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'conta',
+                child: Text(_ehAdmin ? 'AdministraÃ§Ã£o' : 'Minha conta'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'configuracoes',
+                child: Text('ConfiguraÃ§Ãµes'),
+              ),
+              const PopupMenuItem<String>(value: 'sair', child: Text('Sair')),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: AvatarUtilizador(radius: 17),
+            ),
+          )
+        else ...[
+          _buildBotaoAcesso(
+            texto: 'Entrar',
+            onPressed: () => context.go('/login'),
+            principal: true,
+          ),
+          const SizedBox(width: 4),
+          _buildBotaoAcesso(
+            texto: 'Criar conta',
+            onPressed: () => context.go('/cadastro'),
+            principal: false,
+          ),
+        ],
+        Builder(
+          builder: (context) => IconButton(
+            tooltip: 'Abrir menu',
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
+          ),
+        ),
+      ],
+      bottom: const PreferredSize(
+        preferredSize: Size.fromHeight(1),
+        child: Divider(height: 1, thickness: 1, color: Color(0xFFD5E5F5)),
+      ),
+    );
+  }
+
+  Widget _buildBotaoAcesso({
+    required String texto,
+    required VoidCallback onPressed,
+    required bool principal,
+  }) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        backgroundColor: principal
+            ? const Color(0xFF222222)
+            : const Color(0xFFF7F7F7),
+        foregroundColor: principal ? Colors.white : const Color(0xFF222222),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        side: principal
+            ? BorderSide.none
+            : const BorderSide(color: Color(0xFFD8D8D8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(
+        texto,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildMenuLateral() {
+    final estaAutenticado = Supabase.instance.client.auth.currentUser != null;
+
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Obra Livre',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            _itemMenu(
+              icone: Icons.grid_view_outlined,
+              texto: 'Plataforma',
+              onTap: () => _navegarMenu('/plataforma'),
+            ),
+            _itemMenu(
+              icone: Icons.menu_book_outlined,
+              texto: 'Acervo',
+              onTap: () => _navegarMenu('/acervo'),
+            ),
+            if (estaAutenticado && !_ehAdmin)
+              _itemMenu(
+                icone: Icons.publish_outlined,
+                texto: 'Publicar',
+                onTap: () => _navegarMenu('/publicar-opcoes'),
+              ),
+            if (_ehAdmin)
+              _itemMenu(
+                icone: Icons.admin_panel_settings_outlined,
+                texto: 'AdministraÃ§Ã£o',
+                onTap: () => _navegarMenu('/admin-obras'),
+              ),
+            _itemMenu(
+              icone: Icons.campaign_outlined,
+              texto: 'Anuncie aqui',
+              onTap: () => _navegarMenu('/anuncie'),
+            ),
+            const Spacer(),
+            const Divider(height: 1),
+            if (estaAutenticado)
+              _itemMenu(
+                icone: Icons.person_outline,
+                texto: 'Minha conta',
+                onTap: () {
+                  Navigator.pop(context);
+                  _abrirConta();
+                },
+              )
+            else ...[
+              _itemMenu(
+                icone: Icons.login,
+                texto: 'Entrar',
+                onTap: () => _navegarMenu('/login'),
+              ),
+              _itemMenu(
+                icone: Icons.person_add_outlined,
+                texto: 'Criar conta',
+                onTap: () => _navegarMenu('/cadastro'),
+              ),
+            ],
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _itemMenu({
+    required IconData icone,
+    required String texto,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icone, color: const Color(0xFF333333)),
+      title: Text(texto),
+      onTap: onTap,
+    );
+  }
+
+  void _navegarMenu(String rota) {
+    Navigator.pop(context);
+    context.go(rota);
+  }
+
   Widget _buildCategorias() {
     const categorias = [
       'Tese de Doutoramento',
-      'Dissertação de Mestrado',
+      'DissertaÃ§Ã£o de Mestrado',
       'Monografia',
-      'Artigos Científicos',
-      'Comunicações Científicas',
+      'Artigos CientÃ­ficos',
+      'ComunicaÃ§Ãµes CientÃ­ficas',
       'Posters',
       'Resumos',
-      'Relatórios Académicos',
-      'Trabalhos Académicos',
+      'RelatÃ³rios AcadÃ©micos',
+      'Trabalhos AcadÃ©micos',
     ];
 
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding:
-      const EdgeInsets.fromLTRB(
-        24,
-        34,
-        24,
-        48,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 34, 24, 48),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 1100,
-          ),
+          constraints: const BoxConstraints(maxWidth: 1100),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LayoutBuilder(
-                builder:
-                    (context, constraints) {
-                  final largura =
-                      constraints.maxWidth;
+                builder: (context, constraints) {
+                  final largura = constraints.maxWidth;
 
                   if (largura < 600) {
                     return Column(
-                      crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Explore as obras por tipo de publicação.',
-                          style:
-                          TextStyle(
+                          'Explore as obras por tipo de publicaÃ§Ã£o.',
+                          style: TextStyle(
                             fontSize: 14,
-                            color:
-                            Color(0xFF777777),
+                            color: Color(0xFF777777),
                             height: 1.5,
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 12,
-                        ),
+                        const SizedBox(height: 12),
 
                         Align(
-                          alignment:
-                          Alignment.centerRight,
-                          child:
-                          _buildBotaoAnuncie(),
+                          alignment: Alignment.centerRight,
+                          child: _buildBotaoAnuncie(),
                         ),
                       ],
                     );
                   }
 
                   return Row(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const Expanded(
                         child: Text(
-                          'Explore as obras por tipo de publicação.',
-                          style:
-                          TextStyle(
+                          'Explore as obras por tipo de publicaÃ§Ã£o.',
+                          style: TextStyle(
                             fontSize: 14,
-                            color:
-                            Color(0xFF777777),
+                            color: Color(0xFF777777),
                             height: 1.5,
                           ),
                         ),
                       ),
 
-                      const SizedBox(
-                        width: 20,
-                      ),
+                      const SizedBox(width: 20),
 
                       _buildBotaoAnuncie(),
                     ],
@@ -929,53 +937,36 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
 
-              const SizedBox(
-                height: 16,
-              ),
+              const SizedBox(height: 16),
 
               LayoutBuilder(
-                builder:
-                    (context, constraints) {
-                  final largura =
-                      constraints.maxWidth;
+                builder: (context, constraints) {
+                  final largura = constraints.maxWidth;
 
-                  final colunas =
-                  largura >= 1000
+                  final colunas = largura >= 1000
                       ? 5
                       : largura >= 650
                       ? 3
                       : 2;
 
-                  const espacamentoHorizontal =
-                  10.0;
+                  const espacamentoHorizontal = 10.0;
 
-                  const espacamentoVertical =
-                  10.0;
+                  const espacamentoVertical = 10.0;
 
                   final itemLargura =
-                      (largura -
-                          ((colunas - 1) *
-                              espacamentoHorizontal)) /
-                          colunas;
+                      (largura - ((colunas - 1) * espacamentoHorizontal)) /
+                      colunas;
 
                   return Wrap(
-                    spacing:
-                    espacamentoHorizontal,
-                    runSpacing:
-                    espacamentoVertical,
-                    children:
-                    categorias
+                    spacing: espacamentoHorizontal,
+                    runSpacing: espacamentoVertical,
+                    children: categorias
                         .map(
-                          (categoria) =>
-                          SizedBox(
-                            width:
-                            itemLargura,
-                            child:
-                            _buildCategoriaItem(
-                              categoria,
-                            ),
+                          (categoria) => SizedBox(
+                            width: itemLargura,
+                            child: _buildCategoriaItem(categoria),
                           ),
-                    )
+                        )
                         .toList(),
                   );
                 },
@@ -995,57 +986,32 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCategoriaItem(
-      String nome,
-      ) {
+  Widget _buildCategoriaItem(String nome) {
     return InkWell(
       onTap: () {
-        context.go(
-          '/categoria/${Uri.encodeComponent(nome)}',
-        );
+        context.go('/categoria/${Uri.encodeComponent(nome)}');
       },
-      borderRadius:
-      BorderRadius.circular(8),
-      hoverColor:
-      Colors.transparent,
-      splashColor:
-      Colors.transparent,
-      highlightColor:
-      Colors.transparent,
-      focusColor:
-      Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      focusColor: Colors.transparent,
       child: Container(
-        constraints:
-        const BoxConstraints(
-          minHeight: 48,
-        ),
-        padding:
-        const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 9,
-        ),
-        decoration:
-        BoxDecoration(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
           color: Colors.transparent,
-          borderRadius:
-          BorderRadius.circular(8),
-          border: Border.all(
-            color:
-            const Color(0xFFE1E4E7),
-            width: 1,
-          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE1E4E7), width: 1),
         ),
         alignment: Alignment.center,
         child: Text(
           nome,
-          textAlign:
-          TextAlign.center,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 13.5,
-            fontWeight:
-            FontWeight.w500,
-            color:
-            Color(0xFF333333),
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF333333),
             height: 1.3,
           ),
         ),
@@ -1057,80 +1023,57 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 38,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 38),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 1100,
-          ),
+          constraints: const BoxConstraints(maxWidth: 1100),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Publicações recentes',
+                'PublicaÃ§Ãµes recentes',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight:
-                  FontWeight.w700,
-                  color:
-                  Color(0xFF222222),
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
                   letterSpacing: -0.2,
                 ),
               ),
 
-              const SizedBox(
-                height: 7,
-              ),
+              const SizedBox(height: 7),
 
               const Text(
                 'Confira as obras publicadas recentemente.',
                 style: TextStyle(
                   fontSize: 14,
-                  color:
-                  Color(0xFF777777),
+                  color: Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
 
-              const SizedBox(
-                height: 5,
-              ),
+              const SizedBox(height: 5),
 
               if (_carregandoObras)
                 const Center(
                   child: Padding(
-                    padding:
-                    EdgeInsets.all(30),
-                    child:
-                    CircularProgressIndicator(),
+                    padding: EdgeInsets.all(30),
+                    child: CircularProgressIndicator(),
                   ),
                 )
               else if (_obrasRecentes.isEmpty)
                 _buildEstadoVazio(
-                  'Ainda não existem publicações disponíveis.',
+                  'Ainda nÃ£o existem publicaÃ§Ãµes disponÃ­veis.',
                 )
               else
                 Column(
-                  crossAxisAlignment:
-                  CrossAxisAlignment.start,
-                  children:
-                  _obrasRecentes
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _obrasRecentes
                       .map(
-                        (obra) =>
-                        ObraListaItem(
+                        (obra) => ObraListaItem(
                           obra: obra,
-                          onTap: () =>
-                              _abrirObra(
-                                obra,
-                              ),
+                          onTap: () => _abrirObra(obra),
                         ),
-                  )
+                      )
                       .toList(),
                 ),
             ],
@@ -1141,8 +1084,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildConsultasRecentes() {
-    final usuario =
-        Supabase.instance.client.auth.currentUser;
+    final usuario = Supabase.instance.client.auth.currentUser;
 
     if (usuario == null) {
       return const SizedBox.shrink();
@@ -1151,84 +1093,56 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: double.infinity,
       color: Colors.white,
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 38,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 38),
       child: Center(
         child: ConstrainedBox(
-          constraints:
-          const BoxConstraints(
-            maxWidth: 1100,
-          ),
+          constraints: const BoxConstraints(maxWidth: 1100),
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Obras consultadas recentemente',
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight:
-                  FontWeight.w700,
-                  color:
-                  Color(0xFF222222),
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF222222),
                   letterSpacing: -0.2,
                 ),
               ),
 
-              const SizedBox(
-                height: 7,
-              ),
+              const SizedBox(height: 7),
 
               const Text(
-                'Aceda rapidamente às obras que consultou.',
+                'Aceda rapidamente Ã s obras que consultou.',
                 style: TextStyle(
                   fontSize: 14,
-                  color:
-                  Color(0xFF777777),
+                  color: Color(0xFF777777),
                   height: 1.5,
                 ),
               ),
 
-              const SizedBox(
-                height: 22,
-              ),
+              const SizedBox(height: 22),
 
               if (_carregandoConsultas)
                 const Center(
                   child: Padding(
-                    padding:
-                    EdgeInsets.all(30),
-                    child:
-                    CircularProgressIndicator(),
+                    padding: EdgeInsets.all(30),
+                    child: CircularProgressIndicator(),
                   ),
                 )
               else if (_consultasRecentes.isEmpty)
-                _buildEstadoVazio(
-                  'Ainda não consultou nenhuma obra.',
-                )
+                _buildEstadoVazio('Ainda nÃ£o consultou nenhuma obra.')
               else
                 Column(
-                  children:
-                  List.generate(
-                    _consultasRecentes.length,
-                        (index) {
-                      final consulta =
-                      _consultasRecentes[
-                      index];
+                  children: List.generate(_consultasRecentes.length, (index) {
+                    final consulta = _consultasRecentes[index];
 
-                      return HistoricoListaItem(
-                        obra: consulta,
-                        onAbrir: () =>
-                            _abrirConsultaRecente(
-                              consulta,
-                            ),
-                        onRemover: () {},
-                      );
-                    },
-                  ),
+                    return HistoricoListaItem(
+                      obra: consulta,
+                      onAbrir: () => _abrirConsultaRecente(consulta),
+                      onRemover: () {},
+                    );
+                  }),
                 ),
             ],
           ),
@@ -1237,35 +1151,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEstadoVazio(
-      String mensagem,
-      ) {
+  Widget _buildEstadoVazio(String mensagem) {
     return Container(
       width: double.infinity,
-      padding:
-      const EdgeInsets.symmetric(
-        vertical: 28,
-        horizontal: 20,
-      ),
-      decoration:
-      BoxDecoration(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-        BorderRadius.circular(10),
-        border: Border.all(
-          color:
-          const Color(0xFFE5E5E5),
-        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE5E5E5)),
       ),
       child: Center(
         child: Text(
           mensagem,
-          textAlign:
-          TextAlign.center,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
-            color:
-            Color(0xFF777777),
+            color: Color(0xFF777777),
             height: 1.5,
           ),
         ),
@@ -1274,36 +1175,26 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _MegafoneAnuncie
-    extends StatefulWidget {
+class _MegafoneAnuncie extends StatefulWidget {
   final VoidCallback onTap;
 
-  const _MegafoneAnuncie({
-    required this.onTap,
-  });
+  const _MegafoneAnuncie({required this.onTap});
 
   @override
-  State<_MegafoneAnuncie> createState() =>
-      _MegafoneAnuncieState();
+  State<_MegafoneAnuncie> createState() => _MegafoneAnuncieState();
 }
 
-class _MegafoneAnuncieState
-    extends State<_MegafoneAnuncie>
+class _MegafoneAnuncieState extends State<_MegafoneAnuncie>
     with SingleTickerProviderStateMixin {
-  late final AnimationController
-  _controller;
+  late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
 
-    _controller =
-    AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration:
-      const Duration(
-        milliseconds: 1800,
-      ),
+      duration: const Duration(milliseconds: 1800),
     )..repeat();
   }
 
@@ -1321,73 +1212,46 @@ class _MegafoneAnuncieState
         color: Colors.transparent,
         child: InkWell(
           onTap: widget.onTap,
-          borderRadius:
-          BorderRadius.circular(22),
-          hoverColor:
-          const Color(0xFFF1F1F1),
-          splashColor:
-          const Color(0xFFE5E5E5),
+          borderRadius: BorderRadius.circular(22),
+          hoverColor: const Color(0xFFF1F1F1),
+          splashColor: const Color(0xFFE5E5E5),
           child: Padding(
-            padding:
-            const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: AnimatedBuilder(
               animation: _controller,
-              builder:
-                  (context, child) {
-                final progresso =
-                    _controller.value;
+              builder: (context, child) {
+                final progresso = _controller.value;
 
-                final movimento =
-                progresso < 0.12
+                final movimento = progresso < 0.12
                     ? progresso / 0.12
                     : progresso < 0.24
-                    ? (0.24 -
-                    progresso) /
-                    0.12
+                    ? (0.24 - progresso) / 0.12
                     : 0.0;
 
-                final escala =
-                    1.0 +
-                        (movimento * 0.08);
+                final escala = 1.0 + (movimento * 0.08);
 
                 return Transform.translate(
-                  offset: Offset(
-                    movimento * 2.0,
-                    0,
-                  ),
-                  child:
-                  Transform.scale(
-                    scale: escala,
-                    child: child,
-                  ),
+                  offset: Offset(movimento * 2.0, 0),
+                  child: Transform.scale(scale: escala, child: child),
                 );
               },
               child: Row(
-                mainAxisSize:
-                MainAxisSize.min,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     Icons.campaign_outlined,
                     size: 23,
-                    color:
-                    Color(0xFF333333),
+                    color: Color(0xFF333333),
                   ),
 
-                  const SizedBox(
-                    width: 7,
-                  ),
+                  const SizedBox(width: 7),
 
                   const Text(
                     'Anuncie aqui!',
                     style: TextStyle(
                       fontSize: 13.5,
-                      fontWeight:
-                      FontWeight.w600,
-                      color:
-                      Color(0xFF333333),
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
                     ),
                   ),
                 ],
